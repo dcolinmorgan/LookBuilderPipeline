@@ -2,3 +2,4 @@ pillow==10.4.0
 diffusers
 transformers
 pytest
+torch
