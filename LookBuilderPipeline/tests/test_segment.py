@@ -14,7 +14,7 @@ def test_segment_image_output_size():
     segmented_outfit, mask = segment_image("LookBuilderPipeline/img/p09.jpg")
     assert segmented_outfit.size == img.size
     assert mask.T.shape == img.size
-    assert mask.dtype == np.bool_ 
+    assert mask.dtype == np.uint8
 
 def test_segment_image_invalid_path():
     with pytest.raises(Exception):
