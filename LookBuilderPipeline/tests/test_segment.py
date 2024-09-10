@@ -7,7 +7,7 @@ import numpy as np
 def test_segment_image_returns_tuple():
     result = segment_image("LookBuilderPipeline/img/p09.jpg")
     assert isinstance(result, tuple)
-    assert len(result) == 2
+    assert len(result) == 3
 
 def test_segment_image_output_size():
     img=load_image("LookBuilderPipeline/img/p09.jpg")
