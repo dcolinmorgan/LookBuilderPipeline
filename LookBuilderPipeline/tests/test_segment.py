@@ -11,7 +11,7 @@ def test_segment_image_returns_tuple():
 
 def test_segment_image_output_size():
     img=load_image("LookBuilderPipeline/img/p09.jpg")
-    segmented_outfit, mask = segment_image("LookBuilderPipeline/img/p09.jpg")
+    segmented_outfit, mask, mask_array = segment_image("LookBuilderPipeline/img/p09.jpg")
     assert segmented_outfit.size == img.size
     assert mask.T.shape == img.size
     assert mask.dtype == np.uint8
@@ -22,7 +22,7 @@ def test_segment_image_invalid_path():
 
 @pytest.mark.parametrize("additional_option", [None, "shoe", "bag"])
 def test_segment_image_various_options(additional_option):
-    segmented_outfit, mask = segment_image("LookBuilderPipeline/img/p09.jpg", additional_option=additional_option)
+    segmented_outfit, mask, mask_array = segment_image("LookBuilderPipeline/img/p09.jpg", additional_option=additional_option)
     assert isinstance(segmented_outfit, Image.Image)
     assert isinstance(mask, np.ndarray)
 
@@ -33,5 +33,5 @@ def test_segment_image_consistency():
 
 @pytest.mark.parametrize("size", [(100, 100), (200, 300), (500, 500)])
 def test_segment_image_different_sizes(size):
-    segmented_outfit, mask = segment_image("LookBuilderPipeline/img/p09.jpg", resize=True,size=size)
+    segmented_outfit, mask, mask_array = segment_image("LookBuilderPipeline/img/p09.jpg", resize=True,size=size)
     assert segmented_outfit.size == size
