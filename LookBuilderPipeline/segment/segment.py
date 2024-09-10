@@ -32,7 +32,7 @@ def segment_image(image_path, additional_option=None, resize=False, size=(512,51
     final_mask = np.sum(mask_list, axis=0)
     seg_img = Image.fromarray(final_mask.astype(np.uint8) * 255)
     
-    if size==True:
+    if resize==True:
         seg_img = seg_img.resize(size)
     
     # Return both the segmented outfit and the mask
