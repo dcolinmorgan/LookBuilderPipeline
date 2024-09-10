@@ -21,10 +21,11 @@ class ImageModelFlux(BaseImageModel):
         controlnet = FluxMultiControlNetModel([controlnet_union])
 
         pipe = FluxControlNetPipeline.from_pretrained(base_model, controlnet=controlnet, torch_dtype=torch.float16, token=token)
-        pipe.to("cuda")
+        # pipe.to("cuda")
         # Enable CPU offloading
-        pipe.enable_model_cpu_offload()
-
+        # pipe.enable_model_cpu_offload()
+        pipe.enable_sequential_cpu_offload()
+        pipe.enable_xformers_memory_efficient_attention()
         
         # prompt = 'A beautiful female model in paris.'
         control_mode_depth = 2 # defines the depth of the controlnet
