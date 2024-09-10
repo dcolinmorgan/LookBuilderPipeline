@@ -2,7 +2,7 @@
 # This contains the shared logic for handling the inputs: pose, clothes, mask, and prompt.
 
 class BaseImageModel:
-    def __init__(self, pose, clothes, mask, prompt):
+    def __init__(self, pose, mask, prompt):
         """
         Initialize the image model with common inputs.
         
@@ -13,7 +13,7 @@ class BaseImageModel:
             prompt (str): The text prompt to guide the image generation (e.g., style or additional details).
         """
         self.pose = pose
-        self.clothes = clothes
+        # self.clothes = clothes
         self.mask = mask
         self.prompt = prompt
 
