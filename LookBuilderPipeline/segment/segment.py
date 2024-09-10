@@ -6,7 +6,7 @@ from PIL import Image
 segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
 
 
-def segment_image(image_path, additional_option=None, resize=(512,512)):
+def segment_image(image_path, additional_option=None, resize=False, size=(512,512)):
     """
     Function for segmenting an image and returning the outfit with optional additions.
     Args:
@@ -32,8 +32,8 @@ def segment_image(image_path, additional_option=None, resize=(512,512)):
     final_mask = np.sum(mask_list, axis=0)
     seg_img = Image.fromarray(final_mask.astype(np.uint8) * 255)
     
-    if resize!=None:
-        seg_img = seg_img.resize(resize)
+    if size==True:
+        seg_img = seg_img.resize(size)
     
     # Return both the segmented outfit and the mask
     return seg_img, final_mask.astype(np.uint8)
