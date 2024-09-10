@@ -1,6 +1,7 @@
 from diffusers.utils import load_image
 from transformers import pipeline
 import numpy as np
+from PIL import Image
 
 segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
 
