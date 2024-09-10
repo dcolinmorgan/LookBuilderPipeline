@@ -1,5 +1,5 @@
 import pytest
-from LookBuilderPipeline.segmentation.segmentation import segment_image
+from LookBuilderPipeline.segment.segment import segment_image
 from PIL import Image
 import numpy as np
 

@@ -36,4 +36,4 @@ def segment_image(image_path, additional_option=None, resize=(512,512)):
         seg_img = seg_img.resize(resize)
     
     # Return both the segmented outfit and the mask
-    return seg_img, final_mask
+    return seg_img, final_mask.astype(np.uint8)
