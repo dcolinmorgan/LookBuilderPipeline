@@ -1,49 +1,67 @@
-# Import necessary image processing libraries (e.g., Pillow for handling image objects)
-from PIL import Image  
+# Import necessary libraries for image processing and segmentation
+from diffusers.utils import load_image  # For loading images
+from transformers import pipeline  # For using pre-trained models
+import numpy as np  # For numerical operations on arrays
+from PIL import Image  # For image manipulation
 
-# @Daniel: The purpose of this function is to segment the input image into parts,
-# where the minimum requirement is to return the outfit, and then optionally add other items
-# like shoes, handbags, etc.
-#
-# The image parameter is an actual image object, not the path, and we need to process it accordingly.
-#
-# To Do (@Daniel):
-# - Implement code that processes the image object using an image processing library (e.g., Pillow, OpenCV).
-# - The function should always return the segmented outfit (mandatory).
-# - Optionally, depending on the additional option provided (e.g., "shoes", "handbag"), segment those items as well.
-# - Return two outputs:
-#   1. The segmented outfit (minimum).
-#   2. A binary mask of the segmented area (including additional items like shoes if specified).
+# Initialize the segmentation model using a pre-trained model from Hugging Face
+segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
 
-def segment_image(image, additional_option=None):
+def segment_image(image_path, additional_option=None, resize=False, size=(512, 512)):
     """
-    Placeholder function for segmenting an image and returning the outfit with optional additions.
+    Function for segmenting an image and returning the outfit with optional additions.
     
     Args:
-        image (PIL.Image or similar): The actual image object to be processed.
+        image_path (str): The path to the image file to be processed.
         additional_option (str): The additional item to segment (e.g., "shoes", "handbag"). Optional.
+        resize (bool): Whether to resize the output image. Default is False.
+        size (tuple): The target size for resizing the output image. Default is (512, 512).
         
     Returns:
-        tuple: (segmented_outfit, mask)
-        segmented_outfit (object): The image of the segmented outfit.
-        mask (object): A binary mask highlighting the segmented area (outfit and any additional items).
+        tuple: (segmented_outfit, mask, final_array)
+        segmented_outfit (PIL.Image): The image of the segmented outfit.
+        mask (PIL.Image): A binary mask highlighting the segmented area (outfit and any additional items).
+        final_array (numpy.ndarray): The final mask as a numpy array.
     """
+    # Load the image from the specified path
+    seg_img = Image.open(image_path)
     
-    # Placeholder: Convert image to a format suitable for processing (e.g., a numpy array)
-    # image_data = np.array(image)  # Example of converting the image into an array if needed for processing
+    # Use the segmenter to get segments from the image
+    segments = segmenter(seg_img)
 
-    # Placeholder for the minimum segmentation (outfit)
-    segmented_outfit = "Segmented outfit - Placeholder"
+    # Define the labels for the segments we want to include
+    segment_include = ["Upper-clothes", "Skirt", "Pants", "Dress", "Belt", "Bag", "Scarf"]
     
-    # Placeholder: Processing the image and handling additional options
-    if additional_option == "shoes":
-        segmented_outfit += " + shoes"
-        mask = "Mask for outfit + shoes - Placeholder"
-    elif additional_option == "handbag":
-        segmented_outfit += " + handbag"
-        mask = "Mask for outfit + handbag - Placeholder"
-    else:
-        mask = "Mask for outfit only - Placeholder"
+    # Extend the segments to include additional options if specified
+    if additional_option in ["shoe"]:
+        segment_include.extend(["Left-shoe", "Right-shoe"])
+    if additional_option in ["bag"]:
+        segment_include.extend(["Bag"])
+
+    # Create a list of masks for the included segments
+    mask_list = [np.array(s['mask']) for s in segments if s['label'] in segment_include]
+
+    # Initialize the final mask with the first mask in the list
+    final_mask = np.array(mask_list[0])
     
-    # Return both the segmented outfit and the mask
-    return segmented_outfit, mask
+    # Combine all masks into a single final mask
+    for mask in mask_list:
+        current_mask = np.array(mask)
+        final_mask = final_mask + current_mask  # Add the current mask to the final mask
+    
+    # Create a copy of the final mask for later use
+    final_array = final_mask.copy()
+    
+    # Convert the final mask to a PIL Image
+    final_mask = Image.fromarray(final_mask)
+    
+    # Add the mask as an alpha channel to the original image
+    seg_img.putalpha(final_mask)
+    
+    # Resize the images if the resize flag is set to True
+    if resize:
+        seg_img = seg_img.resize(size)
+        final_mask = final_mask.resize(size)
+
+    # Return the segmented outfit image, the mask, and the final mask array
+    return seg_img, final_mask, final_array
