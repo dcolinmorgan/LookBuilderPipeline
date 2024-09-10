@@ -3,7 +3,7 @@ from diffusers.utils import load_image
 
 openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
 
-def detect_pose(image_path, resize=False):
+def detect_pose(image_path, resize=False,size=(512,512)):
     """
     function for detecting the pose in an image.
     Args:
@@ -14,5 +14,5 @@ def detect_pose(image_path, resize=False):
     image = load_image(image_path).convert("RGB")
     pose_img = openpose(image)
     if resize:
-        pose_img = pose_img.resize((512, 512))
+        pose_img = pose_img.resize(size)
     return pose_img
