@@ -1,4 +1,4 @@
 pillow==10.4.0
-controlnet-aux
-diffusers
+controlnet-aux==0.0.9
+diffusers==0.30
 pytest
