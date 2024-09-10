@@ -24,7 +24,7 @@ def test_segment_image_invalid_path():
 def test_segment_image_various_options(additional_option):
     segmented_outfit, mask, mask_array = segment_image("LookBuilderPipeline/img/p09.jpg", additional_option=additional_option)
     assert isinstance(segmented_outfit, Image.Image)
-    assert isinstance(mask, np.ndarray)
+    assert isinstance(mask_array, np.ndarray)
 
 def test_segment_image_consistency():
     result1 = segment_image("LookBuilderPipeline/img/p09.jpg")
