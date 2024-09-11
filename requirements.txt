@@ -3,3 +3,6 @@ diffusers==0.30
 transformers==4.44.0
 pytest
 torch==2.4.0
+controlnet-aux==0.0.9
+diffusers==0.30
+pytest
