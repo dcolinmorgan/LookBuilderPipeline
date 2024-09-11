@@ -1,23 +1,31 @@
-# @Daniel: The purpose of this function is to return the pose of the input image.
-# This pose data will later be used to ensure that the generated image 
-# (created in a future step) accurately matches the pose of the talent in the input image.
-# The goal is to make sure that the generated image aligns perfectly with the pose of the 
-# original model, ensuring consistency between the input and the generated output.
-#
-# To Do (@Daniel):
-# - Implement code that processes the input image.
-# - Extract the pose (key points like limbs, face orientation, etc.).
-# - Return the pose data in a format that can be used later in the pipeline.
+# Import necessary libraries for pose detection
+from controlnet_aux import OpenposeDetector  # For pose detection using OpenPose
+from diffusers.utils import load_image  # For loading images
 
-def detect_pose(image_path):
+# Initialize the OpenPose detector using a pre-trained model from Hugging Face
+openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
+
+def detect_pose(image_path, resize=False, size=(512, 512)):
     """
-    Placeholder function for detecting the pose in an image.
+    Function for detecting the pose in an image.
     
     Args:
         image_path (str): Path to the input image.
+        resize (bool): Whether to resize the output image. Default is False.
+        size (tuple): The target size for resizing the output image. Default is (512, 512).
         
     Returns:
-        str: Placeholder response indicating a pose detection.
+        PIL.Image: An image indicating the detected pose.
     """
-    # Placeholder logic
-    return "Detecting pose - Placeholder"
+    # Load the image from the specified path and convert it to RGB format
+    image = load_image(image_path).convert("RGB")
+    
+    # Use the OpenPose detector to detect the pose in the image
+    pose_img = openpose(image)
+    
+    # Resize the pose image if the resize flag is set to True
+    if resize:
+        pose_img = pose_img.resize(size)
+    
+    # Return the image with the detected pose
+    return pose_img

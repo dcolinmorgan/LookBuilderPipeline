@@ -1,8 +1,11 @@
 pillow==10.4.0
-diffusers==0.30
 transformers==4.44.0
 pytest
 torch==2.4.0
 git+https://github.com/huggingface/diffusers
 tokenizers==0.19
+controlnet-aux==0.0.9
+pytest
+matplotlib==3.7.3 ## not necessary for pipeline
 
+git+https://${GH_PAT}@github.com/Modegen/flux-controlnet-inpaint.git
