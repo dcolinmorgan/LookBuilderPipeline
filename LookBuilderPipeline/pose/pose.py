@@ -1,6 +1,7 @@
 # Import necessary libraries for pose detection
 from controlnet_aux import OpenposeDetector  # For pose detection using OpenPose
 from diffusers.utils import load_image  # For loading images
+from LookBuilderPipeline.resize.resize import resize_images
 
 # Initialize the OpenPose detector using a pre-trained model from Hugging Face
 openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
@@ -25,7 +26,7 @@ def detect_pose(image_path, resize=False, size=(512, 512)):
     
     # Resize the pose image if the resize flag is set to True
     if resize:
-        pose_img = pose_img.resize(size)
+        pose_img = resize_images(pose_img,size)
     
     # Return the image with the detected pose
     return pose_img

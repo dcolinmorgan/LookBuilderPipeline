@@ -3,6 +3,7 @@ from diffusers.utils import load_image  # For loading images
 from transformers import pipeline  # For using pre-trained models
 import numpy as np  # For numerical operations on arrays
 from PIL import Image  # For image manipulation
+from LookBuilderPipeline.resize.resize import resize_images
 
 # Initialize the segmentation model using a pre-trained model from Hugging Face
 segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
@@ -60,8 +61,7 @@ def segment_image(image_path, additional_option=None, resize=False, size=(512, 5
     
     # Resize the images if the resize flag is set to True
     if resize:
-        seg_img = seg_img.resize(size)
-        final_mask = final_mask.resize(size)
+        seg_img,final_mask = resize_images([seg_img,final_mask], size)
 
     # Return the segmented outfit image, the mask, and the final mask array
     return seg_img, final_mask, final_array
