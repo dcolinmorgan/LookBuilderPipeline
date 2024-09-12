@@ -22,7 +22,9 @@ class ImageModelFlux(BaseImageModel):
         """
         # Set up the pipeline
         base_model = 'black-forest-labs/FLUX.1-dev'
-        controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union'
+        # controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union'
+        controlnet_model2 = 'Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro'
+
         controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.float16)
         controlnet = FluxMultiControlNetModel([controlnet_pose,controlnet_pose])
 
