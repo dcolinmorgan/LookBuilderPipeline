@@ -10,7 +10,7 @@ import requests
 import matplotlib.pyplot as plt
 import torch.nn as nn
 from controlnet_aux import CannyDetector
-
+from base_image_model import BaseImageModel
 
 class ImageModelFlux(BaseImageModel):
     def __init__(self, image, pose, mask, canny, prompt):
