@@ -1,9 +1,11 @@
 import numpy as np
 from diffusers.utils import load_image
-from controlnet_aux import HEDdetector, MidasDetector, MLSDdetector, OpenposeDetector, PidiNetDetector, NormalBaeDetector, LineartDetector, LineartAnimeDetector, CannyDetector, ContentShuffleDetector, ZoeDetector, MediapipeFaceDetector, SamDetector, LeresDetector, DWposeDetector
+from LookBuilderPipeline.segment.segment import segment
+from LookBuilderPipeline.pose.pose import detect_pose
+from LookBuilderPipeline.canny.canny import canny_image
 
 class BaseImageModel:
-    def __init__(self, pose, mask, prompt):
+    def __init__(self, img, pose, mask, canny, prompt):
         """
         Initialize the image model with common inputs.
         
@@ -13,9 +15,10 @@ class BaseImageModel:
             mask (object): The mask generated earlier that defines the boundaries of the outfit.
             prompt (str): The text prompt to guide the image generation (e.g., style or additional details).
         """
+        self.img = img
         self.pose = pose
-        # self.clothes = clothes
         self.mask = mask
+        self.canny = canny
         self.prompt = prompt
 
 
@@ -32,34 +35,17 @@ class BaseImageModel:
         plt.close(fig)  # Close the figure to free up memory
         
     @staticmethod
-    def generate_image_extras(image):
+    def generate_image_extras(image,inv=False):
         """
         used to generate extra images for the various controlnets
         """
         
         label = str(np.random.randint(100000000))
-        
-        #pose
-        openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
-        pose_image = openpose(image)
-
-        #mask
-        segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
-        segments = segmenter(image)
-        segment_include = ["Upper-clothes", "Skirt", "Pants", "Dress", "Belt", "Bag", "Scarf", "Right-shoe","Left-shoe","Bag"]
-        mask_list = [np.array(s['mask']) for s in segments if s['label'] not in segment_include]
-        final_mask = np.array(mask_list[0])
-        for mask in mask_list:
-            current_mask = np.array(mask)
-            final_mask = final_mask + current_mask  # Add the current mask to the final mask
-        final_array = final_mask.copy() 
-        final_mask = Image.fromarray(final_mask)
-
-        #canny (if needed)
-        canny = CannyDetector()
-        canny_image = canny(image)
+        pose_image = detect_pose(image)
+        final_mask = segment(image,inv)
+        canny_image = canny_image(image,inv)
 
 
-        showImagesHorizontally([image,final_mask,canny_image,pose_image],'input'+label+'.png')
+        showImagesHorizontally([image,pose_image,final_mask,canny_image],'input'+label+'.png')
 
-        return final_mask,canny_image,pose_image
+        return pose_image, final_mask, canny_image
