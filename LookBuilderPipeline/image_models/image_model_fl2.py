@@ -45,7 +45,7 @@ class ImageModelFlux(BaseImageModel):
             prompt,
             negative_prompt,
             image=image,
-            control_image=[canny_image,pose_image],
+            control_image=[canny_image,pose_image],  # try masked canny, fully pose
             control_mode=[0, 4],
             controlnet_conditioning_scale=[0.1,0.9],
             mask_image=mask,
@@ -61,7 +61,7 @@ class ImageModelFlux(BaseImageModel):
 
     def generate_image_kids(self):
         """
-        Generate a new image using the Flux model based on the pose, mask and prompt.
+        Generate a new image using the Flux model based on the canny image and prompt.
         """
         # Set up the pipeline
         base_model = 'black-forest-labs/FLUX.1-dev'
@@ -87,7 +87,7 @@ class ImageModelFlux(BaseImageModel):
             prompt,
             negative_prompt,
             image=image,
-            control_image=canny_image,
+            control_image=canny_image,  # full canny image, not masked
             controlnet_conditioning_scale=0.8,
             mask_image=mask,
             strength=0.95,
