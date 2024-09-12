@@ -13,8 +13,8 @@ from controlnet_aux import CannyDetector
 
 
 class ImageModelFlux(BaseImageModel):
-    def __init__(self, pose, mask, prompt):
-        super().__init__(pose, mask, prompt)
+    def __init__(self, image, pose, mask, canny, prompt):
+        super().__init__(image, pose, mask, canny, prompt)
 
     def generate_image(self):
         """
@@ -44,8 +44,8 @@ class ImageModelFlux(BaseImageModel):
         image_res = pipe(
             prompt,
             negative_prompt,
-            image=image,
-            control_image=[canny_image,pose_image],  # try masked canny, fully pose
+            image=self.image,
+            control_image=[self.canny_image,self.pose_image],  # try masked canny, fully pose
             control_mode=[0, 4],
             controlnet_conditioning_scale=[0.1,0.9],
             mask_image=mask,
@@ -79,17 +79,17 @@ class ImageModelFlux(BaseImageModel):
         pipe.enable_sequential_cpu_offload()
 
         
-        prompt = "beautiful female model on a brightly lit street"
+        # prompt = "beautiful female model on a brightly lit street"
         negative_prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, sleeves, tights, stockings, deformed, distorted, disfigured, poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, mutated hands and fingers, disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation, NSFW"
 
         generator = torch.Generator(device="cuda").manual_seed(seed)
         image_res = pipe(
-            prompt,
+            self.prompt,
             negative_prompt,
-            image=image,
-            control_image=canny_image,  # full canny image, not masked
+            image=self.image,
+            control_image=self.canny_image,  # full canny image, not masked
             controlnet_conditioning_scale=0.8,
-            mask_image=mask,
+            mask_image=self.mask,
             strength=0.95,
             num_inference_steps=20,
             guidance_scale=7,

@@ -15,7 +15,7 @@ class BaseImageModel:
             mask (object): The mask generated earlier that defines the boundaries of the outfit.
             prompt (str): The text prompt to guide the image generation (e.g., style or additional details).
         """
-        self.img = img
+        self.image = img
         self.pose = pose
         self.mask = mask
         self.canny = canny
