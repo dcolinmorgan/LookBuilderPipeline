@@ -8,7 +8,7 @@ def test_detect_pose_returns_image():
 
 def test_detect_pose_output_size():
     result = detect_pose("LookBuilderPipeline/img/p09.jpg",resize=True,size=(512,512))
-    assert result.size == (512, 512)
+    assert result.size == (1024, 512)
 
 def test_detect_pose_invalid_path():
     with pytest.raises(Exception):

@@ -31,7 +31,7 @@ def test_segment_image_consistency():
     result2 = segment_image("LookBuilderPipeline/img/p09.jpg")
     np.testing.assert_array_equal(result1[1], result2[1])
 
-@pytest.mark.parametrize("size", [(100, 100), (200, 300), (500, 500)])
+@pytest.mark.parametrize("size", [(512, 256), (1024, 928), (818, 756)])
 def test_segment_image_different_sizes(size):
     segmented_outfit, mask, mask_array = segment_image("LookBuilderPipeline/img/p09.jpg", resize=True,size=size)
     assert segmented_outfit.size == size
