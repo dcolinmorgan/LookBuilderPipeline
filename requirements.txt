@@ -1,5 +1,4 @@
 pillow==10.4.0
-diffusers==0.30
 transformers==4.44.0
 pytest
 torch==2.4.0
