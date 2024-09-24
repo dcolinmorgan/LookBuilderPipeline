@@ -1,18 +1,20 @@
-from PIL import Image
+from PIL import Image, ImageOps
 from typing import Union, List
 
 def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]],
                   target_size: int = 512,
-                  resample: int = Image.LANCZOS) -> Union[Image.Image, List[Image.Image]]:
+                  resample: int = Image.LANCZOS,
+                  square: bool = False) -> Union[Image.Image, List[Image.Image]]:
     """
     Resize a single image or a list of images to the specified target size while maintaining aspect ratio.
-    Ensures each dimension is divisible by 8.
+    Ensures each dimension is divisible by 8. Optionally pads the image to make it square.
 
     Args:
         images (str, Image.Image, or List[Union[str, Image.Image]]): 
             A single image (as file path or PIL Image object) or a list of images.
         target_size (int): The target size for the longer dimension of the resized image(s). Default is 512.
         resample (int): The resampling filter. Default is PIL.Image.LANCZOS for high-quality downsampling.
+        square (bool): If True, pad the image to make it square. Default is False.
 
     Returns:
         Union[Image.Image, List[Image.Image]]: The resized image(s) as PIL Image object(s).
@@ -41,7 +43,20 @@ def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]]
         new_width = (new_width // 8) * 8
         new_height = (new_height // 8) * 8
 
-        return img.resize((new_width, new_height), resample=resample)
+        img = img.resize((new_width, new_height), resample=resample)
+
+        if square:
+            # Calculate padding to make the image square
+            max_dim = max(new_width, new_height)
+            padding = (
+                (max_dim - new_width) // 2,
+                (max_dim - new_height) // 2,
+                (max_dim - new_width + 1) // 2,
+                (max_dim - new_height + 1) // 2
+            )
+            img = ImageOps.expand(img, padding, fill=(0, 0, 0))
+
+        return img
 
     if isinstance(images, (str, Image.Image)):
         return resize_single_image(images)
