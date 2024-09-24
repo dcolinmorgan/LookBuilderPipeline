@@ -13,8 +13,8 @@ from controlnet_aux import CannyDetector
 from base_image_model import BaseImageModel
 
 class ImageModelFlux(BaseImageModel):
-    def __init__(self, image, pose, mask, canny, prompt):
-        super().__init__(image, pose, mask, canny, prompt)
+    def __init__(self, image, pose, mask, prompt):
+        super().__init__(image, pose, mask, prompt)
 
     def generate_image(self):
         """
@@ -23,13 +23,12 @@ class ImageModelFlux(BaseImageModel):
         # Set up the pipeline
         base_model = 'black-forest-labs/FLUX.1-dev'
         controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union'
-        # controlnet_model2 = 'Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro'
 
         controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.float16)
-        controlnet = FluxMultiControlNetModel([controlnet_pose])
+        # controlnet = FluxMultiControlNetModel([controlnet_pose,controlnet_pose])
 
-        pipe = FluxControlNetInpaintPipeline.from_pretrained(base_model, controlnet=controlnet, torch_dtype=torch.float16)
-        # pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
+        pipe = FluxControlNetInpaintPipeline.from_pretrained(base_model, controlnet=controlnet_pose, torch_dtype=torch.float16)
+        pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
         # pipe.to("cuda")
 
         pipe.text_encoder.to(torch.float16)
@@ -37,10 +36,10 @@ class ImageModelFlux(BaseImageModel):
         pipe.enable_sequential_cpu_offload()
 
         
-        prompt = "beautiful female model on a brightly lit street"
-        negative_prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, sleeves, tights, stockings, deformed, distorted, disfigured, poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, mutated hands and fingers, disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation, NSFW"
-
-        generator = torch.Generator(device="cuda").manual_seed(seed)
+        negative_prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves"
+        prompt="photo realistic female fashion model with blonde hair on paris street corner"
+     
+        generator = torch.Generator(device="cuda").manual_seed(np.random.randint(0, 1000000))
         image_res = pipe(
             prompt,
             negative_prompt,
