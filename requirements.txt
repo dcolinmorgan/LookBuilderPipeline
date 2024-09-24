@@ -4,5 +4,7 @@ transformers==4.44.0
 pytest
 torch==2.4.0
 controlnet-aux==0.0.9
-diffusers==0.30
+diffusers==0.27.2
 pytest
+
+# !git clone https://github.com/xinsir6/ControlNetPlus.git

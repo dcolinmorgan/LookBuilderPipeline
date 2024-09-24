@@ -24,9 +24,12 @@ def detect_pose(image_path, resize=False, size=(512, 512)):
     # Use the OpenPose detector to detect the pose in the image
     pose_img = openpose(image)
     
+    pose_image = openpose(image, hand_and_face=False, output_type='cv2')
+    
     # Resize the pose image if the resize flag is set to True
     if resize:
         pose_img = resize_images(pose_img,size)
+        pose_image = resize_images(pose_image,size)
     
     # Return the image with the detected pose
-    return pose_img
+    return pose_img, pose_image

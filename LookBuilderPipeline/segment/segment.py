@@ -8,7 +8,7 @@ from LookBuilderPipeline.resize.resize import resize_images
 # Initialize the segmentation model using a pre-trained model from Hugging Face
 segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
 
-def segment_image(image_path, additional_option=None, resize=False, size=(512, 512)):
+def segment_image(image_path, additional_option=None, resize=False, size=(512, 512), inverse=False):
     """
     Function for segmenting an image and returning the outfit with optional additions.
     
@@ -39,8 +39,11 @@ def segment_image(image_path, additional_option=None, resize=False, size=(512, 5
     if additional_option in ["bag"]:
         segment_include.extend(["Bag"])
 
-    # Create a list of masks for the included segments
-    mask_list = [np.array(s['mask']) for s in segments if s['label'] in segment_include]
+    if inverse==False:
+        # Create a list of masks for the included segments
+        mask_list = [np.array(s['mask']) for s in segments if s['label'] in segment_include]
+    else:
+        mask_list = [np.array(s['mask']) for s in segments if s['label'] not in segment_include]
 
     # Initialize the final mask with the first mask in the list
     final_mask = np.array(mask_list[0])
