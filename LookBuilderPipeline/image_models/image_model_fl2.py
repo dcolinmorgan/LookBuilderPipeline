@@ -22,14 +22,14 @@ class ImageModelFlux(BaseImageModel):
         """
         # Set up the pipeline
         base_model = 'black-forest-labs/FLUX.1-dev'
-        # controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union'
-        controlnet_model2 = 'Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro'
+        controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union'
+        # controlnet_model2 = 'Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro'
 
         controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.float16)
-        controlnet = FluxMultiControlNetModel([controlnet_pose,controlnet_pose])
+        controlnet = FluxMultiControlNetModel([controlnet_pose])
 
         pipe = FluxControlNetInpaintPipeline.from_pretrained(base_model, controlnet=controlnet, torch_dtype=torch.float16)
-        pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
+        # pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
         # pipe.to("cuda")
 
         pipe.text_encoder.to(torch.float16)
@@ -45,9 +45,9 @@ class ImageModelFlux(BaseImageModel):
             prompt,
             negative_prompt,
             image=self.image,
-            control_image=[self.canny_image,self.pose_image],  # try masked canny, fully pose
-            control_mode=[0, 4],
-            controlnet_conditioning_scale=[0.1,0.9],
+            control_image=[self.pose_image],
+            control_mode=[4],
+            controlnet_conditioning_scale=[0.9],
             mask_image=mask,
             strength=0.95,
             num_inference_steps=20,
@@ -65,7 +65,7 @@ class ImageModelFlux(BaseImageModel):
         """
         # Set up the pipeline
         base_model = 'black-forest-labs/FLUX.1-dev'
-        controlnet_model = 'YishaoAI/flux-dev-controlnet-canny-kid-clothes'
+        # controlnet_model = 'YishaoAI/flux-dev-controlnet-canny-kid-clothes'
 
         controlnet_kid = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.float16)
         controlnet = FluxMultiControlNetModel([controlnet_kid])
@@ -87,10 +87,11 @@ class ImageModelFlux(BaseImageModel):
             self.prompt,
             negative_prompt,
             image=self.image,
-            control_image=self.canny_image,  # full canny image, not masked
+            control_image=self.pose_image,  # full canny image, not masked
             controlnet_conditioning_scale=0.8,
             mask_image=self.mask,
             strength=0.95,
+            control_mode=4,
             num_inference_steps=20,
             guidance_scale=7,
             generator=generator,
