@@ -23,10 +23,3 @@ diffusers==0.30.2; extra == 'flux'
 
 # SDXL model requirements
 diffusers==0.27.2; extra == 'sdxl'
-
-
-git clone https://${GH_PAT}@github.com/Modegen/flux-controlnet-inpaint.git
-
-
-git clone https://${GH_PAT}@github.com/Modegen/ControlNetPlus.git
-

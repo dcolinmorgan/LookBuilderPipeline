@@ -2,12 +2,6 @@ from setuptools import setup, find_packages
 import subprocess
 import os
 
-def clone_repo():
-    repo_url = "https://github.com/Modegen/flux-controlnet-inpaint.git"
-    clone_dir = "cloned_repo"
-    if not os.path.exists(clone_dir):
-        subprocess.check_call(['git', 'clone', repo_url, clone_dir])
-
 setup(
     name='LookBuilderPipeline',
     version='0.1',
