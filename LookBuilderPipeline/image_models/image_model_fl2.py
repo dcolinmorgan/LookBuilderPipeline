@@ -1,16 +1,27 @@
 import sys, os
-sys.path.insert(0, os.path.abspath('/flux-controlnet-inpaint/src'))
-
+# sys.path += ['external_deps/ControlNetPlus','external_deps/flux-controlnet-inpaint/src']
+sys.path.insert(0,os.path.abspath('external_deps/flux-controlnet-inpaint/src'))
+sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
 import torch
+import numpy as np
 from diffusers.utils import load_image
 from diffusers.pipelines.flux.pipeline_flux_controlnet_inpaint import FluxControlNetInpaintPipeline
 from diffusers.models.controlnet_flux import FluxControlNetModel
 from diffusers import FluxMultiControlNetModel
 import requests
-import matplotlib.pyplot as plt
 import torch.nn as nn
-from controlnet_aux import CannyDetector
 from base_image_model import BaseImageModel
+from LookBuilderPipeline.resize.resize import resize_images
+import base64
+from io import BytesIO
+import os
+import uuid
+
+def closest_size_divisible_by_8(size):
+    if size % 8 == 0:
+        return size
+    else:
+        return size + (8 - size % 8) if size % 8 > 4 else size - (size % 8)
 
 class ImageModelFlux(BaseImageModel):
     def __init__(self, image, pose, mask, prompt):
@@ -20,6 +31,31 @@ class ImageModelFlux(BaseImageModel):
         """
         Generate a new image using the Flux model based on the pose, mask and prompt.
         """
+        ### init before loading model
+        negative_prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves"
+        # prompt="photo realistic female fashion model with blonde hair on paris street corner"
+        orig_image=load_image(self.image)
+        pose_image=load_image(self.pose)
+        mask_image=load_image(self.mask)
+        width,height=orig_image.size
+        if width // 8 != 0 or height // 8 != 0:
+            print("resizing images")
+            if width > height:
+                newsize=closest_size_divisible_by_8(width)
+            else:
+                newsize=closest_size_divisible_by_8(height)
+
+            orig_image=resize_images(orig_image,newsize,square=False)
+            pose_image=resize_images(pose_image,newsize,square=False)
+            mask_image=resize_images(mask_image,newsize,square=False)
+        width,height=orig_image.size
+        num_inference_steps=30
+        guidance_scale=5
+        controlnet_conditioning_scale=1
+        seed=np.random.randint(0,100000000)
+        generator = torch.Generator(device="cpu").manual_seed(seed)
+
+
         # Set up the pipeline
         base_model = 'black-forest-labs/FLUX.1-dev'
         controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union'
@@ -36,26 +72,30 @@ class ImageModelFlux(BaseImageModel):
         pipe.enable_sequential_cpu_offload()
 
         
-        negative_prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves"
-        prompt="photo realistic female fashion model with blonde hair on paris street corner"
-     
-        generator = torch.Generator(device="cuda").manual_seed(np.random.randint(0, 1000000))
+
         image_res = pipe(
-            prompt,
+            self.prompt,
             negative_prompt,
-            image=self.image,
-            control_image=[self.pose_image],
-            control_mode=[4],
-            controlnet_conditioning_scale=[0.9],
-            mask_image=mask,
-            strength=0.95,
-            num_inference_steps=20,
-            guidance_scale=7,
+            image=orig_image,
+            control_image=pose_image,
+            control_mode=4,
+            controlnet_conditioning_scale=controlnet_conditioning_scale,
+            mask_image=mask_image,
+            height=height,
+            width=width,
+            strength=0.9,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
             generator=generator,
-            joint_attention_kwargs={"scale": 0.8},    
+            joint_attention_kwargs={"scale": 1},    
         ).images[0]
 
-        return image_res
+        # Save image to a file
+        filename = f"{uuid.uuid4()}.png"
+        save_path = os.path.join("static", "generated_images", filename)
+        image_res.save(save_path)
+
+        return jsonify(image_res)
 
 
     def generate_image_kids(self):

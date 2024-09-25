@@ -1,11 +1,10 @@
 import numpy as np
 from diffusers.utils import load_image
-from LookBuilderPipeline.segment.segment import segment
+from LookBuilderPipeline.segment.segment import segment_image
 from LookBuilderPipeline.pose.pose import detect_pose
-from LookBuilderPipeline.canny.canny import canny_image
 
 class BaseImageModel:
-    def __init__(self, img, pose, mask, canny, prompt):
+    def __init__(self, img, pose, mask, prompt):
         """
         Initialize the image model with common inputs.
         
@@ -18,7 +17,6 @@ class BaseImageModel:
         self.image = img
         self.pose = pose
         self.mask = mask
-        self.canny = canny
         self.prompt = prompt
 
 
@@ -43,9 +41,7 @@ class BaseImageModel:
         label = str(np.random.randint(100000000))
         pose_image = detect_pose(image)
         final_mask = segment(image,inv)
-        canny_image = canny_image(image,inv)
 
+        showImagesHorizontally([image,pose_image,final_mask],'input'+label+'.png')
 
-        showImagesHorizontally([image,pose_image,final_mask,canny_image],'input'+label+'.png')
-
-        return pose_image, final_mask, canny_image
+        return pose_image, final_mask
