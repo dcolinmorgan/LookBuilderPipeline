@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# External dependencies
+external_deps/
+
 # Distribution / packaging
 .Python
 env/
