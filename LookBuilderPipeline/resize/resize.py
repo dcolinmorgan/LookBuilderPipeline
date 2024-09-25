@@ -31,12 +31,18 @@ def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]]
         # Calculate the new size while maintaining aspect ratio
         original_width, original_height = img.size
         aspect_ratio = original_width / original_height
-
-        if original_width > original_height:
-            new_width = target_size
+        if isinstance(target_size, int):
+            try:
+                new_width = target_size
+                new_height = int(new_width / aspect_ratio)
+            except:
+                new_height = target_size
+                new_width = int(new_height / aspect_ratio)
+        elif original_width >= original_height:
+            new_width = target_size[0]
             new_height = int(new_width / aspect_ratio)
         else:
-            new_height = target_size
+            new_height = target_size[1]
             new_width = int(new_height * aspect_ratio)
 
         # Ensure dimensions are divisible by 8
