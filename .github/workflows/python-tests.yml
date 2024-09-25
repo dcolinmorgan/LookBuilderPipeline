@@ -7,6 +7,13 @@ on:
   pull_request:
     branches:
       - main 
+  workflow_dispatch:  # Allows manual triggering of the workflow
+    inputs:
+      model:  # Define the input
+        description: 'Select the model to use (flux or sdxl)'
+        required: true
+        default: 'flux'  # Optional default value
+  
 
 jobs:
   test:
@@ -24,6 +31,11 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        if [ "${{ github.event.inputs.model }}" == "flux" ]; then
+          pip install diffusers==0.30.2;  # Install Flux model
+        elif [ "${{ github.event.inputs.model }}" == "sdxl" ]; then
+          pip install diffusers==0.27.2;  # Install SDXL model
+        fi
         pip install -r requirements.txt
 
     - name: Run tests
