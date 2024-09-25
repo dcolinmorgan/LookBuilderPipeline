@@ -18,10 +18,11 @@ git clone https://${GH_PAT}@github.com/Modegen/ControlNetPlus.git
 
 - critical to add paths to these repos to the sys.path in the image model classes via the `external_deps` folder made via the [setup.sh](./setup.sh) script:
 ```python
+
 # sys.path += ['external_deps/ControlNetPlus','external_deps/flux-controlnet-inpaint/src']
 sys.path.insert(0,os.path.abspath('external_deps/flux-controlnet-inpaint/src'))
 sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
-```
+
 
 ## Running the tests
 
