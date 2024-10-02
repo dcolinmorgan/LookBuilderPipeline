@@ -23,7 +23,7 @@ class ImageModelFlux(BaseImageModel):
         Generate a new image using the Flux model based on the pose, mask and prompt.
         """
         ### init before loading model
-        self.prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves"
+        self.prompt+="NOT ugly, not bad quality, no bad anatomy, no deformed body, no deformed hands, no deformed feet, no deformed face, no deformed clothing, no deformed skin, no bad skin, no leggings, no tights, no sunglasses, no stockings, no pants, no sleeves"
 
         self.orig_image=load_image(self.image)
         self.pose_image=load_image(self.pose)
