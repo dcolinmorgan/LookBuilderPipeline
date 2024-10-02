@@ -11,8 +11,9 @@ from diffusers import FluxMultiControlNetModel
 import requests
 
 import torch.nn as nn
-from .LookBuilderPipeline.image_models.base_image_model import BaseImageModel
-from .resize.resize import resize_images
+from image_models.base_image_model import BaseImageModel
+from LookBuilderPipeline.LookBuilderPipeline.resize import resize_images
+
 
 class ImageModelFlux(BaseImageModel):
     def __init__(self, image, pose, mask, prompt):
@@ -34,10 +35,10 @@ class ImageModelFlux(BaseImageModel):
     def load_model(self):
         self.width,self.height=self.orig_image.size
         self.num_inference_steps=30
-        self.guidance_scale=5
-        self.controlnet_conditioning_scale=1
+        self.guidance_scale=7.5
+        self.controlnet_conditioning_scale=0.5
         seed=np.random.randint(0,100000000)
-        self.generator = torch.Generator(device="cpu").manual_seed(seed)
+        self.generator = torch.Generator(device="cuda").manual_seed(seed)
 
 
         # Set up the pipeline
