@@ -1,8 +1,10 @@
-# Base class for image generation models (SD3, Flux, etc.)
-# This contains the shared logic for handling the inputs: pose, clothes, mask, and prompt.
+import numpy as np
+from diffusers.utils import load_image
+from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.LookBuilderPipeline.pose import detect_pose
 
 class BaseImageModel:
-    def __init__(self, pose, clothes, mask, prompt):
+    def __init__(self, img, pose, mask, prompt):
         """
         Initialize the image model with common inputs.
         
@@ -12,14 +14,34 @@ class BaseImageModel:
             mask (object): The mask generated earlier that defines the boundaries of the outfit.
             prompt (str): The text prompt to guide the image generation (e.g., style or additional details).
         """
+        self.image = img
         self.pose = pose
-        self.clothes = clothes
         self.mask = mask
         self.prompt = prompt
 
-    def generate_image(self):
+
+    def showImagesHorizontally(list_of_files, output_path='output.png'):
+        fig = figure()
+        number_of_files = len(list_of_files)
+        for i in range(number_of_files):
+            a=fig.add_subplot(1,number_of_files,i+1)
+            image = (list_of_files[i])
+            imshow(image,cmap='Greys_r')
+            axis('off')
+        plt.tight_layout()  # Adjust the layout to prevent overlapping
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')  # Save the figure
+        plt.close(fig)  # Close the figure to free up memory
+        
+    @staticmethod
+    def generate_image_extras(image,inv=False):
         """
-        Method to be implemented by subclasses. 
-        Each model (SD3, Flux, etc.) will implement this method differently.
+        used to generate extra images for the various controlnets
         """
-        raise NotImplementedError("Subclasses must implement this method")
+        
+        label = str(np.random.randint(100000000))
+        pose_image = detect_pose(image)
+        final_mask = segment(image,inv)
+
+        showImagesHorizontally([image,pose_image,final_mask],'input'+label+'.png')
+
+        return pose_image, final_mask
