@@ -1,5 +1,5 @@
 from diffusers.utils import load_image  # For loading images
-from .LookBuilderPipeline.resize.resize import resize_images
+from .resize import resize_images
 from PIL import Image  # Importing PIL for image manipulation
 
 def pad_image(image_path, resize=False, size=(512, 512)):

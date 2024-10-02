@@ -54,7 +54,7 @@ if __name__ == "__main__":
     run_pipeline()
 ```
 
-## Running the pipeline via API (marked for deletion)
+## Running the pipeline via API (deprecated)
 this needs to be run from the root of the repo
 ```bash
 python3 base_image_model_api.py  # not pushed -- delete? 

@@ -12,7 +12,7 @@ import requests
 
 import torch.nn as nn
 from .LookBuilderPipeline.image_models.base_image_model import BaseImageModel
-from .LookBuilderPipeline.resize.resize import resize_images
+from .resize.resize import resize_images
 
 class ImageModelFlux(BaseImageModel):
     def __init__(self, image, pose, mask, prompt):
@@ -23,8 +23,8 @@ class ImageModelFlux(BaseImageModel):
         Generate a new image using the Flux model based on the pose, mask and prompt.
         """
         ### init before loading model
-        self.prompt+="NOT ugly, not bad quality, no bad anatomy, no deformed body, no deformed hands, no deformed feet, no deformed face, no deformed clothing, no deformed skin, no bad skin, no leggings, no tights, no sunglasses, no stockings, no pants, no sleeves"
-
+        self.prompt+="no leggings, no tights, no sunglasses, no stockings, no pants, no sleeves, no bad anatomy, no deformation"
+        
         self.orig_image=load_image(self.image)
         self.pose_image=load_image(self.pose)
         self.mask_image=load_image(self.mask)
@@ -44,16 +44,16 @@ class ImageModelFlux(BaseImageModel):
         base_model = 'black-forest-labs/FLUX.1-schnell'
         controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union' ## may need to change this to FLUX.1-schnell-Controlnet-Union or train our own https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/discussions/28
 
-        controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.float16)
+        controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.bfloat16)
         # controlnet = FluxMultiControlNetModel([controlnet_pose,controlnet_pose])
 
-        self.pipe = FluxControlNetInpaintPipeline.from_pretrained(base_model, controlnet=controlnet_pose, torch_dtype=torch.float16)
-        self.pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
-        # pipe.to("cuda")
+        self.pipe = FluxControlNetInpaintPipeline.from_pretrained(base_model, controlnet=controlnet_pose, torch_dtype=torch.bfloat16)
+        # self.pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
+        pipe.to("cuda")
 
-        self.pipe.text_encoder.to(torch.float16)
-        self.pipe.controlnet.to(torch.float16)
-        self.pipe.enable_sequential_cpu_offload()
+        self.pipe.text_encoder.to(torch.bfloat16)
+        self.pipe.controlnet.to(torch.bfloat16)
+        # self.pipe.enable_sequential_cpu_offload()
 
         
     def run_model(self):
