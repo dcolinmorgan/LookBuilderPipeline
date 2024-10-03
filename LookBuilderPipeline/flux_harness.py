@@ -53,39 +53,39 @@ pipe.enable_sequential_cpu_offload()
 
 
 dir=glob.glob('LookBuilderPipeline/LookBuilderPipeline/img/orig/*')
-
 for input_image in dir:
     image = load_image(input_image)
     pose_image = detect_pose(input_image)
-    mask,mask_image,_ = segment_image(input_image,inverse=True,additional_option='shoe')
-
-    if image.size[0] > image.size[1]:
-        sm_image=resize_images(image,image.size[1])
-        sm_pose_image=resize_images(pose_image,image.size[1])
-        sm_mask=resize_images(mask_image,image.size[1])
-    else:
-        sm_image=resize_images(image,image.size[0])
-        sm_pose_image=resize_images(pose_image,image.size[0])
-        sm_mask=resize_images(mask_image,image.size[0])
+    mask,mask_image,mask_array = segment_image(input_image,inverse=True,additional_option='shoe')
     
+    if image.size[0] < image.size[0]:
+        sm_pose_image=resize_images(pose_image,sm_pose_image.size,aspect_ratio=None)
+        sm_image=resize_images(image,sm_pose_image.size,aspect_ratio=sm_pose_image.size[0]/sm_pose_image.size[1])
+        sm_mask=resize_images(mask_image,sm_pose_image.size,aspect_ratio=sm_pose_image.size[0]/sm_pose_image.size[1])
+    else:
+        sm_image=resize_images(image,target_size=image.size,aspect_ratio=None)
+        sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+        sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+        
     width,height=sm_image.size
     
     # negative_prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, \n deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves"
-    # prompt="photo realistic fashion model with blonde hair with bare arms and legs"
-    prompt= \
-    "Hair: The model should have long, flowing blonde hair that cascades elegantly over her shoulders. \
-    Skin: The model should have a flawless complexion, showcasing bare arms and legs, emphasizing a natural and healthy appearance.\
-    Attire: The models arms and legs are bare. \
-    Clothes: The outfit should stick 100% to the mask and not include any additonal piece."
+    # prompt= #"photo realistic fashion model with blonde hair with bare arms and legs"
+    prompt= "photo realistic fashion model, naked, naked arms, bare arms, bare legs, bare neck"
+    # "Clothes: The outfit should stick 100% to the mask and not include any additonal piece. \
+    # Hair: The model should have long, flowing hair that cascades elegantly over her shoulders. \
+    # Attire: The models arms and legs are bare. \
+    # Important: Do not include any additional clothing, accessories, or features that are not specified in this prompt. The focus should solely be on the model's appearance as described."
+    
+     # Pose: The model should be posed confidently, exuding a sense of poise and elegance.\
     # Background: The background should be softly blurred flower garden to keep the focus on the model, with a neutral or pastel color palette that complements her features.\
     # Lighting: Use soft, natural lighting to highlight the model's features and create a warm, inviting atmosphere."
-
     # prompt2="no cloth, no shirt, no shoe, no cape, no leggings, no tights, no sunglasses, no stockings, no pants, no sleeves, no bad anatomy, no deformations"
     
     t=time()
     num_inference_steps=30
-    guidance_scale=7.5
-    controlnet_conditioning_scale=1
+    guidance_scale=10
+    controlnet_conditioning_scale=0.5
     seed=np.random.randint(0,100000000)
     generator = torch.Generator(device="cuda").manual_seed(seed)
     image_res = pipe(
@@ -103,6 +103,15 @@ for input_image in dir:
             guidance_scale=guidance_scale,
             generator=generator,
         ).images[0]
-    tt=t-time()
-    filename='flux_test_output/flux_'+str(height)+'_'+str(width)+'_'+str(tt)+'_'+str(controlnet_conditioning_scale)+'_'+str(num_inference_steps)+'_'+str(guidance_scale)+'_'+str(seed)+'.png'
-    showImagesHorizontally([sm_image,sm_mask,sm_pose_image,image_res],prompt,prompt2,'flux',height, width,controlnet_conditioning_scale,num_inference_steps,guidance_scale,seed,filename)
+    tt=time()-t
+    
+    filename='flux_test_output/flux_'+str(seed)+'.png'
+    image_res.save('test.png')
+    mask2,mask_image2,mask_array2 = segment_image('test.png',inverse=True,additional_option='shoe')
+    sm_mask3=resize_images(mask_image,mask_image2.size,aspect_ratio=mask_image2.size[0]/mask_image2.size[1])
+
+    print('mask shape is same:',np.array(sm_mask3).shape==mask_array2.shape)
+    cov=(np.sum(np.array(sm_mask3)==mask_array2))/np.array(sm_mask).size
+    showImagesHorizontally([sm_image,sm_mask,sm_pose_image,image_res],prompt,np.round(tt,2),np.round(cov,2),'flux',height, width,controlnet_conditioning_scale,num_inference_steps,guidance_scale,seed,filename)
+
+
