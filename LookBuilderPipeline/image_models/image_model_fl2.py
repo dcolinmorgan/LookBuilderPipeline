@@ -7,7 +7,7 @@ import numpy as np
 from diffusers.utils import load_image
 from diffusers.pipelines.flux.pipeline_flux_controlnet_inpaint import FluxControlNetInpaintPipeline
 from diffusers.models.controlnet_flux import FluxControlNetModel
-from diffusers import FluxMultiControlNetModel
+from diffusers import FluxMultiControlNetModel`
 import requests
 
 import torch.nn as nn
@@ -45,16 +45,16 @@ class ImageModelFlux(BaseImageModel):
         base_model = 'black-forest-labs/FLUX.1-schnell'
         controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union' ## may need to change this to FLUX.1-schnell-Controlnet-Union or train our own https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/discussions/28
 
-        controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.bfloat16)
+        controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.float16,guidance_embeds=False)#,add_prefix_space=True)
         # controlnet = FluxMultiControlNetModel([controlnet_pose,controlnet_pose])
 
-        self.pipe = FluxControlNetInpaintPipeline.from_pretrained(base_model, controlnet=controlnet_pose, torch_dtype=torch.bfloat16)
-        # self.pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
-        pipe.to("cuda")
+        self.pipe = FluxControlNetInpaintPipeline.from_pretrained(base_model, controlnet=controlnet_pose, torch_dtype=torch.float16)
+        self.pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
+        # pipe.to("cuda")
 
-        self.pipe.text_encoder.to(torch.bfloat16)
-        self.pipe.controlnet.to(torch.bfloat16)
-        # self.pipe.enable_sequential_cpu_offload()
+        self.pipe.text_encoder.to(torch.float16)
+        self.pipe.controlnet.to(torch.float16)
+        self.pipe.enable_sequential_cpu_offload()
 
         
     def run_model(self):
