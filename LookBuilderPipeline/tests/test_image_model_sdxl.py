@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
+# from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL  # tricky to test on github without GPU runner
 
 @pytest.fixture
 def mock_pipe():
