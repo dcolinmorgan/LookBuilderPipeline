@@ -11,7 +11,8 @@ Werkzeug==2.0.1
 numpy
 huggingface-hub
 sentencepiece==0.2.0
-
+!git+https://github.com/huggingface/diffusers.git
+!git clone https://github.com/Modegen/ControlNetPlus.git external_deps
 
 tokenizers==0.19
 protobuf
@@ -20,7 +21,7 @@ controlnet_aux==0.0.6
 opencv-python
 
 # Flux model requirements
-diffusers==0.30.2; extra == 'flux'
+# diffusers==0.30.2; extra == 'flux'
 
 # SDXL model requirements
-diffusers==0.27.2; extra == 'sdxl'
+# diffusers==0.27.2; extra == 'sdxl'

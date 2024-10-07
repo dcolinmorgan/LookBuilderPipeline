@@ -1,6 +1,6 @@
 import pytest
 from PIL import Image
-from LookBuilderPipeline.LookBuilderPipeline.pose import detect_pose
+from LookBuilderPipeline.pose import detect_pose
 
 def test_detect_pose_returns_image():
     result = detect_pose("LookBuilderPipeline/img/p09.jpg")

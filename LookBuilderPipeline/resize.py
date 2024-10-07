@@ -2,8 +2,8 @@ from PIL import Image, ImageOps
 from typing import Union, List
 
 def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]],
-                  target_size: int = 512,
-                  aspect_ratio: float = 1.0,
+                  target_size: Union[int, tuple] = 512,
+                  aspect_ratio: Union[float, None] = 1.0,
                   resample: int = Image.LANCZOS,
                   square: bool = False) -> Union[Image.Image, List[Image.Image]]:
     """
@@ -24,7 +24,7 @@ def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]]
     Raises:
         ValueError: If the input type is not recognized.
     """
-    def resize_single_image(img,target_size,aspect_ratio,square):
+    def resize_single_image(img,target_size=512,aspect_ratio=1.0,square=False):
         if isinstance(img, str):
             img = Image.open(img)
         if not isinstance(img, Image.Image):

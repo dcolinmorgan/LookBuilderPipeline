@@ -1,3 +1,5 @@
+## deprecated since resize function now also pads the image to the nearest divisible by 8
+
 from diffusers.utils import load_image  # For loading images
 from .resize import resize_images
 from PIL import Image  # Importing PIL for image manipulation

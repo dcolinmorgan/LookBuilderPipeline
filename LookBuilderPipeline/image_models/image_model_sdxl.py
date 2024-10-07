@@ -6,9 +6,9 @@ from diffusers.utils import load_image
 from transformers import pipeline 
 
 import torch.nn as nn
-from base_image_model import BaseImageModel
-from LookBuilderPipeline.LookBuilderPipeline.resize import resize_images
-from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
+from LookBuilderPipeline.resize import resize_images
+from LookBuilderPipeline.segment import segment_image
 
 def closest_size_divisible_by_8(size):
     if size % 8 == 0:
@@ -16,7 +16,8 @@ def closest_size_divisible_by_8(size):
     else:
         return size + (8 - size % 8) if size % 8 > 4 else size - (size % 8)
 
-sys.path += ['external_deps/ControlNetPlus','external_deps/flux-controlnet-inpaint/src']
+sys.path.insert(0,os.path.abspath('external_deps/ControlNetPlus'))
+
 from models.controlnet_union import ControlNetModel_Union
 from pipeline.pipeline_controlnet_union_inpaint_sd_xl import (
     StableDiffusionXLControlNetUnionInpaintPipeline

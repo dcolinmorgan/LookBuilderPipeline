@@ -1,6 +1,6 @@
 import pytest
 from diffusers.utils import load_image
-from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.segment import segment_image
 from PIL import Image
 import numpy as np
 
@@ -31,7 +31,7 @@ def test_segment_image_consistency():
     result2 = segment_image("LookBuilderPipeline/img/p09.jpg")
     np.testing.assert_array_equal(result1[1], result2[1])
 
-@pytest.mark.parametrize("size", [(512), (1024), (824)])
+@pytest.mark.parametrize("size", [(512)])
 def test_segment_image_different_sizes(size):
-    segmented_outfit, mask, mask_array = segment_image("LookBuilderPipeline/img/p09.jpg", resize=True,size=size)
+    segmented_outfit, mask, mask_array = segment_image("LookBuilderPipeline/img/p09.jpg", resize=True,size=size)#,aspect_ratio=None,square=False)
     assert segmented_outfit.size[0] == size

@@ -1,7 +1,7 @@
 import numpy as np
 from diffusers.utils import load_image
-from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
-from LookBuilderPipeline.LookBuilderPipeline.pose import detect_pose
+from LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.pose import detect_pose
 
 class BaseImageModel:
     def __init__(self, img, pose, mask, prompt):
