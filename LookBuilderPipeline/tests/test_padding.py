@@ -1,7 +1,7 @@
 import pytest
 from PIL import Image
 import os
-from LookBuilderPipeline.padding.padding import pad_image
+from LookBuilderPipeline.padding import pad_image
 
 @pytest.fixture
 def test_image_path():

@@ -3,6 +3,7 @@ from typing import Union, List
 
 def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]],
                   target_size: int = 512,
+                  aspect_ratio: float = 1.0,
                   resample: int = Image.LANCZOS,
                   square: bool = False) -> Union[Image.Image, List[Image.Image]]:
     """
@@ -13,6 +14,7 @@ def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]]
         images (str, Image.Image, or List[Union[str, Image.Image]]): 
             A single image (as file path or PIL Image object) or a list of images.
         target_size (int): The target size for the longer dimension of the resized image(s). Default is 512.
+        aspect_ratio (float): The aspect ratio to maintain. Default is 1.0 (square).
         resample (int): The resampling filter. Default is PIL.Image.LANCZOS for high-quality downsampling.
         square (bool): If True, pad the image to make it square. Default is False.
 
@@ -22,15 +24,14 @@ def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]]
     Raises:
         ValueError: If the input type is not recognized.
     """
-    def resize_single_image(img):
+    def resize_single_image(img,target_size,aspect_ratio,square):
         if isinstance(img, str):
             img = Image.open(img)
         if not isinstance(img, Image.Image):
             raise ValueError(f"Unsupported image type: {type(img)}")
-        
-        # Calculate the new size while maintaining aspect ratio
         original_width, original_height = img.size
-        aspect_ratio = original_width / original_height
+        if aspect_ratio is None:            
+            aspect_ratio = original_width / original_height
         if isinstance(target_size, int):
             try:
                 new_width = target_size
@@ -65,7 +66,7 @@ def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]]
         return img
 
     if isinstance(images, (str, Image.Image)):
-        return resize_single_image(images)
+        return resize_single_image(images,target_size,aspect_ratio,square=False)
     elif isinstance(images, list):
         return [resize_single_image(img) for img in images]
     else:

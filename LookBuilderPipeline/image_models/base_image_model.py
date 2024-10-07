@@ -1,7 +1,7 @@
 import numpy as np
 from diffusers.utils import load_image
-from LookBuilderPipeline.segment.segment import segment
-from LookBuilderPipeline.pose.pose import detect_pose
+from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.LookBuilderPipeline.pose import detect_pose
 
 class BaseImageModel:
     def __init__(self, img, pose, mask, prompt):
@@ -42,7 +42,6 @@ class BaseImageModel:
         pose_image = detect_pose(image)
         final_mask = segment(image,inv)
 
-
-        showImagesHorizontally([image,pose_image,final_mask,canny_image],'input'+label+'.png')
+        showImagesHorizontally([image,pose_image,final_mask],'input'+label+'.png')
 
         return pose_image, final_mask
