@@ -1,6 +1,6 @@
 import pytest
 from diffusers.utils import load_image
-from LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
 from PIL import Image
 import numpy as np
 

@@ -1,22 +1,15 @@
 import sys, os
-# sys.path += ['external_deps/ControlNetPlus','external_deps/flux-controlnet-inpaint/src']
-sys.path.insert(0,os.path.abspath('external_deps/flux-controlnet-inpaint/src'))
-sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
+import uuid
 import torch
 import numpy as np
 from diffusers.utils import load_image
-from diffusers.pipelines.flux.pipeline_flux_controlnet_inpaint import FluxControlNetInpaintPipeline
-from diffusers.models.controlnet_flux import FluxControlNetModel
-from diffusers import FluxMultiControlNetModel
-import requests
+from transformers import pipeline 
+
 import torch.nn as nn
 from base_image_model import BaseImageModel
-from LookBuilderPipeline.resize.resize import resize_images
-import base64
-from io import BytesIO
-import os
-import uuid
-from LookBuilderPipeline.segment.segment import segment_image
+from LookBuilderPipeline.LookBuilderPipeline.resize import resize_images
+from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
+
 def closest_size_divisible_by_8(size):
     if size % 8 == 0:
         return size
@@ -34,9 +27,9 @@ class ImageModelSDXL(BaseImageModel):
     def __init__(self, image,pose, mask, prompt):
         super().__init__(image, pose, mask, prompt)
         
-    def generate_image(self):
+    def prepare_image(self):
         """
-        Generate a new image using the Flux model based on the pose, mask and prompt.
+        Prepare the pose and mask images to generate a new image using the Flux model.
         """
         ### init before loading model
         negative_prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves"
@@ -55,21 +48,19 @@ class ImageModelSDXL(BaseImageModel):
             orig_image=resize_images(orig_image,newsize,square=False)
             pose_image=resize_images(pose_image,newsize,square=False)
             mask_image=resize_images(mask_image,newsize,square=False)
-        width,height=orig_image.size
-        num_inference_steps=30
-        guidance_scale=5
-        controlnet_conditioning_scale=1
-        seed=np.random.randint(0,100000000)
-        generator = torch.Generator(device="cpu").manual_seed(seed)
+        self.width,self.height=orig_image.size
+        
 
         ## model requires inverse mask too
         _, mask_image_inv_b,_=segment_image(self.image,inverse=True)  # clothes items not in mask
         _, mask_image_inv_a,_=segment_image(self.image,inverse=False)  # clothes items in mask
         
-        # Set up the pipeline
-        
+    def prepare_model(self):  # Set up the pipeline
+        """
+        Prepare model to generate a new image using the Flux model.
+        """
         # device = torch.device('cuda:0')
-        # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
         # Download and set up the ControlNet model
         snapshot_download(
@@ -83,7 +74,7 @@ class ImageModelSDXL(BaseImageModel):
         )
 
         # Set up the pipeline
-        pipe = StableDiffusionXLControlNetUnionInpaintPipeline.from_pretrained(
+        self.pipe = StableDiffusionXLControlNetUnionInpaintPipeline.from_pretrained(
             "RunDiffusion/Juggernaut-XL-v8",
             controlnet=controlnet_model,
             torch_dtype=torch.float16,
@@ -92,16 +83,25 @@ class ImageModelSDXL(BaseImageModel):
         self.pipe.text_encoder.to(torch.float16)
         self.pipe.controlnet.to(torch.float16)
         self.pipe.enable_model_cpu_offload()
+        
+        self.num_inference_steps=30
+        self.guidance_scale=5
+        self.controlnet_conditioning_scale=1
+        self.seed=np.random.randint(0,100000000)
+        self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
 
-
+    def generate_image(self):
+        """
+        Generate a new image using the Flux model based on the pose, mask and prompt.
+        """
         image_res = self.pipe(
             prompt=self.prompt,
-            image=mask_image_inv_b,
-            mask_image=mask_image,
-            control_image_list=[pose_image, 0, 0, 0, 0, 0, 0, mask_image_inv_a],
-            negative_prompt=negative_prompt,
-            generator=generator,
-            num_inference_steps=num_inference_steps,
+            image=self.mask_image_inv_b,
+            mask_image=self.mask_image,
+            control_image_list=[self.pose_image, 0, 0, 0, 0, 0, 0, self.mask_image_inv_a],
+            negative_prompt=self.negative_prompt,
+            generator=self.generator,
+            num_inference_steps=self.num_inference_steps,
             union_control=True,
             guidance_scale=guidance_scale,
             union_control_type=torch.Tensor([1, 0, 0, 0, 0, 0, 0, 1]),
@@ -114,3 +114,8 @@ class ImageModelSDXL(BaseImageModel):
 
         return jsonify(image_res)
 
+if __name__ == "__main__":    
+    image_model = ImageModelSDXL(image_path, image_path, image_path, prompt_text)
+    image_model.prepare_image()
+    image_model.prepare_model()
+    image_model.generate_image()

@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 # Remove the torch import as it's not needed in the mocked version
-from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
+from LookBuilderPipeline.LookBuilderPipeline.image_model_sdxl import ImageModelSDXL
 
 @pytest.fixture
 def mock_pipe():
@@ -11,9 +11,9 @@ def mock_pipe():
 def mock_controlnet_model():
     return MagicMock()
 
-@patch('LookBuilderPipeline.image_models.image_model_sdxl.ControlNetModel_Union')
-@patch('LookBuilderPipeline.image_models.image_model_sdxl.StableDiffusionXLControlNetUnionInpaintPipeline')
-@patch('LookBuilderPipeline.image_models.image_model_sdxl.snapshot_download')
+@patch('LookBuilderPipeline.LookBuilderPipeline.image_model_sdxl.ControlNetModel_Union')
+@patch('LookBuilderPipeline.LookBuilderPipeline.image_model_sdxl.StableDiffusionXLControlNetUnionInpaintPipeline')
+@patch('LookBuilderPipeline.LookBuilderPipeline.image_model_sdxl.snapshot_download')
 def test_image_model_sdxl_init(mock_snapshot_download, mock_pipeline, mock_controlnet, mock_pipe, mock_controlnet_model):
     mock_controlnet.from_pretrained.return_value = mock_controlnet_model
     mock_pipeline.from_pretrained.return_value = mock_pipe
@@ -29,9 +29,9 @@ def test_image_model_sdxl_init(mock_snapshot_download, mock_pipeline, mock_contr
     mock_pipe.controlnet.to.assert_called_once_with("float16")
     mock_pipe.enable_model_cpu_offload.assert_called_once()
 
-@patch('LookBuilderPipeline.image_models.image_model_sdxl.detect_pose')
-@patch('LookBuilderPipeline.image_models.image_model_sdxl.segment_image')
-@patch('LookBuilderPipeline.image_models.image_model_sdxl.load_image')
+@patch('LookBuilderPipeline.LookBuilderPipeline.image_model_sdxl.detect_pose')
+@patch('LookBuilderPipeline.LookBuilderPipeline.image_model_sdxl.segment_image')
+@patch('LookBuilderPipeline.LookBuilderPipeline.image_model_sdxl.load_image')
 def test_generate_image(mock_load_image, mock_segment_image, mock_detect_pose, mock_pipe):
     model = ImageModelSDXL("pose.jpg", "mask.jpg", prompt="test prompt")
     model.pipe = mock_pipe
