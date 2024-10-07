@@ -1,6 +1,6 @@
-# import sys, os
-# sys.path.insert(0,os.path.abspath('external_deps/flux-controlnet-inpaint/src'))
-# sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
+import sys, os
+sys.path.insert(0,os.path.abspath('external_deps/flux-controlnet-inpaint/src'))
+sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
 
 import torch
 import numpy as np
@@ -42,7 +42,7 @@ class ImageModelFlux(BaseImageModel):
 
 
         # Set up the pipeline
-        base_model = 'ostris/OpenFLUX.1'
+        base_model = 'black-forest-labs/FLUX.1-schnell'
         controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union' ## may need to change this to FLUX.1-schnell-Controlnet-Union or train our own https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/discussions/28
 
         controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.float16,guidance_embeds=False)#,add_prefix_space=True)
