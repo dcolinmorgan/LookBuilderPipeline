@@ -1,7 +1,6 @@
+
 import sys, os
-sys.path.insert(0,os.path.abspath('external_deps/flux-controlnet-inpaint/src'))
-
-
+sys.path.insert(2,os.path.abspath('LookBuilderPipeline/LookBuilderPipeline/'))
 
 import torch
 from diffusers.utils import load_image
@@ -24,8 +23,15 @@ from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
 from LookBuilderPipeline.LookBuilderPipeline.pose import detect_pose
 from LookBuilderPipeline.plot_images import showImagesHorizontally
 
-from image_models.base_image_model import BaseImageModel
-from LookBuilderPipeline.LookBuilderPipeline.resize import resize_images
+from diffusers import StableDiffusionXLInpaintPipeline,ControlNetModel,StableDiffusionXLControlNetInpaintPipeline
+from transformers import pipeline 
+from diffusers import FlowMatchEulerDiscreteScheduler, AutoencoderKL
+from diffusers.models.transformers.transformer_flux import FluxTransformer2DModel
+from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
+from transformers import CLIPTextModel, CLIPTokenizer,T5EncoderModel, T5TokenizerFast
+
+from quanto import quantize, freeze, qint4, qint8, qfloat8
+segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")#,device='cuda')
 
 
 class ImageModelFlux(BaseImageModel):
@@ -52,22 +58,40 @@ class ImageModelFlux(BaseImageModel):
         self.controlnet_conditioning_scale=0.5
         seed=np.random.randint(0,100000000)
         self.generator = torch.Generator(device="cuda").manual_seed(seed)
+        dtype = torch.bfloat16
+        self.scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained('flux-fp8', subfolder="scheduler")  # flux1 schnell folder 
+        self.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
+        self.tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
+        self.text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
+        self.tokenizer_2 = T5TokenizerFast.from_pretrained('flux-fp8', subfolder="tokenizer_2", torch_dtype=dtype)
+        self.vae = AutoencoderKL.from_pretrained('flux-fp8', subfolder="vae", torch_dtype=dtype)
+        transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
+        
+        quantize(transformer, weights=qfloat8)
+        freeze(transformer)
+
+        quantize(text_encoder_2, weights=qfloat8)
+        freeze(text_encoder_2)
+
+        controlnet_model = 'InstantX/FLUX.1-dev-Controlnet-Union'
+        controlnet = FluxControlNetModel.from_pretrained(controlnet_model,use_safetensors=True, torch_dtype=torch.bfloat16, add_prefix_space=True,local_files_only=True,guidance_embeds=False)
 
 
-        # Set up the pipeline
-        base_model = 'ostris/OpenFLUX.1'
-        controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union' ## may need to change this to FLUX.1-schnell-Controlnet-Union or train our own https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/discussions/28
+        self.pipe = FluxControlNetInpaintPipeline.from_pretrained("ostris/OpenFLUX.1",
+            controlnet=controlnet,
+            torch_dtype=torch.bfloat16,
+            scheduler=scheduler,
+            text_encoder=text_encoder,
+            tokenizer=tokenizer,
+            text_encoder_2=None,
+            tokenizer_2=tokenizer_2,
+            vae=vae,
+            transformer=None,)
 
-        controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.float16,guidance_embeds=False)#,add_prefix_space=True)
-        # controlnet = FluxMultiControlNetModel([controlnet_pose,controlnet_pose])
+        self.pipe.text_encoder_2 = text_encoder_2
+        self.pipe.transformer = transformer
+        self.pipe.enable_model_cpu_offload()
 
-        self.pipe = FluxControlNetInpaintPipeline.from_pretrained(base_model, controlnet=controlnet_pose, torch_dtype=torch.float16)
-        self.pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
-        # pipe.to("cuda")
-
-        self.pipe.text_encoder.to(torch.float16)
-        self.pipe.controlnet.to(torch.float16)
-        self.pipe.enable_sequential_cpu_offload()
 
         
     def run_model(self):
