@@ -49,7 +49,38 @@ class ImageModelFlux(BaseImageModel):
         self.pose_image=load_image(self.pose)
         self.mask_image=load_image(self.mask)
 
-    # def load_images(self):
+    # CPU times: user 8min 2s, sys: 3min 47s, total: 11min 49s
+    # Wall time: 3min 31s
+    def quantize_model(self):
+        dtype = torch.bfloat16
+        self.scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained('flux-fp8', subfolder="scheduler")  # flux1 schnell folder 
+        self.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
+        self.tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
+        self.tokenizer_2 = T5TokenizerFast.from_pretrained('flux-fp8', subfolder="tokenizer_2", torch_dtype=dtype)
+        self.vae = AutoencoderKL.from_pretrained('flux-fp8', subfolder="vae", torch_dtype=dtype)
+        if glob.glob('openflux-8B-quantized/text_encoder_2/*.safetensors'):
+            self.text_encoder_2 = T5EncoderModel.from_pretrained('openflux-8B-quantized', subfolder="text_encoder_2", torch_dtype=dtype)
+        else:
+            self.text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
+            quantize(self.text_encoder_2, weights=qfloat8)
+            freeze(self.text_encoder_2)
+            self.text_encoder_2.save_pretrained('openflux-8B-quantized/text_encoder_2')
+            
+        # if glob.glob('openflux-8B-quantized/transformer/*.safetensors'):
+        try:
+            self.transformer = FluxTransformer2DModel.from_pretrained('openflux-8B-quantized', subfolder="transformer", torch_dtype=dtype)
+        # else:
+        except:
+            self.transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
+            quantize(self.transformer, weights=qfloat8)
+            freeze(self.transformer)
+            self.transformer.save_pretrained('openflux-8B-quantized/transformer')
+            
+                
+        # text_encoder_2.save_pretrained('openflux-8B-quantized/text_encoder_2')
+        # transformer.save_pretrained('openflux-8B-quantized/transformer')
+        # self.text_encoder_2 = T5EncoderModel.from_pretrained('openflux-8B-quantized', subfolder="text_encoder_2", torch_dtype=qfloat8)
+        # self.transformer = FluxTransformer2DModel.from_pretrained('openflux-8B-quantized', subfolder="transformer", torch_dtype=qfloat8)
 
     def load_model(self):
         self.width,self.height=self.orig_image.size
@@ -58,21 +89,7 @@ class ImageModelFlux(BaseImageModel):
         self.controlnet_conditioning_scale=0.5
         seed=np.random.randint(0,100000000)
         self.generator = torch.Generator(device="cuda").manual_seed(seed)
-        dtype = torch.bfloat16
-        self.scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained('flux-fp8', subfolder="scheduler")  # flux1 schnell folder 
-        self.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
-        self.tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
-        self.text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
-        self.tokenizer_2 = T5TokenizerFast.from_pretrained('flux-fp8', subfolder="tokenizer_2", torch_dtype=dtype)
-        self.vae = AutoencoderKL.from_pretrained('flux-fp8', subfolder="vae", torch_dtype=dtype)
-        transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
         
-        quantize(transformer, weights=qfloat8)
-        freeze(transformer)
-
-        quantize(text_encoder_2, weights=qfloat8)
-        freeze(text_encoder_2)
-
         controlnet_model = 'InstantX/FLUX.1-dev-Controlnet-Union'
         controlnet = FluxControlNetModel.from_pretrained(controlnet_model,use_safetensors=True, torch_dtype=torch.bfloat16, add_prefix_space=True,local_files_only=True,guidance_embeds=False)
 
@@ -88,7 +105,7 @@ class ImageModelFlux(BaseImageModel):
             vae=vae,
             transformer=None,)
 
-        self.pipe.text_encoder_2 = text_encoder_2
+        self.pipe.text_encoder_2 = self.text_encoder_2
         self.pipe.transformer = transformer
         self.pipe.enable_model_cpu_offload()
 
@@ -114,3 +131,9 @@ class ImageModelFlux(BaseImageModel):
 
         return image_res
 
+if __name__ == "__main__":
+    image_model = ImageModelFlux()
+    image_model.load_images()
+    image_model.load_model()
+    image_model.quantize_model()  # only want to run this once, takes 11mins
+    image_model.run_model()  # can then loop over this to generate multiple images
