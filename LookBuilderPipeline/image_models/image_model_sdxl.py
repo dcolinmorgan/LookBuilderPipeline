@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from diffusers.utils import load_image
 from transformers import pipeline 
-
+import torch.utils.benchmark as benchmark
 import torch.nn as nn
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.resize import resize_images
@@ -114,9 +114,19 @@ class ImageModelSDXL(BaseImageModel):
         image_res.save(save_path)
 
         return jsonify(image_res)
+    
+    def benchmark_fn(f, *args, **kwargs):
+        t0 = benchmark.Timer(stmt="f(*args, **kwargs)", globals={"args": args, "kwargs": kwargs, "f": f})
+        return f"{(t0.blocked_autorange().mean):.3f}"
+    
+    def clearn_mem(self):
+        torch.cuda.empty_cache()
+
 
 if __name__ == "__main__":    
     image_model = ImageModelSDXL(image_path, image_path, image_path, prompt_text)
     image_model.prepare_image()
     image_model.prepare_model()
     image_model.generate_image()
+    image_model.clearn_mem()
+    
