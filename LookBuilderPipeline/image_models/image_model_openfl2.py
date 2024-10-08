@@ -1,16 +1,29 @@
 import sys, os
 sys.path.insert(0,os.path.abspath('external_deps/flux-controlnet-inpaint/src'))
-sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
+
+
 
 import torch
-import numpy as np
 from diffusers.utils import load_image
-from diffusers.pipelines.flux.pipeline_flux_controlnet_inpaint import FluxControlNetInpaintPipeline
-from diffusers.models.controlnet_flux import FluxControlNetModel
-from diffusers import FluxMultiControlNetModel`
-import requests
+from diffusers.pipelines.flux import FluxControlNetInpaintPipeline
+from diffusers.models import FluxControlNetModel
+from diffusers.utils import load_image, check_min_version
+from transformers import pipeline ,SegformerImageProcessor, AutoModelForSemanticSegmentation
 
-import torch.nn as nn
+import glob
+from time import time
+from PIL import Image
+import numpy as np
+import requests
+import matplotlib.pyplot as plt
+from controlnet_aux import OpenposeDetector
+from pathlib import Path
+
+from LookBuilderPipeline.LookBuilderPipeline.resize import resize_images
+from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.LookBuilderPipeline.pose import detect_pose
+from LookBuilderPipeline.plot_images import showImagesHorizontally
+
 from image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.LookBuilderPipeline.resize import resize_images
 
@@ -42,7 +55,7 @@ class ImageModelFlux(BaseImageModel):
 
 
         # Set up the pipeline
-        base_model = 'black-forest-labs/FLUX.1-schnell'
+        base_model = 'ostris/OpenFLUX.1'
         controlnet_model2 = 'InstantX/FLUX.1-dev-Controlnet-Union' ## may need to change this to FLUX.1-schnell-Controlnet-Union or train our own https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/discussions/28
 
         controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model2, torch_dtype=torch.float16,guidance_embeds=False)#,add_prefix_space=True)

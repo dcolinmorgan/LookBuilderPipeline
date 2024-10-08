@@ -12,18 +12,14 @@
 # !export GH_PAT=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
 # !git clone https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
 
-
 import sys, os
-sys.path.insert(0,os.path.abspath('external_deps/flux-controlnet-inpaint/src/'))
-sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
+# sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
 sys.path.insert(2,os.path.abspath('LookBuilderPipeline/LookBuilderPipeline/'))
 
 import torch
-import torch.nn as nn
 from diffusers.utils import load_image
-from diffusers.pipelines.flux.pipeline_flux_controlnet_inpaint import FluxControlNetInpaintPipeline
-from diffusers.models.controlnet_flux import FluxControlNetModel
-from diffusers import FluxMultiControlNetModel
+from diffusers.pipelines.flux import FluxControlNetInpaintPipeline
+from diffusers.models import FluxControlNetModel
 from diffusers.utils import load_image, check_min_version
 from transformers import pipeline ,SegformerImageProcessor, AutoModelForSemanticSegmentation
 
@@ -41,10 +37,9 @@ from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
 from LookBuilderPipeline.LookBuilderPipeline.pose import detect_pose
 from LookBuilderPipeline.plot_images import showImagesHorizontally
 
-
 controlnet_model = 'InstantX/FLUX.1-dev-Controlnet-Union'
 controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model, torch_dtype=torch.bfloat16)
-pipe = FluxControlNetInpaintPipeline.from_pretrained("black-forest-labs/FLUX.1-dev",controlnet=controlnet_pose, torch_dtype=torch.bfloat16)
+pipe = FluxControlNetInpaintPipeline.from_pretrained("ostris/OpenFLUX.1",controlnet=controlnet_pose, torch_dtype=torch.bfloat16)
 
 pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
 pipe.text_encoder.to(torch.bfloat16)
@@ -69,7 +64,7 @@ for input_image in dir:
         
     width,height=sm_image.size
     
-    # negative_prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, \n deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves"
+    negative_prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, \n deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves"
     # prompt= #"photo realistic fashion model with blonde hair with bare arms and legs"
     prompt= "photo realistic fashion model, naked, naked arms, bare arms, bare legs, bare neck"
     # "Clothes: The outfit should stick 100% to the mask and not include any additonal piece. \
