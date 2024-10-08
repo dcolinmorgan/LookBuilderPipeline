@@ -4,10 +4,13 @@ from transformers import pipeline  # For using pre-trained models
 import numpy as np  # For numerical operations on arrays
 from PIL import Image  # For image manipulation
 from .resize import resize_images
-import cv2
+import torch  # For CUDA availability check
+
+# Check for CUDA availability
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Initialize the segmentation model using a pre-trained model from Hugging Face
-segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
+segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes", device=device)
 
 def segment_image(image_path, additional_option=None, resize=False, size=(512, 512), inverse=False):
     """

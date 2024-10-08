@@ -1,7 +1,7 @@
 import numpy as np
 from diffusers.utils import load_image
-from LookBuilderPipeline.LookBuilderPipeline.segment import segment_image
-from LookBuilderPipeline.LookBuilderPipeline.pose import detect_pose
+from LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.pose import detect_pose
 
 class BaseImageModel:
     def __init__(self, img, pose, mask, prompt):
@@ -18,3 +18,18 @@ class BaseImageModel:
         self.pose = pose
         self.mask = mask
         self.prompt = prompt
+
+
+    @staticmethod
+    def generate_image_extras(image,inv=False):
+        """
+        used to generate extra images for the various controlnets
+        """
+        
+        label = str(np.random.randint(100000000))
+        pose_image = detect_pose(image)
+        final_mask = segment(image,inv)
+
+        showImagesHorizontally([image,pose_image,final_mask],'input'+label+'.png')
+
+        return pose_image, final_mask

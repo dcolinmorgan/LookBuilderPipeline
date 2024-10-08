@@ -24,7 +24,7 @@ def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]]
     Raises:
         ValueError: If the input type is not recognized.
     """
-    def resize_single_image(img,target_size,aspect_ratio,square):
+    def resize_single_image(img,target_size=512,aspect_ratio=1.0,square=False):
         if isinstance(img, str):
             img = Image.open(img)
         if not isinstance(img, Image.Image):

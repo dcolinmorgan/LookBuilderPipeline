@@ -1,10 +1,11 @@
 pillow==10.4.0
 transformers==4.44.0
 pytest
+
 torch
 mediapipe
 accelerate
-matplotlib==3.7.3 ## not necessary for pipeline
+# matplotlib==3.7.3 ## not necessary for pipeline
 flask
 Werkzeug==2.0.1
 numpy
@@ -19,7 +20,7 @@ controlnet_aux==0.0.6
 opencv-python
 
 # Flux model requirements
-diffusers==0.30.2; extra == 'flux'
+# diffusers==0.30.2; extra == 'flux'
 
 # SDXL model requirements
-diffusers==0.27.2; extra == 'sdxl'
+# diffusers==0.27.2; extra == 'sdxl'

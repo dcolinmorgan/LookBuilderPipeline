@@ -19,14 +19,11 @@ install will run the following commands:
 
 - critical to add paths to these repos to the sys.path in the image model classes via the `external_deps` folder made via the [setup.sh](./setup.sh) script:
 ```python
+
+# sys.path += ['external_deps/ControlNetPlus','external_deps/flux-controlnet-inpaint/src']
 sys.path.insert(0,os.path.abspath('external_deps/flux-controlnet-inpaint/src'))
 sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
-sys.path.insert(2,os.path.abspath('LookBuilderPipeline/LookBuilderPipeline/'))
-## for flux
-from diffusers.pipelines.flux.pipeline_flux_controlnet_inpaint import FluxControlNetInpaintPipeline
-from diffusers.models.controlnet_flux import FluxControlNetModel
-from diffusers import FluxMultiControlNetModel
-```
+
 
 ## Running the tests
 

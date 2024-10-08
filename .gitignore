@@ -10,6 +10,8 @@ __pycache__/
 *.png
 *.jpg
 *.jpeg
+# External dependencies
+external_deps/
 
 # Distribution / packaging
 .Python
