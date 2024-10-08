@@ -115,9 +115,12 @@ class ImageModelSDXL(BaseImageModel):
 
         return jsonify(image_res)
     
-    def benchmark_fn(f, *args, **kwargs):
-        t0 = benchmark.Timer(stmt="f(*args, **kwargs)", globals={"args": args, "kwargs": kwargs, "f": f})
+    def benchmark_fn(self):
+        t0 = benchmark.Timer(stmt="self.generate_image()", globals={"self": self})
         return f"{(t0.blocked_autorange().mean):.3f}"
+    
+    def bytes_to_giga_bytes(self,bytes):
+        return f"{(bytes / 1024 / 1024 / 1024):.3f}"
     
     def clearn_mem(self):
         torch.cuda.empty_cache()
@@ -127,6 +130,11 @@ if __name__ == "__main__":
     image_model = ImageModelSDXL(image_path, image_path, image_path, prompt_text)
     image_model.prepare_image()
     image_model.prepare_model()
+    time=image_model.benchmark_fn()
+    memory = bytes_to_giga_bytes(torch.cuda.max_memory_allocated())  # in GBs.
+    print(
+        f"{time} seconds, ie {time/60} minutes, and {memory} GBs."
+    )
     image_model.generate_image()
     image_model.clearn_mem()
     
