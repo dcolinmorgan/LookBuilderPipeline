@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from diffusers.utils import load_image
-from controlnet_aux import HEDdetector, MidasDetector, MLSDdetector, OpenposeDetector, PidiNetDetector, NormalBaeDetector, LineartDetector, LineartAnimeDetector, CannyDetector, ContentShuffleDetector, ZoeDetector, MediapipeFaceDetector, SamDetector, LeresDetector, DWposeDetector
+from controlnet_aux import OpenposeDetector
 
 @pytest.fixture
 def mock_image():

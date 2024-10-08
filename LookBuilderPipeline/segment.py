@@ -72,3 +72,32 @@ def segment_image(image_path, additional_option=None, resize=False, size=(512, 5
 
     # Return the segmented outfit image, the mask, and the final mask array
     return seg_img, final_mask, final_array
+
+def full_mask(original_image,flux_image):
+    seg_img = load_image(original_image)
+    segments = segmenter(seg_img)
+    segment_include = ["Upper-clothes", "Skirt", "Pants", "Dress", "Belt", "Bag", "Scarf","Left-shoe","Right-shoe"]
+    
+    seg_img = load_image(flux_image)
+    segments = segmenter(seg_img)
+    segment_include += [
+    "Hat","Hair","Sunglasses","Face","Left-leg","Right-leg","Left-arm","Right-arm"]
+    
+    
+    mask_list = [np.array(s['mask']) for s in segments if s['label'] not in segment_include]
+    final_mask = np.array(mask_list[0])
+    for mask in mask_list:
+        current_mask = np.array(mask)
+        final_mask = final_mask + current_mask
+    
+    final_array = final_mask.copy()
+    final_mask = Image.fromarray(final_mask)
+    # seg_img.putalpha(final_mask)
+    
+    mask = Image.new("L", final_mask.size)
+    mask.paste(final_mask.split()[3], (x, y))
+    mask = ImageOps.invert(mask)
+    final_maskA = mask.point(lambda p: p > 128 and 255)
+    mask_blurred = pipeline.mask_processor.blur(final_maskA, blur_factor=20)
+        
+    return final_mask, mask_blurred
