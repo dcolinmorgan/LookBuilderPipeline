@@ -13,10 +13,10 @@ huggingface-hub
 sentencepiece==0.2.0
 diffusers @ git+https://github.com/huggingface/diffusers.git
 
-tokenizers#==0.19
+tokenizers #==0.19
 protobuf
 # Common requirements
-controlnet_aux#==0.0.6
+controlnet_aux #==0.0.6
 # opencv-python
 
 # Flux model requirements
