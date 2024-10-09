@@ -26,7 +26,10 @@ def segment_image(image_path, additional_option=None, resize=False, size=(512, 5
         final_array (numpy.ndarray): The final mask as a numpy array.
     """
     # Load the image from the specified path
-    seg_img = Image.open(image_path)
+    if isinstance(image_path,str):
+        seg_img = load_image(image_path)
+    else:
+        seg_img=image_path
     
     # Use the segmenter to get segments from the image
     segments = segmenter(seg_img)

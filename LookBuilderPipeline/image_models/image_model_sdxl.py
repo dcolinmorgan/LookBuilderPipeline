@@ -8,133 +8,142 @@ import torch.utils.benchmark as benchmark
 import torch.nn as nn
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.resize import resize_images
-from LookBuilderPipeline.segment import segment_image
 
-def closest_size_divisible_by_8(size):
-    if size % 8 == 0:
-        return size
-    else:
-        return size + (8 - size % 8) if size % 8 > 4 else size - (size % 8)
-
-sys.path.insert(0,os.path.abspath('external_deps/ControlNetPlus'))
-
-from models.controlnet_union import ControlNetModel_Union
-from pipeline.pipeline_controlnet_union_inpaint_sd_xl import (
-    StableDiffusionXLControlNetUnionInpaintPipeline
-)
-from huggingface_hub import snapshot_download
+# Import required components from diffusers
+from diffusers import StableDiffusionXLControlNetInpaintPipeline, ControlNetModel, DDIMScheduler
 
 class ImageModelSDXL(BaseImageModel):
-    def __init__(self, image,pose, mask, prompt):
+    def __init__(self, image, pose, mask, prompt, *args, **kwargs):
+        # Initialize the SDXL image model
         super().__init__(image, pose, mask, prompt)
         
+        # Set default values
+        self.num_inference_steps = kwargs.get('num_inference_steps', 30)
+        self.guidance_scale = kwargs.get('guidance_scale', 5)
+        self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1)
+        self.seed = kwargs.get('seed', np.random.randint(0, 100000000))
+        self.prompt = kwargs.get('prompt', prompt)
+        self.image = kwargs.get('image', image)
+        self.negative_prompt = kwargs.get('neg_prompt', "ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
+
     def prepare_image(self):
         """
-        Prepare the pose and mask images to generate a new image using the Flux model.
+        Prepare the pose and mask images to generate a new image using the diffusion model.
         """
-        ### init before loading model
-        negative_prompt="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves"
-        # prompt="photo realistic female fashion model with blonde hair on paris street corner"
-        orig_image=load_image(self.image)
-        pose_image=load_image(self.pose)
-        mask_image=load_image(self.mask)
-        width,height=orig_image.size
-        if width // 8 != 0 or height // 8 != 0:
-            print("resizing images")
-            if width > height:
-                newsize=closest_size_divisible_by_8(width)
-            else:
-                newsize=closest_size_divisible_by_8(height)
+        # Load and resize images
+        image = load_image(self.image)
+        if isinstance(self.pose,str):
+            pose_image = load_image(self.pose)
+        else:
+            pose_image = self.pose
+        if isinstance(self.mask,str):
+            mask_image = load_image(self.mask)
+        else:
+            mask_image = self.mask
 
-            orig_image=resize_images(orig_image,newsize,square=False)
-            pose_image=resize_images(pose_image,newsize,square=False)
-            mask_image=resize_images(mask_image,newsize,square=False)
-        self.width,self.height=orig_image.size
+        if pose_image.size[0] < image.size[0]:  ## resize to pose image size if it is smaller
+            self.sm_image=resize_images(image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
+            self.sm_pose_image=resize_images(pose_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
+            self.sm_mask=resize_images(mask_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
+            
+        else:
+            self.sm_image=resize_images(image,image.size,aspect_ratio=image.size[0]/image.size[1])
+            self.sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+            self.sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+            
+        self.width, self.height = self.sm_image.size
+
+    def prepare_model(self):
+        """
+        Prepare model to generate a new image using the diffusion model.
+        """
+        # Set CUDA device
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # since we only have one GPU
         
-
-        ## model requires inverse mask too
-        _, mask_image_inv_b,_=segment_image(self.image,inverse=True)  # clothes items not in mask
-        _, mask_image_inv_a,_=segment_image(self.image,inverse=False)  # clothes items in mask
-        
-    def prepare_model(self):  # Set up the pipeline
-        """
-        Prepare model to generate a new image using the Flux model.
-        """
-        # device = torch.device('cuda:0')
-        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-        # Download and set up the ControlNet model
-        snapshot_download(
-            repo_id="xinsir/controlnet-union-sdxl-1.0",
-            local_dir='controlnet-union-sdxl-1.0'
-        )
-        controlnet_model = ControlNetModel_Union.from_pretrained(
-            "controlnet-union-sdxl-1.0-promax",
+        # Load the controlnet
+        controlnet_model = ControlNetModel.from_pretrained(
+            "controlnet-union-sdxl-1.0",
             torch_dtype=torch.float16,
             use_safetensors=True,
         )
 
-        # Set up the pipeline
-        self.pipe = StableDiffusionXLControlNetUnionInpaintPipeline.from_pretrained(
+        # Load the pipeline + CN
+        self.pipe = StableDiffusionXLControlNetInpaintPipeline.from_pretrained(
             "RunDiffusion/Juggernaut-XL-v8",
             controlnet=controlnet_model,
             torch_dtype=torch.float16,
         )
 
+        # Configure pipeline settings
         self.pipe.text_encoder.to(torch.float16)
         self.pipe.controlnet.to(torch.float16)
-        self.pipe.enable_model_cpu_offload()
+        self.pipe.to("cuda")
         
-        self.num_inference_steps=30
-        self.guidance_scale=5
-        self.controlnet_conditioning_scale=1
-        self.seed=np.random.randint(0,100000000)
+        # Set generator
         self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
 
     def generate_image(self):
         """
-        Generate a new image using the Flux model based on the pose, mask and prompt.
+        Generate a new image using the diffusion model based on the pose, mask and prompt.
         """
+        # Generate the image using the pipeline
         image_res = self.pipe(
             prompt=self.prompt,
-            image=self.mask_image_inv_b,
-            mask_image=self.mask_image,
-            control_image_list=[self.pose_image, 0, 0, 0, 0, 0, 0, self.mask_image_inv_a],
+            image=self.sm_image,
+            mask_image=self.sm_mask,
+            control_image=self.sm_pose_image,
             negative_prompt=self.negative_prompt,
             generator=self.generator,
             num_inference_steps=self.num_inference_steps,
-            union_control=True,
-            guidance_scale=guidance_scale,
-            union_control_type=torch.Tensor([1, 0, 0, 0, 0, 0, 0, 1]),
+            guidance_scale=self.guidance_scale,
+            controlnet_conditioning_scale=self.controlnet_conditioning_scale,
         ).images[0]
         
-        # Save image to a file
+        # Save the generated image
         filename = f"{uuid.uuid4()}.png"
         save_path = os.path.join("static", "generated_images", filename)
         image_res.save(save_path)
 
-        return jsonify(image_res)
-    
-    def benchmark_fn(self):
-        t0 = benchmark.Timer(stmt="self.generate_image()", globals={"self": self})
-        return f"{(t0.blocked_autorange().mean):.3f}"
-    
-    def bytes_to_giga_bytes(self,bytes):
-        return f"{(bytes / 1024 / 1024 / 1024):.3f}"
-    
+        return image_res
+
     def clearn_mem(self):
+        # Clear CUDA memory
         torch.cuda.empty_cache()
 
 
-if __name__ == "__main__":    
-    image_model = ImageModelSDXL(image_path, image_path, image_path, prompt_text)
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run ImageModelSDXL")
+    parser.add_argument("--image_path", required=True, help="Path to the input image")
+    parser.add_argument("--pose_path", default=None, help="Path to the pose image")
+    parser.add_argument("--mask_path", default=None, help="Path to the mask image")
+    parser.add_argument("--prompt", required=True, help="Text prompt for image generation")
+    parser.add_argument("--num_inference_steps", type=int, default=30, help="Number of inference steps")
+    parser.add_argument("--guidance_scale", type=float, default=5, help="Guidance scale")
+    parser.add_argument("--controlnet_conditioning_scale", type=float, default=1, help="ControlNet conditioning scale")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed")
+    parser.add_argument("--neg_prompt", default=None, help="Negative prompt")
+
+    args = parser.parse_args()
+
+    # Example usage of the ImageModelSDXL class with command-line arguments
+    if args.pose_path is None or args.mask_path is None:
+        args.pose_path, args.mask_path = ImageModelSDXL.generate_image_extras(args.image_path)
+
+    image_model = ImageModelSDXL(
+        args.image_path, 
+        args.pose_path, 
+        args.mask_path, 
+        args.prompt,
+        num_inference_steps=args.num_inference_steps,
+        guidance_scale=args.guidance_scale,
+        controlnet_conditioning_scale=args.controlnet_conditioning_scale,
+        seed=args.seed,
+        neg_prompt=args.neg_prompt
+    )
     image_model.prepare_image()
     image_model.prepare_model()
-    time=image_model.benchmark_fn()
-    memory = bytes_to_giga_bytes(torch.cuda.max_memory_allocated())  # in GBs.
-    print(
-        f"{time} seconds, ie {time/60} minutes, and {memory} GBs."
-    )
-    image_model.generate_image()
+    generated_image = image_model.generate_image()
+    print(f"Generated image saved at: {generated_image_path}")
     image_model.clearn_mem()
-    

@@ -6,23 +6,6 @@
 pip install -r requirements.txt
 pip install -e .
 ```
-## Model Setup
-install will run the following commands:
-
-```bash
-git clone https://${GH_PAT}@github.com/Modegen/flux-controlnet-inpaint.git
-git clone https://${GH_PAT}@github.com/Modegen/ControlNetPlus.git
-```
-
-- diffusers will download `controlnet-union-sdxl-1.0-promax` for sdxl pipeline. However, the user needs to `controlnet-union-sdxl-1.0` and rename the folder to `controlnet-union-sdxl-1.0-promax`
-
-- critical to add paths to these repos to the sys.path in the image model classes via the `external_deps` folder made via the [setup.sh](./setup.sh) script:
-```python
-
-# sys.path += ['external_deps/ControlNetPlus','external_deps/flux-controlnet-inpaint/src']
-sys.path.insert(0,os.path.abspath('external_deps/flux-controlnet-inpaint/src'))
-sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
-
 
 ## Running the tests
 
@@ -30,6 +13,14 @@ sys.path.insert(1,os.path.abspath('external_deps/ControlNetPlus'))
 python -m pytest
 ```
 
+# One can run the pipeline with a single input image and a prompt. Mask and pose are optional they will be generated if not provided.
+## Running single image generation
+```bash
+python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
+--image_path=LookBuilderPipeline/img/orig/p20.jpg \
+--prompt='a photo realistic image of a fashion model on a beach'
+
+```
 ## Running the pipeline
 
 ```python

@@ -20,28 +20,15 @@ class BaseImageModel:
         self.prompt = prompt
 
 
-    def showImagesHorizontally(list_of_files, output_path='output.png'):
-        fig = figure()
-        number_of_files = len(list_of_files)
-        for i in range(number_of_files):
-            a=fig.add_subplot(1,number_of_files,i+1)
-            image = (list_of_files[i])
-            imshow(image,cmap='Greys_r')
-            axis('off')
-        plt.tight_layout()  # Adjust the layout to prevent overlapping
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')  # Save the figure
-        plt.close(fig)  # Close the figure to free up memory
-        
     @staticmethod
     def generate_image_extras(image,inv=False):
         """
         used to generate extra images for the various controlnets
         """
         
-        label = str(np.random.randint(100000000))
+        # label = str(np.random.randint(100000000))
+        image=load_image(image)
         pose_image = detect_pose(image)
-        final_mask = segment(image,inv)
-
-        showImagesHorizontally([image,pose_image,final_mask],'input'+label+'.png')
+        final_mask,_,_ = segment_image(image,inverse=inv)
 
         return pose_image, final_mask

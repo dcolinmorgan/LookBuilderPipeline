@@ -27,6 +27,8 @@ def resize_images(images: Union[str, Image.Image, List[Union[str, Image.Image]]]
     def resize_single_image(img,target_size=512,aspect_ratio=1.0,square=False):
         if isinstance(img, str):
             img = Image.open(img)
+        else:
+            img = img
         if not isinstance(img, Image.Image):
             raise ValueError(f"Unsupported image type: {type(img)}")
         original_width, original_height = img.size
