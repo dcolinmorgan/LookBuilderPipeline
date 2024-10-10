@@ -4,13 +4,10 @@ from transformers import pipeline  # For using pre-trained models
 import numpy as np  # For numerical operations on arrays
 from PIL import Image  # For image manipulation
 from .resize import resize_images
-import torch  # For CUDA availability check
-
-# Check for CUDA availability
-device = "cuda" if torch.cuda.is_available() else "cpu"
+import cv2
 
 # Initialize the segmentation model using a pre-trained model from Hugging Face
-segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes", device=device)
+segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
 
 def segment_image(image_path, additional_option=None, resize=False, size=(512, 512), inverse=False):
     """
@@ -29,7 +26,10 @@ def segment_image(image_path, additional_option=None, resize=False, size=(512, 5
         final_array (numpy.ndarray): The final mask as a numpy array.
     """
     # Load the image from the specified path
-    seg_img = Image.open(image_path)
+    if isinstance(image_path,str):
+        seg_img = load_image(image_path)
+    else:
+        seg_img=image_path
     
     # Use the segmenter to get segments from the image
     segments = segmenter(seg_img)

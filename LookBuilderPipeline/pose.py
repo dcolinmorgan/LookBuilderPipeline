@@ -19,8 +19,11 @@ def detect_pose(image_path, resize=False, size=(512, 512)):
         PIL.Image: An image indicating the detected pose.
     """
     # Load the image from the specified path and convert it to RGB format
-    image = load_image(image_path).convert("RGB")
-    
+    if isinstance(image_path,str):
+        image = load_image(image_path).convert("RGB")
+    else:
+        image=image_path
+        
     # Use the OpenPose detector to detect the pose in the image
     pose_img = openpose(image)
     

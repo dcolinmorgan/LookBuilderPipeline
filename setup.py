@@ -1,25 +1,25 @@
 from setuptools import setup, find_packages
 
-class CloneRepoCommand(Command):
-    """Custom command to clone a repository."""
-    description = 'Clone external dependencies'
-    user_options = []
+# class CloneRepoCommand(Command):
+#     """Custom command to clone a repository."""
+#     description = 'Clone external dependencies'
+#     user_options = []
 
-    def initialize_options(self):
-        pass
+#     def initialize_options(self):
+#         pass
 
-    def finalize_options(self):
-        pass
+#     def finalize_options(self):
+#         pass
 
-    def run(self):
-        repo_url = 'https://github.com/Modegen/ControlNetPlus.git'
-        repo_url2 = 'https://github.com/Modegen/flux-controlnet-inpaint.git'
-        clone_dir = 'external_deps'
-        if not os.path.exists(clone_dir):
-            subprocess.check_call(['git', 'clone', repo_url, clone_dir])
-            subprocess.check_call(['git', 'clone', repo_url2, clone_dir])
-        else:
-            print(f'Repository already cloned in {clone_dir}')
+#     def run(self):
+#         repo_url = 'https://github.com/Modegen/ControlNetPlus.git'
+#         repo_url2 = 'https://github.com/Modegen/flux-controlnet-inpaint.git'
+#         clone_dir = 'external_deps'
+#         if not os.path.exists(clone_dir):
+#             subprocess.check_call(['git', 'clone', repo_url, clone_dir])
+#             subprocess.check_call(['git', 'clone', repo_url2, clone_dir])
+#         else:
+#             print(f'Repository already cloned in {clone_dir}')
 
 
 setup(
@@ -43,7 +43,7 @@ setup(
     #     "flux": ["diffusers==0.30.2"],
     #     "sdxl": ["diffusers==0.27.2"],
     # },
-    cmdclass={
-        'clone_repo': CloneRepoCommand,
-    },
+    # cmdclass={
+    #     'clone_repo': CloneRepoCommand,
+    # },
 )
