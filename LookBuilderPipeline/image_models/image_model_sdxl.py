@@ -4,7 +4,6 @@ import torch
 import numpy as np
 from diffusers.utils import load_image
 from transformers import pipeline 
-import torch.utils.benchmark as benchmark
 import torch.nn as nn
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.resize import resize_images
@@ -26,6 +25,7 @@ class ImageModelSDXL(BaseImageModel):
         self.image = kwargs.get('image', image)
         self.negative_prompt = kwargs.get('neg_prompt', "ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
         self.strength = kwargs.get('strength', 0.8)
+        self.model = 'sdxl'
 
     def prepare_image(self):
         """
@@ -103,10 +103,12 @@ class ImageModelSDXL(BaseImageModel):
         
         # Save the generated image
         filename = f"{uuid.uuid4()}.png"
-        save_path = os.path.join("static", "generated_images", filename)
+        save_path = os.path.join("generated_images", "sdxl", filename)
         image_res.save(save_path)
-
-        return image_res
+        bench_filename = f"{uuid.uuid4()}.png"
+        bench_save_path = os.path.join("generated_images", "sdxl", 'bench'+bench_filename)
+        ImageModelSDXL.showImagesHorizontally([self.sm_image,self.sm_pose_image,self.sm_mask,image_res],bench_save_path)
+        return image_res, save_path
 
     def clearn_mem(self):
         # Clear CUDA memory
@@ -132,7 +134,7 @@ if __name__ == "__main__":
 
     # Example usage of the ImageModelSDXL class with command-line arguments
     if args.pose_path is None or args.mask_path is None:
-        args.pose_path, args.mask_path = ImageModelSDXL.generate_image_extras(args.image_path)
+        args.pose_path, args.mask_path = ImageModelSDXL.generate_image_extras(args.image_path,inv=True)
 
     image_model = ImageModelSDXL(
         args.image_path, 
@@ -148,6 +150,6 @@ if __name__ == "__main__":
     )
     image_model.prepare_image()
     image_model.prepare_model()
-    generated_image = image_model.generate_image()
+    generated_image, generated_image_path = image_model.generate_image()
     print(f"Generated image saved at: {generated_image_path}")
     image_model.clearn_mem()

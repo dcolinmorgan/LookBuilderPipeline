@@ -32,3 +32,24 @@ class BaseImageModel:
         _,final_mask,_ = segment_image(image,inverse=inv)
 
         return pose_image, final_mask
+
+
+    def showImagesHorizontally(self,list_of_files,output_path):
+        from matplotlib.pyplot import figure, imshow, axis
+        from matplotlib.image import imread
+        import matplotlib.pyplot as plt
+
+        fig = figure()
+        number_of_files = len(list_of_files)
+        for i in range(number_of_files):
+            a=fig.add_subplot(1,number_of_files,i+1)
+            image = (list_of_files[i])
+            imshow(image,cmap='Greys_r')
+            axis('off')
+
+        # Add text to the image
+        fig.text(0.5, 0.01, f"Prompt: {self.prompt} \n Neg_Prompt: {self.negative_prompt} \n Model: {self.model} \n height: {self.height} width: {self.width} \n cond_scale: {self.controlnet_conditioning_scale} steps: {self.num_inference_steps} \n guidance: {self.guidance_scale} seed: {self.generator}", ha='center', fontsize=10, color='black')
+
+        plt.tight_layout()  # Adjust the layout to prevent overlapping
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')  # Save the figure
+        plt.close(fig)  # Close the figure to free up memory
