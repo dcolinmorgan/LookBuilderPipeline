@@ -1,5 +1,6 @@
 import sys, os
 import uuid
+import time
 import torch
 import numpy as np
 from diffusers.utils import load_image
@@ -79,6 +80,7 @@ class ImageModelFlux(BaseImageModel):
 
         
     def generate_image(self):
+        start_time = time.time()
         image_res = self.pipe(
                 prompt=self.prompt,
                 image=self.sm_image,
@@ -94,14 +96,16 @@ class ImageModelFlux(BaseImageModel):
                 guidance_scale=self.guidance_scale,
                 generator=self.generator,
             ).images[0]
+        end_time = time.time()
+        self.time = end_time - start_time
         
-            # Save the generated image
-            filename = f"{uuid.uuid4()}.png"
-            save_path = os.path.join("generated_images", "flux", filename)
-            image_res.save(save_path)
-            bench_filename = f"{uuid.uuid4()}.png"
-            bench_save_path = os.path.join("generated_images", "flux", 'bench'+bench_filename)
-            ImageModelFlux.showImagesHorizontally([self.sm_image,self.sm_pose_image,self.sm_mask,image_res],bench_save_path)
+        # Save the generated image
+        filename = f"{uuid.uuid4()}.png"
+        save_path = os.path.join("generated_images", "flux", filename)
+        image_res.save(save_path)
+        bench_filename = f"{uuid.uuid4()}.png"
+        bench_save_path = os.path.join("generated_images", "flux", 'bench'+bench_filename)
+        ImageModelFlux.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res],output_path=bench_save_path)
      
 
         return image_res, save_path

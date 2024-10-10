@@ -39,7 +39,7 @@ class BaseImageModel:
         from matplotlib.image import imread
         import matplotlib.pyplot as plt
 
-        fig = figure()
+        fig = figure(figsize=(10,5))
         number_of_files = len(list_of_files)
         for i in range(number_of_files):
             a=fig.add_subplot(1,number_of_files,i+1)
@@ -48,8 +48,24 @@ class BaseImageModel:
             axis('off')
 
         # Add text to the image
-        fig.text(0.5, 0.01, f"Prompt: {self.prompt} \n Neg_Prompt: {self.negative_prompt} \n Model: {self.model} \n height: {self.height} width: {self.width} \n cond_scale: {self.controlnet_conditioning_scale} steps: {self.num_inference_steps} \n guidance: {self.guidance_scale} seed: {self.generator}", ha='center', fontsize=10, color='black')
-
+        fig.text(0.5, 0.01, f"Prompt: {self.prompt}       Neg_Prompt: {self.negative_prompt} \n Model: {self.model}  Time(s): {np.round(self.time,2)}  Time(m): {np.round(self.time/60,2)}  height: {self.height}  width: {self.width}  cond_scale: {self.controlnet_conditioning_scale}  steps: {self.num_inference_steps}  guidance: {self.guidance_scale}  seed: {self.seed}", ha='center', fontsize=10, color='black', wrap=True)
+        text_to_save = f"""
+        Prompt: {self.prompt} 
+        Neg_Prompt: {self.negative_prompt}
+        Model: {self.model}
+        Time: {self.time}
+        height: {self.height}
+        width: {self.width}
+        cond_scale: {self.controlnet_conditioning_scale}
+        steps: {self.num_inference_steps}
+        guidance: {self.guidance_scale}
+        seed: {self.seed}
+        time: {self.time}"""
+        
+         # Save the text to a .txt file
+        with open(output_path+'.txt', 'w') as file:  # Specify the desired file name
+            file.write(text_to_save)  # Write the text to the file
+        
         plt.tight_layout()  # Adjust the layout to prevent overlapping
         plt.savefig(output_path, dpi=300, bbox_inches='tight')  # Save the figure
         plt.close(fig)  # Close the figure to free up memory

@@ -1,5 +1,6 @@
 import sys, os
 import uuid
+import time
 import torch
 import numpy as np
 from diffusers.utils import load_image
@@ -23,7 +24,7 @@ class ImageModelOpenFLUX(BaseImageModel):
         self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 0.7)
         self.seed = kwargs.get('seed', np.random.randint(0, 100000000))
         self.prompt = kwargs.get('prompt', prompt)
-        self.neg_prompt = kwargs.get('neg_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves')
+        self.negative_prompt = kwargs.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves')
         self.image = kwargs.get('image', image)
         self.strength = kwargs.get('strength', 0.99)
         self.model = 'openflux'
@@ -142,30 +143,33 @@ class ImageModelOpenFLUX(BaseImageModel):
         pipe.enable_model_cpu_offload()
         
     def generate_image(self):
+        start_time = time.time()
         image_res = self.pipe(
-                prompt=self.prompt,
-                negative_prompt=self.neg_prompt,
-                image=self.sm_image,
-                control_image=self.sm_pose_image,
-                control_mode=4,
-                # padding_mask_crop=32,
-                controlnet_conditioning_scale=self.controlnet_conditioning_scale,
-                mask_image=self.sm_mask,
-                height=self.height,
-                width=self.width,
-                strength=self.strength,
-                num_inference_steps=self.num_inference_steps,
-                guidance_scale=self.guidance_scale,
-                generator=self.generator,
-            ).images[0]
-        
-            # Save the generated image
-            filename = f"{uuid.uuid4()}.png"
-            save_path = os.path.join("generated_images", "openflux", filename)
-            image_res.save(save_path)
-            bench_filename = f"{uuid.uuid4()}.png"
-            bench_save_path = os.path.join("generated_images", "openflux", 'bench'+bench_filename)
-            ImageModelOpenFLUX.showImagesHorizontally([self.sm_image,self.sm_pose_image,self.sm_mask,image_res],bench_save_path)
+            prompt=self.prompt,
+            negative_prompt=self.negative_prompt,
+            image=self.sm_image,
+            control_image=self.sm_pose_image,
+            control_mode=4,
+            # padding_mask_crop=32,
+            controlnet_conditioning_scale=self.controlnet_conditioning_scale,
+            mask_image=self.sm_mask,
+            height=self.height,
+            width=self.width,
+            strength=self.strength,
+            num_inference_steps=self.num_inference_steps,
+            guidance_scale=self.guidance_scale,
+            generator=self.generator,
+        ).images[0]
+        end_time = time.time()
+        self.time = end_time - start_time
+    
+        # Save the generated image
+        filename = f"{uuid.uuid4()}.png"
+        save_path = os.path.join("generated_images", "openflux", filename)
+        image_res.save(save_path)
+        bench_filename = f"{uuid.uuid4()}.png"
+        bench_save_path = os.path.join("generated_images", "openflux", 'bench'+bench_filename)
+        ImageModelOpenFLUX.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res],output_path=bench_save_path)
      
 
         return image_res, save_path
@@ -183,7 +187,7 @@ if __name__ == "__main__":
     parser.add_argument("--pose_path", default=None, help="Path to the pose image")
     parser.add_argument("--mask_path", default=None, help="Path to the mask image")
     parser.add_argument("--prompt", required=True, help="Text prompt for image generation")
-    parser.add_argument("--neg_prompt", default='ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', help="Text prompt for image generation")
+    parser.add_argument("--negative_prompt", default='ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', help="Text prompt for image generation")
     parser.add_argument("--num_inference_steps", type=int, default=10, help="Number of inference steps")
     parser.add_argument("--guidance_scale", type=float, default=7, help="Guidance scale")
     parser.add_argument("--controlnet_conditioning_scale", type=float, default=1, help="ControlNet conditioning scale")
@@ -202,12 +206,12 @@ if __name__ == "__main__":
         args.pose_path, 
         args.mask_path, 
         args.prompt,
-        args.neg_prompt,
+        args.negative_prompt,
         num_inference_steps=args.num_inference_steps,
         guidance_scale=args.guidance_scale,
         controlnet_conditioning_scale=args.controlnet_conditioning_scale,
         seed=args.seed,
-        neg_prompt=args.neg_prompt,
+        negative_prompt=args.negative_prompt,
         strength=args.strength,
     )
     image_model.prepare_image()

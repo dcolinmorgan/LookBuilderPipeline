@@ -1,5 +1,6 @@
 import sys, os
 import uuid
+import time
 import torch
 import numpy as np
 from diffusers.utils import load_image
@@ -19,11 +20,11 @@ class ImageModelSDXL(BaseImageModel):
         # Set default values
         self.num_inference_steps = kwargs.get('num_inference_steps', 30)
         self.guidance_scale = kwargs.get('guidance_scale', 5)
-        self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1)
+        self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1.0)
         self.seed = kwargs.get('seed', np.random.randint(0, 100000000))
         self.prompt = kwargs.get('prompt', prompt)
         self.image = kwargs.get('image', image)
-        self.negative_prompt = kwargs.get('neg_prompt', "ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
+        self.negative_prompt = kwargs.get('negative_prompt', "ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
         self.strength = kwargs.get('strength', 0.8)
         self.model = 'sdxl'
 
@@ -87,6 +88,7 @@ class ImageModelSDXL(BaseImageModel):
         """
         Generate a new image using the diffusion model based on the pose, mask and prompt.
         """
+        start_time = time.time()
         # Generate the image using the pipeline
         image_res = self.pipe(
             prompt=self.prompt,
@@ -100,6 +102,8 @@ class ImageModelSDXL(BaseImageModel):
             controlnet_conditioning_scale=self.controlnet_conditioning_scale,
             strength=self.strength,
         ).images[0]
+        end_time = time.time()
+        self.time = end_time - start_time
         
         # Save the generated image
         filename = f"{uuid.uuid4()}.png"
@@ -107,7 +111,7 @@ class ImageModelSDXL(BaseImageModel):
         image_res.save(save_path)
         bench_filename = f"{uuid.uuid4()}.png"
         bench_save_path = os.path.join("generated_images", "sdxl", 'bench'+bench_filename)
-        ImageModelSDXL.showImagesHorizontally([self.sm_image,self.sm_pose_image,self.sm_mask,image_res],bench_save_path)
+        ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res],output_path=bench_save_path)
         return image_res, save_path
 
     def clearn_mem(self):
@@ -125,9 +129,9 @@ if __name__ == "__main__":
     parser.add_argument("--prompt", required=True, help="Text prompt for image generation")
     parser.add_argument("--num_inference_steps", type=int, default=30, help="Number of inference steps")
     parser.add_argument("--guidance_scale", type=float, default=5, help="Guidance scale")
-    parser.add_argument("--controlnet_conditioning_scale", type=float, default=1, help="ControlNet conditioning scale")
+    parser.add_argument("--controlnet_conditioning_scale", type=float, default=1.0, help="ControlNet conditioning scale")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--neg_prompt", default=None, help="Negative prompt")
+    parser.add_argument("--negative_prompt", default=None, help="Negative prompt")
     parser.add_argument("--strength", type=float, default=0.8, help="Strength of the transformation")  # Add strength argument
 
     args = parser.parse_args()
@@ -145,7 +149,7 @@ if __name__ == "__main__":
         guidance_scale=args.guidance_scale,
         controlnet_conditioning_scale=args.controlnet_conditioning_scale,
         seed=args.seed,
-        neg_prompt=args.neg_prompt,
+        negative_prompt=args.negative_prompt,
         strength=args.strength
     )
     image_model.prepare_image()
