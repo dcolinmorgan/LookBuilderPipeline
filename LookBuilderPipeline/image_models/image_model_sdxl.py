@@ -25,6 +25,7 @@ class ImageModelSDXL(BaseImageModel):
         self.prompt = kwargs.get('prompt', prompt)
         self.image = kwargs.get('image', image)
         self.negative_prompt = kwargs.get('neg_prompt', "ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
+        self.strength = kwargs.get('strength', 0.8)
 
     def prepare_image(self):
         """
@@ -62,7 +63,7 @@ class ImageModelSDXL(BaseImageModel):
         
         # Load the controlnet
         controlnet_model = ControlNetModel.from_pretrained(
-            "controlnet-union-sdxl-1.0",
+            "xinsir/controlnet-union-sdxl-1.0",
             torch_dtype=torch.float16,
             use_safetensors=True,
         )
@@ -97,6 +98,7 @@ class ImageModelSDXL(BaseImageModel):
             num_inference_steps=self.num_inference_steps,
             guidance_scale=self.guidance_scale,
             controlnet_conditioning_scale=self.controlnet_conditioning_scale,
+            strength=self.strength,
         ).images[0]
         
         # Save the generated image
@@ -122,8 +124,9 @@ if __name__ == "__main__":
     parser.add_argument("--num_inference_steps", type=int, default=30, help="Number of inference steps")
     parser.add_argument("--guidance_scale", type=float, default=5, help="Guidance scale")
     parser.add_argument("--controlnet_conditioning_scale", type=float, default=1, help="ControlNet conditioning scale")
-    parser.add_argument("--seed", type=int, default=None, help="Random seed")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--neg_prompt", default=None, help="Negative prompt")
+    parser.add_argument("--strength", type=float, default=0.8, help="Strength of the transformation")  # Add strength argument
 
     args = parser.parse_args()
 
@@ -140,7 +143,8 @@ if __name__ == "__main__":
         guidance_scale=args.guidance_scale,
         controlnet_conditioning_scale=args.controlnet_conditioning_scale,
         seed=args.seed,
-        neg_prompt=args.neg_prompt
+        neg_prompt=args.neg_prompt,
+        strength=args.strength
     )
     image_model.prepare_image()
     image_model.prepare_model()

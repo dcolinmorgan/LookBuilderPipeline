@@ -29,6 +29,6 @@ class BaseImageModel:
         # label = str(np.random.randint(100000000))
         image=load_image(image)
         pose_image = detect_pose(image)
-        final_mask,_,_ = segment_image(image,inverse=inv)
+        _,final_mask,_ = segment_image(image,inverse=inv)
 
         return pose_image, final_mask
