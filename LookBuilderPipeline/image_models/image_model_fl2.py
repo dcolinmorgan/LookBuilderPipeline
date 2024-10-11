@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, shutil
 import uuid
 import time
 import torch
@@ -13,6 +13,11 @@ from LookBuilderPipeline.resize import resize_images
 from diffusers import FluxControlNetInpaintPipeline, FluxPipeline, FluxInpaintPipeline
 from diffusers.models.controlnet_flux import FluxControlNetModel
 
+# ## change flux inpainting pipeline to allow negative-prompt in OpenFlux
+PTH=(os.path.abspath(inspect.getfile(FluxPipeline)))
+orig_pipe='/'.join(PTH.split('/')[:-1])+'/pipeline_flux_controlnet_inpainting.py'
+mod_pipe='LookBuilderPipeline/LookBuilderPipeline/image_models/openflux/pipeline_flux_controlnet_inpainting.py'
+shutil.copy(mod_pipe, orig_pipe)
 
 class ImageModelFlux(BaseImageModel):
     def __init__(self, image, pose, mask, prompt, *args, **kwargs):
