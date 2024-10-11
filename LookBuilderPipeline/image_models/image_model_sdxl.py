@@ -132,7 +132,7 @@ if __name__ == "__main__":
     parser.add_argument("--guidance_scale", type=float, default=5, help="Guidance scale")
     parser.add_argument("--controlnet_conditioning_scale", type=float, default=1.0, help="ControlNet conditioning scale")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--negative_prompt", default=None, help="Negative prompt")
+    parser.add_argument("--negative_prompt", default="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
     parser.add_argument("--strength", type=float, default=0.8, help="Strength of the transformation")  # Add strength argument
 
     args = parser.parse_args()

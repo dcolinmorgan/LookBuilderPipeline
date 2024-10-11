@@ -17,4 +17,3 @@ protobuf
 controlnet_aux #==0.0.6
 opencv-python
 
-apt-get update && apt-get install libgl1
