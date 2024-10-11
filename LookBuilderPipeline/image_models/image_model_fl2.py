@@ -100,11 +100,13 @@ class ImageModelFlux(BaseImageModel):
         self.time = end_time - start_time
         
         # Save the generated image
+        os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "flux"), exist_ok=True)
+
         filename = f"{uuid.uuid4()}.png"
-        save_path = os.path.join("generated_images", "flux", filename)
+        save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "flux", filename)
         image_res.save(save_path)
         bench_filename = f"{uuid.uuid4()}.png"
-        bench_save_path = os.path.join("generated_images", "flux", 'bench'+bench_filename)
+        bench_save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "flux", 'bench'+bench_filename)
         ImageModelFlux.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res],output_path=bench_save_path)
      
 

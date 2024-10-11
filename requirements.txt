@@ -5,9 +5,7 @@ pytest
 torch
 mediapipe
 accelerate
-# matplotlib==3.7.3 ## not necessary for pipeline
-flask
-Werkzeug==2.0.1
+
 numpy
 huggingface-hub
 sentencepiece==0.2.0
@@ -15,12 +13,8 @@ diffusers @ git+https://github.com/huggingface/diffusers.git
 
 tokenizers #==0.19
 protobuf
-# Common requirements
+
 controlnet_aux #==0.0.6
-# opencv-python
+opencv-python
 
-# Flux model requirements
-# diffusers==0.30.2; extra == 'flux'
-
-# SDXL model requirements
-# diffusers==0.27.2; extra == 'sdxl'
+apt-get update && apt-get install libgl1

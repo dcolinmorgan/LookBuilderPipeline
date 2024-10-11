@@ -3,7 +3,10 @@
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+export GH_PAT= ## from doppler secrets
+git clone https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
+cd LookBuilderPipeline
+apt-get update && apt-get install -y libgl1 ## should run automatically in install step
 pip install -e .
 ```
 

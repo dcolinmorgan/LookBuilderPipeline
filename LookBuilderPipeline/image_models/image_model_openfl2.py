@@ -164,11 +164,13 @@ class ImageModelOpenFLUX(BaseImageModel):
         self.time = end_time - start_time
     
         # Save the generated image
+        os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "openflux"), exist_ok=True)
+
         filename = f"{uuid.uuid4()}.png"
-        save_path = os.path.join("generated_images", "openflux", filename)
+        save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "openflux", filename)
         image_res.save(save_path)
         bench_filename = f"{uuid.uuid4()}.png"
-        bench_save_path = os.path.join("generated_images", "openflux", 'bench'+bench_filename)
+        bench_save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "openflux", 'bench'+bench_filename)
         ImageModelOpenFLUX.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res],output_path=bench_save_path)
      
 
