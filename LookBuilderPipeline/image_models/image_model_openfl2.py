@@ -1,4 +1,5 @@
-import sys, os, shutil. inspect
+import sys, os
+import glob, inspect, shutil
 import uuid
 import time
 import torch
@@ -8,6 +9,7 @@ from transformers import pipeline
 import torch.nn as nn
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.resize import resize_images
+from quanto import qfloat8,qint4,qint8, quantize,freeze
 
 # Import required components from diffusers
 from diffusers import FluxPipeline, FluxInpaintPipeline
@@ -34,6 +36,7 @@ class ImageModelOpenFLUX(BaseImageModel):
         self.image = kwargs.get('image', image)
         self.strength = kwargs.get('strength', 0.99)
         self.model = 'openflux'
+        self.quantize = kwargs.get('quantize', None)
 
 
     def prepare_image(self):
@@ -67,6 +70,11 @@ class ImageModelOpenFLUX(BaseImageModel):
         """
         Load the FLUX model and controlnet.
         """
+        # ## make sure flux inpainting pipeline is original (no negative prompt, non-CFG)
+        PTH=(os.path.abspath(inspect.getfile(FluxPipeline)))
+        target='/'.join(PTH.split('/')[:-1])+'/pipeline_flux_controlnet_inpainting.py'
+        source='LookBuilderPipeline/LookBuilderPipeline/image_models/openflux/orig_pipeline_flux_controlnet_inpainting.py'
+        shutil.copy(source, target)
         from diffusers import FluxControlNetInpaintPipeline
 
         # Set up the pipeline
@@ -90,44 +98,51 @@ class ImageModelOpenFLUX(BaseImageModel):
         """
         Load the FLUX model and controlnet as individual components.
         """
-        
-        
-        # Import required components from diffusers
-        from diffusers import FluxControlNetInpaintPipeline
-        
+
         from diffusers import FlowMatchEulerDiscreteScheduler, AutoencoderKL
         from diffusers.models.transformers.transformer_flux import FluxTransformer2DModel
         from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
         from transformers import CLIPTextModel, CLIPTokenizer,T5EncoderModel, T5TokenizerFast
         dtype = torch.bfloat16
+        # ## change flux inpainting pipeline to allow negative-prompt in OpenFlux
+        PTH=(os.path.abspath(inspect.getfile(FluxPipeline)))
+        target='/'.join(PTH.split('/')[:-1])+'/pipeline_flux_controlnet_inpainting.py'
+        source='LookBuilderPipeline/LookBuilderPipeline/image_models/openflux/cfg_pipeline_flux_controlnet_inpainting.py'
+        shutil.copy(source, target)
+        
+        # Import required components from diffusers
+        from diffusers import FluxControlNetInpaintPipeline
+        
         scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained('flux-fp8', subfolder="scheduler")
         text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
         tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
-        text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
+        # text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
         tokenizer_2 = T5TokenizerFast.from_pretrained('flux-fp8', subfolder="tokenizer_2", torch_dtype=dtype)
         vae = AutoencoderKL.from_pretrained('flux-fp8', subfolder="vae", torch_dtype=dtype)
-        transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
+        # transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
 
-        if glob.glob('qopenflux/text_encoder_2/*.safetensors'):
-            text_encoder_2 = T5EncoderModel.from_pretrained('qopenflux', subfolder="text_encoder_2", torch_dtype=dtype)
+        if glob.glob('qopenflux/text_encoder_2'+str(self.quantize)+'/*.safetensors'):
+            text_encoder_2 = T5EncoderModel.from_pretrained('qopenflux', subfolder="text_encoder_2"+str(self.quantize), torch_dtype=dtype)
         else:
             text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
-            quantize(text_encoder_2, weights=qfloat8)
+            quantize(text_encoder_2, weights=eval(self.quantize))
             freeze(text_encoder_2)
-            text_encoder_2.save_pretrained('qopenflux/text_encoder_2')
+            text_encoder_2.save_pretrained('qopenflux/text_encoder_2'+self.quantize)
 
         # if glob.glob('qopenflux/transformer/*.safetensors'):
         try:
-            transformer = FluxTransformer2DModel.from_pretrained('qopenflux', subfolder="transformer", torch_dtype=dtype)
+            transformer = FluxTransformer2DModel.from_pretrained('qopenflux', subfolder="transformer"+str(self.quantize), torch_dtype=dtype)
         # else:
         except:
             transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
-            quantize(transformer, weights=qfloat8)
+            quantize(transformer, weights=eval(self.quantize))
             freeze(transformer)
-            transformer.save_pretrained('qopenflux/transformer')
+            transformer.save_pretrained('qopenflux/transformer'+self.quantize)
             
-        
-        pipe = FluxControlNetInpaintPipeline(
+        controlnet_model = 'InstantX/FLUX.1-dev-Controlnet-Union'
+        controlnet = FluxControlNetModel.from_pretrained(controlnet_model, torch_dtype=torch.bfloat16,add_prefix_space=True,guidance_embeds=False)
+
+        self.pipe = FluxControlNetInpaintPipeline(
             controlnet=controlnet,
             scheduler=scheduler,
             text_encoder=text_encoder,
@@ -139,9 +154,12 @@ class ImageModelOpenFLUX(BaseImageModel):
         )
 
 
-        pipe.text_encoder_2 = text_encoder_2
-        pipe.transformer = transformer
-        pipe.enable_model_cpu_offload()
+        self.pipe.text_encoder_2 = text_encoder_2
+        self.pipe.transformer = transformer
+        self.pipe.enable_model_cpu_offload()
+        
+        self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
+
         
     def generate_image(self):
         start_time = time.time()
@@ -165,10 +183,10 @@ class ImageModelOpenFLUX(BaseImageModel):
         self.time = end_time - start_time
     
         # Save the generated image
-        os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "openflux"), exist_ok=True)
+        os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", self.model), exist_ok=True)
 
         filename = f"{uuid.uuid4()}.png"
-        save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "openflux", filename)
+        save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", self.model, filename)
         image_res.save(save_path)
         bench_filename = f"{uuid.uuid4()}.png"
         bench_save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "openflux", 'bench'+bench_filename)
@@ -196,7 +214,7 @@ if __name__ == "__main__":
     parser.add_argument("--controlnet_conditioning_scale", type=float, default=1, help="ControlNet conditioning scale")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--strength", type=float, default=0.99, help="Strength of the transformation")  # Add strength argument
-    parser.add_argument("--quantize", default=False, help="run quanto on textencoder2 and transformer")
+    parser.add_argument("--quantize", default=None, help="None,qfloat8,qint8,qint4")
 
     args = parser.parse_args()
 
@@ -216,11 +234,12 @@ if __name__ == "__main__":
         seed=args.seed,
         negative_prompt=args.negative_prompt,
         strength=args.strength,
+        quantize=args.quantize,
     )
     image_model.prepare_image()
-    if not args.quantize:
+    if args.quantize==None:
         image_model.prepare_model()
-    if args.quantize:
+    else:
         image_model.prepare_quant_model()
     generated_image, generated_image_path = image_model.generate_image()
     print(f"Generated image saved at: {generated_image_path}")

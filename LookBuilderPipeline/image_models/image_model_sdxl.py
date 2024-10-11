@@ -2,16 +2,20 @@ import sys, os
 import uuid
 import time
 import torch
+import warnings
 import numpy as np
 from diffusers.utils import load_image
 from transformers import pipeline 
+import torch.utils.benchmark as benchmark
 import torch.nn as nn
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.resize import resize_images
 
 # Import required components from diffusers
 from diffusers import StableDiffusionXLControlNetInpaintPipeline, ControlNetModel, DDIMScheduler
-
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    
 class ImageModelSDXL(BaseImageModel):
     def __init__(self, image, pose, mask, prompt, *args, **kwargs):
         # Initialize the SDXL image model
@@ -19,8 +23,8 @@ class ImageModelSDXL(BaseImageModel):
         
         # Set default values
         self.num_inference_steps = kwargs.get('num_inference_steps', 30)
-        self.guidance_scale = kwargs.get('guidance_scale', 5)
-        self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1.0)
+        self.guidance_scale = kwargs.get('guidance_scale', 7.5)
+        self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', .99)
         self.seed = kwargs.get('seed', np.random.randint(0, 100000000))
         self.prompt = kwargs.get('prompt', prompt)
         self.image = kwargs.get('image', image)
@@ -100,18 +104,17 @@ class ImageModelSDXL(BaseImageModel):
             num_inference_steps=self.num_inference_steps,
             guidance_scale=self.guidance_scale,
             controlnet_conditioning_scale=self.controlnet_conditioning_scale,
-            strength=self.strength,
         ).images[0]
         end_time = time.time()
         self.time = end_time - start_time
         
         # Save the generated image
-        os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "sdxl"), exist_ok=True)
+        os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", self.model), exist_ok=True)
         filename = f"{uuid.uuid4()}.png"
-        save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "sdxl", filename)
+        save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", self.model, filename)
         image_res.save(save_path)
         bench_filename = f"{uuid.uuid4()}.png"
-        bench_save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "sdxl", 'bench'+bench_filename)
+        bench_save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", self.model", 'bench'+bench_filename)
         ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res],output_path=bench_save_path)
         return image_res, save_path
 
@@ -129,8 +132,8 @@ if __name__ == "__main__":
     parser.add_argument("--mask_path", default=None, help="Path to the mask image")
     parser.add_argument("--prompt", required=True, help="Text prompt for image generation")
     parser.add_argument("--num_inference_steps", type=int, default=30, help="Number of inference steps")
-    parser.add_argument("--guidance_scale", type=float, default=5, help="Guidance scale")
-    parser.add_argument("--controlnet_conditioning_scale", type=float, default=1.0, help="ControlNet conditioning scale")
+    parser.add_argument("--guidance_scale", type=float, default=7.5, help="Guidance scale")
+    parser.add_argument("--controlnet_conditioning_scale", type=float, default=0.99, help="ControlNet conditioning scale")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--negative_prompt", default="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
     parser.add_argument("--strength", type=float, default=0.8, help="Strength of the transformation")  # Add strength argument
