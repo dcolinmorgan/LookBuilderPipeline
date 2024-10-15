@@ -11,11 +11,16 @@ pip install -e .
 ```
 ## parameters & their affect on generation:
 
-  - `control_mode`=4,  ## this dictates `openpose` 
-  - `controlnet_conditioning_scale`=0.25, ## lower for better outpainting, raise if limbs are off the pose image
-  - `strength`=0.9, ## 0.5 is good for most images
-  - `num_inference_steps`=20, ## 20 is good for most images, more for more detail
-  - `guidance_scale`=6, ## 5 is good for most images, lower for more creative results
+  - `control_mode=4`,  this dictates `openpose` 
+  - `controlnet_conditioning_scale=0.3`
+    - 0.2 to 0.4 seem ok -- lower for better outpainting, raise if limbs are off the pose image
+  - `strength=0.9` strength of prompt on image
+    - this is good for most images -- can override mask/pose if too high (0.95), generate cartoon if too low (0.85) \
+    - can be lower based on image, 0.7 works for some images
+  - `num_inference_steps=20`
+    - 20-40 this is good for most images, sometimes more is needed for more detail
+  - `guidance_scale=6`
+    - 5 is good for most images, lower for more creative results
 
 # SDXL
 ### One can run the pipeline with a single input image and a prompt. Mask and pose are optional they will be generated if not provided.
