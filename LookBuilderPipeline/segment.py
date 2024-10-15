@@ -2,9 +2,8 @@
 from diffusers.utils import load_image  # For loading images
 from transformers import pipeline  # For using pre-trained models
 import numpy as np  # For numerical operations on arrays
-from PIL import Image  # For image manipulation
+from PIL import Image, ImageOps  # For image manipulation
 from .resize import resize_images
-import cv2
 
 # Initialize the segmentation model using a pre-trained model from Hugging Face
 segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
@@ -95,9 +94,9 @@ def full_mask(original_image,flux_image):
     # seg_img.putalpha(final_mask)
     
     mask = Image.new("L", final_mask.size)
-    mask.paste(final_mask.split()[3], (x, y))
+    mask.paste(final_mask)
     mask = ImageOps.invert(mask)
     final_maskA = mask.point(lambda p: p > 128 and 255)
-    mask_blurred = pipeline.mask_processor.blur(final_maskA, blur_factor=20)
+    # mask_blurred = self.pipe.mask_processor.blur(final_maskA, blur_factor=20)
         
-    return final_mask, mask_blurred
+    return final_mask#, mask_blurred

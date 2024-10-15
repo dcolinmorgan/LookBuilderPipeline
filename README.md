@@ -9,14 +9,16 @@ cd LookBuilderPipeline
 apt-get update && apt-get install -y libgl1 ## should run automatically in install step
 pip install -e .
 ```
+## parameters & their affect on generation:
 
-## Running the tests
+  - `control_mode`=4,  ## this dictates `openpose` 
+  - `controlnet_conditioning_scale`=0.25, ## lower for better outpainting, raise if limbs are off the pose image
+  - `strength`=0.9, ## 0.5 is good for most images
+  - `num_inference_steps`=20, ## 20 is good for most images, more for more detail
+  - `guidance_scale`=6, ## 5 is good for most images, lower for more creative results
 
-```bash
-python -m pytest
-```
-
-# One can run the pipeline with a single input image and a prompt. Mask and pose are optional they will be generated if not provided.
+# SDXL
+### One can run the pipeline with a single input image and a prompt. Mask and pose are optional they will be generated if not provided.
 ## Running single image generation
 ```bash
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
@@ -24,7 +26,23 @@ python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py
 --prompt='a photo realistic image of a fashion model on a beach'
 
 ```
-## Running the pipeline
+# OpenFLUX w/ quant
+## Running single image generation
+```bash
+python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_openfl2.py \
+--image_path=LookBuilderPipeline/img/orig/p20.jpg \
+--prompt='a photo realistic image of a fashion model on a beach'
+--quantize='qfloat8'
+
+```
+
+## Running the tests
+
+```bash
+python -m pytest
+```
+
+## Running the pipeline in python (ipynb)
 
 ```python
 # from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
