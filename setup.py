@@ -16,6 +16,7 @@ setup(
         'mediapipe',
         'accelerate',
         'numpy',
+        'compel',
         'huggingface-hub',
         'sentencepiece==0.2.0',
         'diffusers @ git+https://github.com/huggingface/diffusers.git',

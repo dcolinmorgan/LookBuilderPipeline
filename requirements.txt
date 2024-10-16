@@ -13,7 +13,7 @@ diffusers @ git+https://github.com/huggingface/diffusers.git
 
 tokenizers #==0.19
 protobuf
-
+compel
 controlnet_aux #==0.0.6
 opencv-python
 
