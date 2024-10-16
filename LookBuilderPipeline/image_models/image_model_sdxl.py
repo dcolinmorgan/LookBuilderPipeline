@@ -168,7 +168,7 @@ if __name__ == "__main__":
         controlnet_conditioning_scale=args.controlnet_conditioning_scale,
         seed=args.seed,
         negative_prompt=args.negative_prompt,
-        strength=args.strength
+        strength=args.strength,
         LoRA=args.LoRA
     )
     image_model.prepare_image()

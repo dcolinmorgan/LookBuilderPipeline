@@ -255,7 +255,7 @@ if __name__ == "__main__":
         negative_prompt=args.negative_prompt,
         strength=args.strength,
         quantize=args.quantize,
-        LoRA=args.LoRA,
+        LoRA=args.LoRA
     )
     image_model.prepare_image()
     if args.quantize==None:
