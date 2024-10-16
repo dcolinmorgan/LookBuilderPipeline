@@ -6,6 +6,8 @@ import numpy as np
 from diffusers.utils import load_image
 from transformers import pipeline 
 import torch.nn as nn
+from compel import Compel, ReturnedEmbeddingsType
+
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.resize import resize_images
 
@@ -26,6 +28,7 @@ class ImageModelSDXL(BaseImageModel):
         self.image = kwargs.get('image', image)
         self.negative_prompt = kwargs.get('negative_prompt', "ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
         self.strength = kwargs.get('strength', 0.99)
+        self.LoRA = kwargs.get('LoRA', False)
         self.model = 'sdxl'
 
     def prepare_image(self):
@@ -46,7 +49,7 @@ class ImageModelSDXL(BaseImageModel):
         ## keep input_image resolution and upscale pose (stick figure) VS downscaling to pose resolution
         # if pose_image.size[0] < image.size[0]:  ## resize to pose image size if it is smaller
         #     self.sm_image=resize_images(image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-        #     self.sm_pose_image=resize_images(pose_image,pose_image.size,aspect_ratio=None)
+        #     self.sm_pose_image=resize_images(pose_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
         #     self.sm_mask=resize_images(mask_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
             
         # else:
@@ -72,7 +75,8 @@ class ImageModelSDXL(BaseImageModel):
 
         # Load the pipeline + CN
         self.pipe = StableDiffusionXLControlNetInpaintPipeline.from_pretrained(
-            "RunDiffusion/Juggernaut-XL-v8",
+            # "RunDiffusion/Juggernaut-XL-v8",
+            "SG161222/RealVisXL_V5.0_Lightning",
             controlnet=controlnet_model,
             torch_dtype=torch.float16,
         )
@@ -81,18 +85,28 @@ class ImageModelSDXL(BaseImageModel):
         self.pipe.text_encoder.to(torch.float16)
         self.pipe.controlnet.to(torch.float16)
         self.pipe.to("cuda")
-        
-        # Set generator
+        if self.LoRA:
+            self.pipe.load_lora_weights('ntc-ai/SDXL-LoRA-slider.winner', weight_name='winner.safetensors', adapter_name="winner")
+
+            # Activate the LoRA
+            self.pipe.set_adapters(["winner"], adapter_weights=[2.0])
+            from diffusers import EulerAncestralDiscreteScheduler
         self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
 
     def generate_image(self):
         """
         Generate a new image using the diffusion model based on the pose, mask and prompt.
         """
+        ## compel for prompt embedding allowing >77 tokens
+        compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])
+        conditioning, pooled = compel(self.prompt)
+        
         start_time = time.time()
         # Generate the image using the pipeline
         image_res = self.pipe(
-            prompt=self.prompt,
+            # prompt=self.prompt,
+            prompt_embeds=conditioning,
+            pooled_prompt_embeds=pooled,
             image=self.sm_image,
             mask_image=self.sm_mask,
             control_image=self.sm_pose_image,
@@ -134,7 +148,9 @@ if __name__ == "__main__":
     parser.add_argument("--controlnet_conditioning_scale", type=float, default=1.0, help="ControlNet conditioning scale")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--negative_prompt", default="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
-    parser.add_argument("--strength", type=float, default=0.8, help="Strength of the transformation")  # Add strength argument
+    parser.add_argument("--strength", type=float, default=0.8, help="Strength of the transformation")
+    parser.add_argument("--LoRA", type=bool, default=False, help="use LoRA or not")
+
 
     args = parser.parse_args()
 
@@ -153,6 +169,7 @@ if __name__ == "__main__":
         seed=args.seed,
         negative_prompt=args.negative_prompt,
         strength=args.strength
+        LoRA=args.LoRA
     )
     image_model.prepare_image()
     image_model.prepare_model()

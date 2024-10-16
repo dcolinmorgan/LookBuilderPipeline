@@ -7,6 +7,8 @@ import numpy as np
 from diffusers.utils import load_image
 from transformers import pipeline 
 import torch.nn as nn
+from compel import Compel, ReturnedEmbeddingsType
+
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.resize import resize_images
 from quanto import qfloat8,qint4,qint8, quantize,freeze
@@ -37,6 +39,7 @@ class ImageModelOpenFLUX(BaseImageModel):
         self.strength = kwargs.get('strength', 0.99)
         self.model = 'openflux'
         self.quantize = kwargs.get('quantize', None)
+        self.LoRA = kwargs.get('LoRA', False)
 
 
     def prepare_image(self):
@@ -91,7 +94,12 @@ class ImageModelOpenFLUX(BaseImageModel):
         self.pipe.text_encoder.to(torch.float16)
         self.pipe.controlnet.to(torch.float16)
         self.pipe.enable_sequential_cpu_offload()
+        if self.LoRA:
+            self.pipe.load_lora_weights('hugovntr/flux-schnell-realism', weight_name='schnell-realism_v2.3.safetensors', adapter_name="winner")
 
+            # Activate the LoRA
+            self.pipe.set_adapters(["winner"], adapter_weights=[2.0])
+            from diffusers import EulerAncestralDiscreteScheduler
         self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
         
     def prepare_quant_model(self):
@@ -157,14 +165,26 @@ class ImageModelOpenFLUX(BaseImageModel):
         self.pipe.text_encoder_2 = text_encoder_2
         self.pipe.transformer = transformer
         self.pipe.enable_model_cpu_offload()
-        
+        if self.LoRA:
+            self.pipe.load_lora_weights('hugovntr/flux-schnell-realism', weight_name='schnell-realism_v2.3.safetensors', adapter_name="winner")
+
+            # Activate the LoRA
+            self.pipe.set_adapters(["winner"], adapter_weights=[2.0])
+            from diffusers import EulerAncestralDiscreteScheduler
         self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
 
         
     def generate_image(self):
+        ## compel for prompt embedding allowing >77 tokens
+        compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])
+        conditioning, pooled = compel(self.prompt)
+        
         start_time = time.time()
+        # Generate the image using the pipeline
         image_res = self.pipe(
-            prompt=self.prompt,
+            # prompt=self.prompt,
+            prompt_embeds=conditioning,
+            pooled_prompt_embeds=pooled,
             negative_prompt=self.negative_prompt,
             image=self.sm_image,
             control_image=self.sm_pose_image,
@@ -215,7 +235,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--strength", type=float, default=0.99, help="Strength of the transformation")  # Add strength argument
     parser.add_argument("--quantize", default=None, help="None,qfloat8,qint8,qint4")
-
+    parser.add_argument("--LoRA", default=False, help="to add LoRA or not")
     args = parser.parse_args()
 
     # Example usage of the ImageModelFLUX class with command-line arguments
@@ -235,6 +255,7 @@ if __name__ == "__main__":
         negative_prompt=args.negative_prompt,
         strength=args.strength,
         quantize=args.quantize,
+        LoRA=args.LoRA,
     )
     image_model.prepare_image()
     if args.quantize==None:

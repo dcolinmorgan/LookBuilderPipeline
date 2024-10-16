@@ -4,7 +4,11 @@ from diffusers.utils import load_image  # For loading images
 from .resize import resize_images
 
 # Initialize the OpenPose detector using a pre-trained model from Hugging Face
-openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
+# openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
+from controlnet_aux.processor import Processor
+# "openpose_full", "dwpose"]
+processor_id = 'openpose_full'
+openpose = Processor(processor_id)
 
 def detect_pose(image_path, resize=False, size=(512, 512)):
     """
