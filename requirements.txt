@@ -14,6 +14,11 @@ diffusers @ git+https://github.com/huggingface/diffusers.git
 tokenizers #==0.19
 protobuf
 compel
+dwpose
+torchao
+sd_embed
+sd_embed @ git+https://github.com/xhinker/sd_embed.git@main
+
 controlnet_aux #==0.0.6
 opencv-python
 

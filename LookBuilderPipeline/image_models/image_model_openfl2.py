@@ -40,6 +40,8 @@ class ImageModelOpenFLUX(BaseImageModel):
         self.model = 'openflux'
         self.quantize = kwargs.get('quantize', None)
         self.LoRA = kwargs.get('LoRA', False)
+        self.prompt_embeds=None
+        self.pooled_prompt_embeds=None
 
 
     def prepare_image(self):
@@ -73,12 +75,6 @@ class ImageModelOpenFLUX(BaseImageModel):
         """
         Load the FLUX model and controlnet.
         """
-        # ## make sure flux inpainting pipeline is original (no negative prompt, non-CFG)
-        PTH=(os.path.abspath(inspect.getfile(FluxPipeline)))
-        target='/'.join(PTH.split('/')[:-1])+'/pipeline_flux_controlnet_inpainting.py'
-        source='LookBuilderPipeline/LookBuilderPipeline/image_models/openflux/orig_pipeline_flux_controlnet_inpainting.py'
-        shutil.copy(source, target)
-        from diffusers import FluxControlNetInpaintPipeline
 
         # Set up the pipeline
         base_model = 'ostris/OpenFLUX.1'
@@ -95,76 +91,101 @@ class ImageModelOpenFLUX(BaseImageModel):
         self.pipe.controlnet.to(torch.float16)
         self.pipe.enable_sequential_cpu_offload()
         if self.LoRA:
-            self.pipe.load_lora_weights('hugovntr/flux-schnell-realism', weight_name='schnell-realism_v2.3.safetensors', adapter_name="winner")
+            # self.pipe.load_lora_weights('hugovntr/flux-schnell-realism', weight_name='schnell-realism_v2.3.safetensors', adapter_name="winner")
+            self.pipe.load_lora_weights('XLabs-AI/flux-RealismLora', weight_name='lora.safetensors', adapter_name="winner") 
 
             # Activate the LoRA
             self.pipe.set_adapters(["winner"], adapter_weights=[2.0])
-            from diffusers import EulerAncestralDiscreteScheduler
+            # from diffusers import EulerAncestralDiscreteScheduler
         self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
         
     def prepare_quant_model(self):
         """
         Load the FLUX model and controlnet as individual components.
         """
-
-        from diffusers import FlowMatchEulerDiscreteScheduler, AutoencoderKL
-        from diffusers.models.transformers.transformer_flux import FluxTransformer2DModel
-        from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
-        from transformers import CLIPTextModel, CLIPTokenizer,T5EncoderModel, T5TokenizerFast
-        dtype = torch.bfloat16
-        # ## change flux inpainting pipeline to allow negative-prompt in OpenFlux
-        PTH=(os.path.abspath(inspect.getfile(FluxPipeline)))
-        target='/'.join(PTH.split('/')[:-1])+'/pipeline_flux_controlnet_inpainting.py'
-        source='LookBuilderPipeline/LookBuilderPipeline/image_models/openflux/cfg_pipeline_flux_controlnet_inpainting.py'
-        shutil.copy(source, target)
+        if not glob.glob('flux-fp8'):
+            from huggingface_hub import snapshot_download
+            snapshot_download(repo_id="ostris/OpenFLUX.1",local_dir='flux-fp8') 
         
-        # Import required components from diffusers
-        from diffusers import FluxControlNetInpaintPipeline
-        
-        scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained('flux-fp8', subfolder="scheduler")
-        text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
-        tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
-        # text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
-        tokenizer_2 = T5TokenizerFast.from_pretrained('flux-fp8', subfolder="tokenizer_2", torch_dtype=dtype)
-        vae = AutoencoderKL.from_pretrained('flux-fp8', subfolder="vae", torch_dtype=dtype)
-        # transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
+        from diffusers import FluxControlNetInpaintPipeline, FluxTransformer2DModel
+        from torchao.quantization import quantize_, int8_weight_only
+        from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
 
-        if glob.glob('qopenflux/text_encoder_2'+str(self.quantize)+'/*.safetensors'):
-            text_encoder_2 = T5EncoderModel.from_pretrained('qopenflux', subfolder="text_encoder_2"+str(self.quantize), torch_dtype=dtype)
-        else:
-            text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
-            quantize(text_encoder_2, weights=eval(self.quantize))
-            freeze(text_encoder_2)
-            text_encoder_2.save_pretrained('qopenflux/text_encoder_2'+self.quantize)
-
-        # if glob.glob('qopenflux/transformer/*.safetensors'):
-        try:
-            transformer = FluxTransformer2DModel.from_pretrained('qopenflux', subfolder="transformer"+str(self.quantize), torch_dtype=dtype)
-        # else:
-        except:
-            transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
-            quantize(transformer, weights=eval(self.quantize))
-            freeze(transformer)
-            transformer.save_pretrained('qopenflux/transformer'+self.quantize)
-            
         controlnet_model = 'InstantX/FLUX.1-dev-Controlnet-Union'
         controlnet = FluxControlNetModel.from_pretrained(controlnet_model, torch_dtype=torch.bfloat16,add_prefix_space=True,guidance_embeds=False)
+        
+        # model_path = "black-forest-labs/FLUX.1-schnell"
 
-        self.pipe = FluxControlNetInpaintPipeline(
+        transformer = FluxTransformer2DModel.from_pretrained(
+            'flux-fp8',
+            subfolder = "transformer",
+            torch_dtype = torch.bfloat16
+        )
+        quantize_(transformer, int8_weight_only())
+
+        # from diffusers import FlowMatchEulerDiscreteScheduler, AutoencoderKL
+        # from diffusers.models.transformers.transformer_flux import FluxTransformer2DModel
+        # from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
+        # from transformers import CLIPTextModel, CLIPTokenizer,T5EncoderModel, T5TokenizerFast
+        # dtype = torch.bfloat16
+
+        # # Import required components from diffusers
+        # from diffusers import FluxControlNetInpaintPipeline
+        
+        # scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained('flux-fp8', subfolder="scheduler")
+        # text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
+        # tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14", torch_dtype=dtype)
+        # # text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
+        # tokenizer_2 = T5TokenizerFast.from_pretrained('flux-fp8', subfolder="tokenizer_2", torch_dtype=dtype)
+        # vae = AutoencoderKL.from_pretrained('flux-fp8', subfolder="vae", torch_dtype=dtype)
+        # # transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
+
+        # if glob.glob('qopenflux/text_encoder_2'+str(self.quantize)+'/*.safetensors'):
+        #     text_encoder_2 = T5EncoderModel.from_pretrained('qopenflux', subfolder="text_encoder_2"+str(self.quantize), torch_dtype=dtype)
+        # else:
+        #     text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
+        #     quantize(text_encoder_2, weights=eval(self.quantize))
+        #     freeze(text_encoder_2)
+        #     text_encoder_2.save_pretrained('qopenflux/text_encoder_2'+self.quantize)
+
+        # # if glob.glob('qopenflux/transformer/*.safetensors'):
+        # try:
+        #     transformer = FluxTransformer2DModel.from_pretrained('qopenflux', subfolder="transformer"+str(self.quantize), torch_dtype=dtype)
+        # # else:
+        # except:
+        #     transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
+        #     quantize(transformer, weights=eval(self.quantize))
+        #     freeze(transformer)
+        #     transformer.save_pretrained('qopenflux/transformer'+self.quantize)
+            
+        # self.pipe = FluxControlNetInpaintPipeline(
+        #     controlnet=controlnet,
+        #     scheduler=scheduler,
+        #     text_encoder=text_encoder,
+        #     tokenizer=tokenizer,
+        #     text_encoder_2=None,
+        #     tokenizer_2=tokenizer_2,
+        #     vae=vae,
+        #     transformer=None,
+        # )
+        # self.pipe.text_encoder_2 = text_encoder_2
+        # self.pipe.transformer = transformer
+        # self.pipe.enable_model_cpu_offload()
+        
+        self.pipe = FluxControlNetInpaintPipeline.from_pretrained(
+            'flux-fp8',
             controlnet=controlnet,
-            scheduler=scheduler,
-            text_encoder=text_encoder,
-            tokenizer=tokenizer,
-            text_encoder_2=None,
-            tokenizer_2=tokenizer_2,
-            vae=vae,
-            transformer=None,
+            transformer = transformer,
+            torch_dtype = torch.bfloat16,
         )
 
-
-        self.pipe.text_encoder_2 = text_encoder_2
-        self.pipe.transformer = transformer
         self.pipe.enable_model_cpu_offload()
+        
+        self.prompt_embeds, self.pooled_prompt_embeds = get_weighted_text_embeddings_flux1(
+            self.pipe= self.pipe,
+            self.prompt= self.prompt
+        )
+
         if self.LoRA:
             self.pipe.load_lora_weights('hugovntr/flux-schnell-realism', weight_name='schnell-realism_v2.3.safetensors', adapter_name="winner")
 
@@ -176,29 +197,49 @@ class ImageModelOpenFLUX(BaseImageModel):
         
     def generate_image(self):
         ## compel for prompt embedding allowing >77 tokens
-        compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])
-        conditioning, pooled = compel(self.prompt)
+        # compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])
+        # conditioning, pooled = compel(self.prompt)
         
         start_time = time.time()
         # Generate the image using the pipeline
-        image_res = self.pipe(
-            # prompt=self.prompt,
-            prompt_embeds=conditioning,
-            pooled_prompt_embeds=pooled,
-            negative_prompt=self.negative_prompt,
-            image=self.sm_image,
-            control_image=self.sm_pose_image,
-            control_mode=4,
-            # padding_mask_crop=32,
-            controlnet_conditioning_scale=self.controlnet_conditioning_scale,
-            mask_image=self.sm_mask,
-            height=self.height,
-            width=self.width,
-            strength=self.strength,
-            num_inference_steps=self.num_inference_steps,
-            guidance_scale=self.guidance_scale,
-            generator=self.generator,
-        ).images[0]
+        if self.negative_prompt!=None and self.negative_prompt!=None:
+            image_res = self.pipe(
+                prompt=self.prompt,
+                # prompt_embeds=conditioning,
+                # pooled_prompt_embeds=pooled,
+                negative_prompt=self.negative_prompt,
+                image=self.sm_image,
+                control_image=self.sm_pose_image,
+                control_mode=4,
+                # padding_mask_crop=32,
+                controlnet_conditioning_scale=self.controlnet_conditioning_scale,
+                mask_image=self.sm_mask,
+                height=self.height,
+                width=self.width,
+                strength=self.strength,
+                num_inference_steps=self.num_inference_steps,
+                guidance_scale=self.guidance_scale,
+                generator=self.generator,
+            ).images[0]
+        else:
+            image_res = self.pipe(
+                # prompt=self.prompt,
+                prompt_embeds=self.prompt_embeds,
+                pooled_prompt_embeds=self.pooled_prompt_embeds,
+                negative_prompt=self.negative_prompt,
+                image=self.sm_image,
+                control_image=self.sm_pose_image,
+                control_mode=4,
+                # padding_mask_crop=32,
+                controlnet_conditioning_scale=self.controlnet_conditioning_scale,
+                mask_image=self.sm_mask,
+                height=self.height,
+                width=self.width,
+                strength=self.strength,
+                num_inference_steps=self.num_inference_steps,
+                guidance_scale=self.guidance_scale,
+                generator=self.generator,
+            ).images[0]
         end_time = time.time()
         self.time = end_time - start_time
     
