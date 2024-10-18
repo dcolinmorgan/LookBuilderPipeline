@@ -21,7 +21,7 @@ setup(
         'huggingface-hub',
         'sentencepiece==0.2.0',
         'diffusers @ git+https://github.com/huggingface/diffusers.git',
-        'sd_embed @ git+https://github.com/xhinker/sd_embed.git@main',
+        'sd_embed @ git+https://github.com/xhinker/sd_embed.git',
         'torchao',
         'tokenizers',
         'protobuf',
