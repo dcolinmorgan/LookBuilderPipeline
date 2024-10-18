@@ -16,7 +16,6 @@ protobuf
 compel
 dwpose
 torchao
-sd_embed
 sd_embed @ git+https://github.com/xhinker/sd_embed.git
 
 controlnet_aux #==0.0.6
