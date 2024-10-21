@@ -6,7 +6,7 @@ import numpy as np
 from diffusers.utils import load_image
 from transformers import pipeline 
 import torch.nn as nn
-from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
+from LookBuilderPipeline.image_models.base_image_model import BaseImageModel, prepare_image
 from LookBuilderPipeline.resize import resize_images
 
 # Import required components from diffusers
@@ -35,32 +35,32 @@ class ImageModelFlux(BaseImageModel):
         self.model = 'flux'
 
 
-    def prepare_image(self):
-        """
-        Prepare the pose and mask images to generate a new image using the diffusion model.
-        """
-        # Load and resize images
-        image = load_image(self.image)
-        if isinstance(self.pose,str):
-            pose_image = load_image(self.pose)
-        else:
-            pose_image = self.pose
-        if isinstance(self.mask,str):
-            mask_image = load_image(self.mask)
-        else:
-            mask_image = self.mask
+    # def prepare_image(self):
+    #     """
+    #     Prepare the pose and mask images to generate a new image using the diffusion model.
+    #     """
+    #     # Load and resize images
+    #     image = load_image(self.image)
+    #     if isinstance(self.pose,str):
+    #         pose_image = load_image(self.pose)
+    #     else:
+    #         pose_image = self.pose
+    #     if isinstance(self.mask,str):
+    #         mask_image = load_image(self.mask)
+    #     else:
+    #         mask_image = self.mask
 
-        if pose_image.size[0] < image.size[0]:  ## resize to pose image size if it is smaller
-            self.sm_image=resize_images(image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-            self.sm_pose_image=resize_images(pose_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-            self.sm_mask=resize_images(mask_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
+    #     if pose_image.size[0] < image.size[0]:  ## resize to pose image size if it is smaller
+    #         self.sm_image=resize_images(image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
+    #         self.sm_pose_image=resize_images(pose_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
+    #         self.sm_mask=resize_images(mask_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
             
-        else:
-            self.sm_image=resize_images(image,image.size,aspect_ratio=image.size[0]/image.size[1])
-            self.sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
-            self.sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+    #     else:
+    #         self.sm_image=resize_images(image,image.size,aspect_ratio=image.size[0]/image.size[1])
+    #         self.sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+    #         self.sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
             
-        self.width, self.height = self.sm_image.size
+    #     self.width, self.height = self.sm_image.size
 
     def prepare_model(self):
         """

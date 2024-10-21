@@ -9,7 +9,7 @@ from transformers import pipeline
 import torch.nn as nn
 from compel import Compel, ReturnedEmbeddingsType
 
-from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
+from LookBuilderPipeline.image_models.base_image_model import BaseImageModel, prepare_image
 from LookBuilderPipeline.resize import resize_images
 from quanto import qfloat8,qint4,qint8, quantize,freeze
 
@@ -42,34 +42,36 @@ class ImageModelOpenFLUX(BaseImageModel):
         self.LoRA = kwargs.get('LoRA', False)
         self.prompt_embeds=None
         self.pooled_prompt_embeds=None
+        self.control_guidance_start = kwargs.get('control_guidance_start', 0.2)
+        self.control_guidance_end = kwargs.get('control_guidance_end', 0.5)
 
 
-    def prepare_image(self):
-        """
-        Prepare the pose and mask images to generate a new image using the diffusion model.
-        """
-        # Load and resize images
-        image = load_image(self.image)
-        if isinstance(self.pose,str):
-            pose_image = load_image(self.pose)
-        else:
-            pose_image = self.pose
-        if isinstance(self.mask,str):
-            mask_image = load_image(self.mask)
-        else:
-            mask_image = self.mask
+    # def prepare_image(self):
+    #     """
+    #     Prepare the pose and mask images to generate a new image using the diffusion model.
+    #     """
+    #     # Load and resize images
+    #     image = load_image(self.image)
+    #     if isinstance(self.pose,str):
+    #         pose_image = load_image(self.pose)
+    #     else:
+    #         pose_image = self.pose
+    #     if isinstance(self.mask,str):
+    #         mask_image = load_image(self.mask)
+    #     else:
+    #         mask_image = self.mask
 
-        if pose_image.size[0] < image.size[0]:  ## resize to pose image size if it is smaller
-            self.sm_image=resize_images(image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-            self.sm_pose_image=resize_images(pose_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-            self.sm_mask=resize_images(mask_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
+    #     if pose_image.size[0] < image.size[0]:  ## resize to pose image size if it is smaller
+    #         self.sm_image=resize_images(image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
+    #         self.sm_pose_image=resize_images(pose_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
+    #         self.sm_mask=resize_images(mask_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
             
-        else:
-            self.sm_image=resize_images(image,image.size,aspect_ratio=image.size[0]/image.size[1])
-            self.sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
-            self.sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+    #     else:
+    #         self.sm_image=resize_images(image,image.size,aspect_ratio=image.size[0]/image.size[1])
+    #         self.sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+    #         self.sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
             
-        self.width, self.height = self.sm_image.size
+    #     self.width, self.height = self.sm_image.size
 
     def prepare_model(self):
         """
@@ -211,6 +213,8 @@ class ImageModelOpenFLUX(BaseImageModel):
                 image=self.sm_image,
                 control_image=self.sm_pose_image,
                 control_mode=4,
+                control_guidance_start=self.control_guidance_start,
+                control_guidance_end=self.control_guidance_end,
                 # padding_mask_crop=32,
                 controlnet_conditioning_scale=self.controlnet_conditioning_scale,
                 mask_image=self.sm_mask,
@@ -231,6 +235,8 @@ class ImageModelOpenFLUX(BaseImageModel):
                 control_image=self.sm_pose_image,
                 control_mode=4,
                 # padding_mask_crop=32,
+                control_guidance_start=self.control_guidance_start,
+                control_guidance_end=self.control_guidance_end,
                 controlnet_conditioning_scale=self.controlnet_conditioning_scale,
                 mask_image=self.sm_mask,
                 height=self.height,
@@ -277,6 +283,8 @@ if __name__ == "__main__":
     parser.add_argument("--strength", type=float, default=0.99, help="Strength of the transformation")  # Add strength argument
     parser.add_argument("--quantize", default=None, help="None,qfloat8,qint8,qint4")
     parser.add_argument("--LoRA", default=False, help="to add LoRA or not")
+    parser.add_argument("--control_guidance_start", type=float, default=0.2, help="ControlNet guidance start")
+    parser.add_argument("--control_guidance_end", type=float, default=0.5, help="ControlNet guidance end")
     args = parser.parse_args()
 
     # Example usage of the ImageModelFLUX class with command-line arguments
@@ -296,7 +304,9 @@ if __name__ == "__main__":
         negative_prompt=args.negative_prompt,
         strength=args.strength,
         quantize=args.quantize,
-        LoRA=args.LoRA
+        LoRA=args.LoRA,
+        control_guidance_start=args.control_guidance_start,
+        control_guidance_end=args.control_guidance_end,
     )
     image_model.prepare_image()
     if args.quantize==None:
