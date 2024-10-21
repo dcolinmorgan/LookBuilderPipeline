@@ -9,7 +9,7 @@ from transformers import pipeline
 import torch.nn as nn
 from compel import Compel, ReturnedEmbeddingsType
 
-from LookBuilderPipeline.image_models.base_image_model import BaseImageModel, prepare_image
+from LookBuilderPipeline.image_models.base_image_model import BaseImageModel#, prepare_image
 from LookBuilderPipeline.resize import resize_images
 from quanto import qfloat8,qint4,qint8, quantize,freeze
 

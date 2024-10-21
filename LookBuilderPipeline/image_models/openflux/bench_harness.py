@@ -72,7 +72,42 @@ def showImagesHorizontally(list_of_files, prompt,negative_prompt,model,time,heig
         plt.savefig(output_path, dpi=300, bbox_inches='tight')  # Save the figure
         plt.close(fig)  # Close the figure to free up memory
 
+from diffusers.utils import load_image  # For loading images
+from transformers import pipeline  # For using pre-trained models
+import numpy as np  # For numerical operations on arrays
+from PIL import Image, ImageOps  # For image manipulation
 
+
+# Initialize the segmentation model using a pre-trained model from Hugging Face
+segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
+
+
+def full_mask(original_image,flux_image):
+    seg_img = load_image(original_image)
+    segments = segmenter(seg_img)
+    segment_include = ["Upper-clothes", "Skirt", "Pants", "Dress", "Belt", "Bag", "Scarf","Left-shoe","Right-shoe"]
+        
+    seg_img = load_image(flux_image)
+    segments = segmenter(seg_img)
+    segment_include += ["Hat","Hair","Sunglasses","Face","Left-leg","Right-leg","Left-arm","Right-arm"]
+        
+        
+    mask_list = [np.array(s['mask']) for s in segments if s['label'] not in segment_include]
+    final_mask = np.array(mask_list[0])
+    for mask in mask_list:
+        current_mask = np.array(mask)
+        final_mask = final_mask + current_mask
+        
+    final_array = final_mask.copy()
+    final_mask = Image.fromarray(final_mask)
+        # seg_img.putalpha(final_mask)
+        
+    mask = Image.new("L", final_mask.size)
+    mask.paste(final_mask)
+    mask = ImageOps.invert(mask)
+    final_maskA = mask.point(lambda p: p > 128 and 255)
+    # mask_blurred = pipeline.mask_processor.blur(final_maskA, blur_factor=20)
+    return final_mask, final_maskA
 
 
 
@@ -98,26 +133,23 @@ dir+=glob.glob('test-ai/orig/*')
 # shuffle(dir)
 
 
-if glob.glob('qopenflux/text_encoder_2_qfloat8/*.safetensors'):
-    text_encoder_2 = T5EncoderModel.from_pretrained('qopenflux', subfolder="text_encoder_2_qfloat8", torch_dtype=dtype)
-else:
-    text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
-    quantize(text_encoder_2, weights=qfloat8)
-    freeze(text_encoder_2)
-    text_encoder_2.save_pretrained('qopenflux/text_encoder_2_qfloat8')
-
-# if glob.glob('qopenflux/transformer_qfloat8/*.safetensors'):
-try:
-    transformer = FluxTransformer2DModel.from_pretrained('qopenflux', subfolder="transformer_qfloat8", torch_dtype=dtype)
+# if glob.glob('qopenflux/text_encoder_2_qfloat8/*.safetensors'):
+#     text_encoder_2 = T5EncoderModel.from_pretrained('qopenflux', subfolder="text_encoder_2_qfloat8", torch_dtype=dtype)
 # else:
-except:
-    transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
-    quantize(transformer, weights=qfloat8)
-    freeze(transformer)
-    transformer.save_pretrained('qopenflux/transformer_qfloat8')
+#     text_encoder_2 = T5EncoderModel.from_pretrained('flux-fp8', subfolder="text_encoder_2", torch_dtype=dtype)
+#     quantize(text_encoder_2, weights=qfloat8)
+#     freeze(text_encoder_2)
+#     text_encoder_2.save_pretrained('qopenflux/text_encoder_2_qfloat8')
 
-
-from diffusers import FluxControlNetInpaintPipeline #, 
+# # if glob.glob('qopenflux/transformer_qfloat8/*.safetensors'):
+# try:
+#     transformer = FluxTransformer2DModel.from_pretrained('qopenflux', subfolder="transformer_qfloat8", torch_dtype=dtype)
+# # else:
+# except:
+#     transformer = FluxTransformer2DModel.from_pretrained('flux-fp8', subfolder="transformer", torch_dtype=dtype)
+#     quantize(transformer, weights=qfloat8)
+#     freeze(transformer)
+#     transformer.save_pretrained('qopenflux/transformer_qfloat8')
 
 
 def parse_args():
@@ -202,3 +234,87 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+def main2():
+    args = parse_args()
+    from diffusers import FluxControlNetInpaintPipeline, FluxTransformer2DModel
+    from torchao.quantization import quantize_, int8_weight_only
+    import torch
+    from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
+
+    # model_path = "black-forest-labs/FLUX.1-schnell"
+
+    transformer = FluxTransformer2DModel.from_pretrained(
+        'flux-fp8',
+        subfolder = "transformer",
+        torch_dtype = torch.bfloat16
+    )
+    quantize_(transformer, int8_weight_only())
+
+
+    pipe = FluxControlNetInpaintPipeline.from_pretrained(
+        'flux-fp8',
+        controlnet=controlnet,
+        transformer = transformer,
+        torch_dtype = torch.bfloat16,
+    )
+
+    pipe.enable_model_cpu_offload()
+
+    prompt='A very tall and slender brown african-american model with longer-than-average arms and neck poses looking straight into the camera. -- Background: Roman Ampetheatre with stone columns -- 1. Model characteristics: - Height: Very tall and slender - Background- Roman Ampetheatre - Arms: Longer than average - Neck: Longer than average - Facial features: Very sharp, almost masculine but elegant - Expression: Very intriguing - Makeup: Completely nude look - Hair: Wet and slicked back with a wide-toothed comb 2. Lighting and effects: - Eyes: Shining intensely with the flash light - Skin: Completely glossy, highlighting the lines from the flash - Shadows: Strongly defined by the flash, giving the impression the model is floating - Optical distortion: Continued - Camera settings: Aperture at f/2.8'
+
+    prompt_embeds, pooled_prompt_embeds = get_weighted_text_embeddings_flux1(
+        pipe        = pipe
+        , prompt    = prompt
+    )
+    num_inference_steps=70
+    # shuffle(dir)
+
+    seed=42
+    generator = torch.Generator(device="cuda").manual_seed(seed)
+    negative_prompt=None
+    guidance_scale=5
+    strength=0.9
+    controlnet_conditioning_scale=0.5
+    for input_image in dir:
+        i=os.path.basename(input_image).split('.')[0]
+        jj='paulo'
+        sm_image, sm_pose_image, sm_mask= image_setup(input_image)
+        width,height=sm_image.size
+        start1 = time.time()
+        image_res = pipe(
+                            # prompt= 'a photo realistic image of a brown fashion model with an afro and brown eyes and smiling showing white teeth, sitting at an ancient roman temple with many stone large columns and stone-paved streets at sunset',
+                            # prompt_embeds=prompt_embeds,
+                            # pooled_prompt_embeds=pooled_prompt_embeds,
+                            prompt= 'a photo realistic image of a brown african-american fashion model with an afro and brown eyes and smiling showing white teeth, sitting at an ancient roman temple with many stone large columns and stone-paved streets at sunset',
+                            image=sm_image,
+                            control_image=sm_pose_image,
+                            control_mode=4,
+                            # padding_mask_crop=32,
+                            controlnet_conditioning_scale=0.6,
+                            mask_image=sm_mask,
+                            # control_guidance_start=0.0,
+                            control_guidance_end=0.5,
+                            height=height,
+                            width=width,
+                            strength=0.9,
+                            num_inference_steps=100,
+                            guidance_scale=5,
+                            generator=generator,
+                        ).images[0]
+
+    # image_res
+
+        end1 = time.time()
+        tt=end1-start1
+
+        image_res.save('qopenflux_benchmark/mon/paulo/qopenflux_test_'+str(i)+'_'+str(jj)+str(guidance_scale)+'_cond_'+str(controlnet_conditioning_scale)+'_strength_'+str(strength)+'_ints_'+str(num_inference_steps)+'.png')
+        filename='qopenflux_benchmark/mon/paulo/qopenflux_bench_guid_'+str(i)+'_'+str(jj)+str(guidance_scale)+'_cond_'+str(controlnet_conditioning_scale)+'_strength_'+str(strength)+'_ints_'+str(num_inference_steps)+'.png'
+        showImagesHorizontally([sm_image,sm_mask,sm_pose_image,image_res], prompt,negative_prompt,'openflux',tt,height, width, controlnet_conditioning_scale,num_inference_steps,guidance_scale,seed,strength,output_path=filename)
+
+if __name__ == "__main2__":
+    main2()

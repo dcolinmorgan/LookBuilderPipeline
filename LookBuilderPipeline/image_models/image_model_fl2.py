@@ -6,7 +6,7 @@ import numpy as np
 from diffusers.utils import load_image
 from transformers import pipeline 
 import torch.nn as nn
-from LookBuilderPipeline.image_models.base_image_model import BaseImageModel, prepare_image
+from LookBuilderPipeline.image_models.base_image_model import BaseImageModel#, prepare_image
 from LookBuilderPipeline.resize import resize_images
 
 # Import required components from diffusers
