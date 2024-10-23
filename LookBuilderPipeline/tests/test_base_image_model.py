@@ -12,8 +12,8 @@ def mock_image():
 
 def test_generate_image_extras(mock_image):
     # Setup mocks
-    poseA,maskA = BaseImageModel.generate_image_extras(mock_image,inv=False)
-    poseB,maskB = BaseImageModel.generate_image_extras(mock_image,inv=True)
+    poseA,maskA = BaseImageModel.generate_image_extras(None,mock_image,inv=False)
+    poseB,maskB = BaseImageModel.generate_image_extras(None,mock_image,inv=True)
     
     # Assert that poseA is equal to itself (this is always true)
     assert np.array_equal(np.array(poseA), np.array(poseA)), "poseA should be equal to itself"
