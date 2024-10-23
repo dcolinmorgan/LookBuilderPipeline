@@ -1,0 +1,191 @@
+import torch
+import torch.nn as nn
+from diffusers.utils import load_image
+# from diffusers import FluxControlNetInpaintPipeline #, FluxImg2ImgPipeline
+from diffusers.models.controlnet_flux import FluxControlNetModel
+
+from diffusers import FluxControlNetInpaintPipeline, FluxControlNetPipeline
+
+from diffusers.utils import load_image, check_min_version
+from transformers import pipeline ,SegformerImageProcessor, AutoModelForSemanticSegmentation
+import os
+import time
+import cProfile
+from pstats import Stats
+# from optimum.quanto import qfloat8,qint4,qint8, quantize,freeze
+from quanto import qfloat8,qint4,qint8, quantize,freeze
+
+
+# controlnet_model = 'InstantX/FLUX.1-dev-Controlnet-Union'
+controlnet_model = 'Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro'
+# controlnet_model = 'alimama-creative/FLUX.1-dev-Controlnet-Inpainting-Alpha'
+from diffusers.models import FluxMultiControlNetModel,FluxControlNetModel
+
+controlnet = FluxControlNetModel.from_pretrained(controlnet_model, torch_dtype=torch.bfloat16,add_prefix_space=True,guidance_embeds=False)
+# controlnet = FluxMultiControlNetModel.from_pretrained(controlnet_model, torch_dtype=torch.bfloat16)#,add_prefix_space=True,guidance_embeds=False)
+
+import glob
+from random import shuffle
+# dir=glob.glob('test-ai/orig/*')
+# # dir+=glob.glob('test-ai/jcrew_orig/*')
+# # dir=glob.glob('test-ai/paulo_orig/*')
+dir=glob.glob('test-ai/upscaled/*')
+dir+=glob.glob('test-ai/more_paulo/*')
+
+shuffle(dir)
+
+from LookBuilderPipeline.resize import resize_images
+from LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.pose import detect_pose
+
+
+def image_setup(input_image):
+    image = load_image(input_image)
+    pose_image = detect_pose(input_image)
+    mask,mask_image,mask_array = segment_image(input_image,inverse=True,additional_option='shoe')
+    mask2,mask_image2,mask_array2 = segment_image(input_image,inverse=False,additional_option='shoe')
+            
+    # if image.size[0] < image.size[0]:
+    #             sm_image=resize_images(image,sm_pose_image.size,aspect_ratio=sm_pose_image.size[0]/sm_pose_image.size[1])
+    #             sm_pose_image=resize_images(pose_image,sm_pose_image.size,aspect_ratio=None)
+    #             sm_mask=resize_images(mask_image,sm_pose_image.size,aspect_ratio=sm_pose_image.size[0]/sm_pose_image.size[1])
+        
+    # else:
+    sm_image=resize_images(image,target_size=image.size,aspect_ratio=None)
+    sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+    sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+    return sm_image, sm_pose_image, sm_mask
+
+
+import numpy as np
+def showImagesHorizontally(list_of_files, prompt,negative_prompt,model,time,height,width,controlnet_conditioning_scale,num_inference_steps, guidance_scale,seed,strength,output_path):
+        from matplotlib.pyplot import figure, imshow, axis
+        from matplotlib.image import imread
+        import matplotlib.pyplot as plt
+
+        fig = figure(figsize=(10,5))
+        number_of_files = len(list_of_files)
+        for i in range(number_of_files):
+            a=fig.add_subplot(1,number_of_files,i+1)
+            image = (list_of_files[i])
+            imshow(image,cmap='Greys_r')
+            axis('off')
+
+        # Add text to the image
+        fig.text(0.5, 0.01, f"Prompt: {prompt}       Neg_Prompt: {negative_prompt} \n Model: {model}  Time(s): {np.round(time,2)}  Time(m): {np.round(time/60,2)}  height: {height}  width: {width}  cond_scale: {controlnet_conditioning_scale}  steps: {num_inference_steps}  guidance: {guidance_scale} strength: {strength} seed: {seed}", ha='center', fontsize=10, color='black', wrap=True)
+        text_to_save = f"""
+        Prompt: {prompt} 
+        Neg_Prompt: {negative_prompt}
+        Model: {model}
+        Time: {time}
+        height: {height}
+        width: {width}
+        cond_scale: {controlnet_conditioning_scale}
+        steps: {num_inference_steps}
+        guidance: {guidance_scale}
+        seed: {seed}
+        strength:{strength}
+        time: {time}"""
+        
+         # Save the text to a .txt file
+        with open(output_path+'.txt', 'w') as file:  # Specify the desired file name
+            file.write(text_to_save)  # Write the text to the file
+        
+        plt.tight_layout()  # Adjust the layout to prevent overlapping
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')  # Save the figure
+        plt.close(fig)  # Close the figure to free up memory
+
+
+
+from diffusers import FluxControlNetInpaintPipeline, FluxTransformer2DModel
+from torchao.quantization import quantize_, int8_weight_only
+import torch
+from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
+
+# model_path = "black-forest-labs/FLUX.1-schnell"
+
+transformer = FluxTransformer2DModel.from_pretrained(
+    'flux-schnell-fp8',
+    subfolder = "transformer",
+    torch_dtype = torch.bfloat16
+)
+quantize_(transformer, int8_weight_only())
+
+# text_encoder_2 = FluxTransformer2DModel.from_pretrained(
+#     'flux-schnell-fp8',
+#     subfolder = "text_encoder_2",
+#     torch_dtype = torch.bfloat16
+# )
+# quantize_(text_encoder_2, int8_weight_only())
+
+
+
+pipe = FluxControlNetInpaintPipeline.from_pretrained(
+    'flux-schnell-fp8',
+    controlnet=controlnet,
+    transformer = transformer,
+    # transformer = text_encoder_2,
+    torch_dtype = torch.bfloat16,
+)
+
+pipe.enable_model_cpu_offload()
+
+prompt='A very tall and slender and longer-than-average arms and neck poses looking straight into the camera. -- 1. Model characteristics: - Height: Very tall and slender -- Arms: Longer than average - Neck: Longer than average - Facial features: Very sharp elegant - Expression: Very intriguing - Makeup: Completely nude look - Hair: Wet and slicked back with a wide-toothed comb 2. Lighting and effects: - Eyes: Shining intensely with the flash light - Skin: Completely glossy, highlighting the lines from the flash - Shadows: Strongly defined by the flash, giving the impression the model is floating - Optical distortion: Continued - Camera settings: Aperture at f/2.8'
+
+prompt_embeds, pooled_prompt_embeds = get_weighted_text_embeddings_flux1(
+    pipe        = pipe
+    , prompt    = prompt
+)
+
+
+num_inference_steps=10
+model='qschnell'
+shuffle(dir)
+seed=42
+generator = torch.Generator(device="cuda").manual_seed(seed)
+negative_prompt=None
+# guidance_scale=3.5
+strength=0.9
+controlnet_conditioning_scale=0.6
+# prompt= 'a photo realistic image of a fashion model whos face is very sharp and elegant not smiling or showing teeth staring into the f/2.6 camera, at an ancient roman temple with many stone large columns and stone-paved streets at sunset'
+
+for input_image in dir:
+    # for strength in [0.91,0.92]:
+    for controlnet_conditioning_scale in [0.4,0.5,0.6]:
+        for guidance_scale in [3.5,5,7.5]:
+            for control_guidance_start in [0.1,0.2]:
+                for control_guidance_end in [0.5,0.6]:
+                    i=os.path.basename(input_image).split('.')[0]
+
+                    sm_image, sm_pose_image, sm_mask= image_setup(input_image)
+                    width,height=sm_image.size
+                    start1 = time.time()
+                    image_res = pipe(
+                                # prompt= 'a photo realistic image of a brown fashion model with an afro and brown eyes and smiling showing white teeth, sitting at an ancient roman temple with many stone large columns and stone-paved streets at sunset',
+                                prompt_embeds=prompt_embeds,
+                                pooled_prompt_embeds=pooled_prompt_embeds,
+
+                                image=sm_image,
+                                control_image=sm_pose_image,
+                                control_mode=4,
+                                # padding_mask_crop=32,
+                                controlnet_conditioning_scale=controlnet_conditioning_scale,
+                                mask_image=sm_mask,
+                                control_guidance_start=control_guidance_start,
+                                control_guidance_end=control_guidance_end,
+                                height=height,
+                                width=width,
+                                strength=strength,
+                                num_inference_steps=num_inference_steps,
+                                guidance_scale=guidance_scale,
+                                generator=generator,
+                            ).images[0]
+        
+                
+                    end1 = time.time()
+                    tt=end1-start1
+    
+                    # image_res.save('qschnell_benchmark/paulo2/img'+str(i)+'_'+str(iii)+'_'+str(jjj)+'_'+str(guidance_scale)+'_cond_'+str(controlnet_conditioning_scale)+'_strength_'+str(strength)+'.png')
+                    filename='qschnell_benchmark/paulo3/img'+str(i)+'_g'+str(guidance_scale)+'_c'+str(controlnet_conditioning_scale)+'_s'+str(strength)+'_b'+str(control_guidance_start)+'_e'+str(control_guidance_end)+'.png'
+                    showImagesHorizontally([sm_image,sm_mask,sm_pose_image,image_res], prompt,negative_prompt,model,tt,height, width, controlnet_conditioning_scale,num_inference_steps,guidance_scale,seed,strength,control_guidance_start,control_guidance_end,output_path=filename)
+                    torch.cuda.empty_cache()

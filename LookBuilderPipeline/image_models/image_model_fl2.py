@@ -1,4 +1,4 @@
-import sys, os, shutil
+import sys, os, shutil, glob
 import uuid
 import time
 import torch
@@ -14,10 +14,10 @@ from diffusers import FluxControlNetInpaintPipeline, FluxPipeline, FluxInpaintPi
 from diffusers.models.controlnet_flux import FluxControlNetModel
 
 # ## change flux inpainting pipeline to allow negative-prompt in OpenFlux
-PTH=(os.path.abspath(inspect.getfile(FluxPipeline)))
-orig_pipe='/'.join(PTH.split('/')[:-1])+'/pipeline_flux_controlnet_inpainting.py'
-mod_pipe='LookBuilderPipeline/LookBuilderPipeline/image_models/openflux/pipeline_flux_controlnet_inpainting.py'
-shutil.copy(mod_pipe, orig_pipe)
+# PTH=(os.path.abspath(inspect.getfile(FluxPipeline)))
+# orig_pipe='/'.join(PTH.split('/')[:-1])+'/pipeline_flux_controlnet_inpainting.py'
+# mod_pipe='LookBuilderPipeline/LookBuilderPipeline/image_models/openflux/pipeline_flux_controlnet_inpainting.py'
+# shutil.copy(mod_pipe, orig_pipe)
 
 class ImageModelFlux(BaseImageModel):
     def __init__(self, image, pose, mask, prompt, *args, **kwargs):
@@ -32,35 +32,15 @@ class ImageModelFlux(BaseImageModel):
         self.prompt = kwargs.get('prompt', prompt)
         self.image = kwargs.get('image', image)
         self.strength = kwargs.get('strength', 0.99)
-        self.model = 'flux'
-
-
-    # def prepare_image(self):
-    #     """
-    #     Prepare the pose and mask images to generate a new image using the diffusion model.
-    #     """
-    #     # Load and resize images
-    #     image = load_image(self.image)
-    #     if isinstance(self.pose,str):
-    #         pose_image = load_image(self.pose)
-    #     else:
-    #         pose_image = self.pose
-    #     if isinstance(self.mask,str):
-    #         mask_image = load_image(self.mask)
-    #     else:
-    #         mask_image = self.mask
-
-    #     if pose_image.size[0] < image.size[0]:  ## resize to pose image size if it is smaller
-    #         self.sm_image=resize_images(image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-    #         self.sm_pose_image=resize_images(pose_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-    #         self.sm_mask=resize_images(mask_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-            
-    #     else:
-    #         self.sm_image=resize_images(image,image.size,aspect_ratio=image.size[0]/image.size[1])
-    #         self.sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
-    #         self.sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
-            
-    #     self.width, self.height = self.sm_image.size
+        self.model = kwargs.get('model', 'schnell')
+        self.quantize = kwargs.get('quantize', None)
+        self.LoRA = kwargs.get('LoRA', False)
+        self.prompt_embeds=kwargs.get('prompt_embeds', None)
+        self.pooled_prompt_embeds=kwargs.get('pooled_prompt_embeds', None)
+        self.control_guidance_start = kwargs.get('control_guidance_start', 0.2)
+        self.control_guidance_end = kwargs.get('control_guidance_end', 0.5)
+        self.benchmark = kwargs.get('benchmark', False)
+        
 
     def prepare_model(self):
         """
@@ -80,9 +60,61 @@ class ImageModelFlux(BaseImageModel):
         self.pipe.text_encoder.to(torch.float16)
         self.pipe.controlnet.to(torch.float16)
         self.pipe.enable_sequential_cpu_offload()
+        if self.LoRA:
+            # self.pipe.load_lora_weights('hugovntr/flux-schnell-realism', weight_name='schnell-realism_v2.3.safetensors', adapter_name="winner")
+            self.pipe.load_lora_weights('XLabs-AI/flux-RealismLora', weight_name='lora.safetensors', adapter_name="winner") 
 
+            # Activate the LoRA
+            self.pipe.set_adapters(["winner"], adapter_weights=[2.0])
+            # from diffusers import EulerAncestralDiscreteScheduler
         self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
 
+    def prepare_quant_model(self):
+        """
+        Load the FLUX model and controlnet as individual components.
+        """
+        if not glob.glob('flux-fp8'):
+            from huggingface_hub import snapshot_download
+            # snapshot_download(repo_id="ostris/OpenFLUX.1",local_dir='flux-fp8')
+            snapshot_download(repo_id="black-forest-labs/FLUX.1-schnell",local_dir='flux-schnell-fp8')
+        
+        from diffusers import FluxControlNetInpaintPipeline, FluxTransformer2DModel
+        from torchao.quantization import quantize_, int8_weight_only
+        from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
+
+        controlnet_model = 'InstantX/FLUX.1-dev-Controlnet-Union'
+        controlnet = FluxControlNetModel.from_pretrained(controlnet_model, torch_dtype=torch.bfloat16,add_prefix_space=True,guidance_embeds=False)
+        
+        # model_path = "black-forest-labs/FLUX.1-schnell"
+
+        transformer = FluxTransformer2DModel.from_pretrained(
+            'flux-schnell-fp8',
+            subfolder = "transformer",
+            torch_dtype = torch.bfloat16
+        )
+        quantize_(transformer, int8_weight_only())
+        
+        self.pipe = FluxControlNetInpaintPipeline.from_pretrained(
+            'flux-schnell-fp8',
+            controlnet=controlnet,
+            transformer = transformer,
+            torch_dtype = torch.bfloat16,
+        )
+
+        self.pipe.enable_model_cpu_offload()
+        
+        self.prompt_embeds, self.pooled_prompt_embeds = get_weighted_text_embeddings_flux1(
+            pipe=self.pipe,
+            prompt=self.prompt
+        )
+        
+        if self.LoRA:
+            self.pipe.load_lora_weights('hugovntr/flux-schnell-realism', weight_name='schnell-realism_v2.3.safetensors', adapter_name="winner")
+
+            # Activate the LoRA
+            self.pipe.set_adapters(["winner"], adapter_weights=[2.0])
+            from diffusers import EulerAncestralDiscreteScheduler
+        self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
         
     def generate_image(self):
         start_time = time.time()
@@ -100,22 +132,37 @@ class ImageModelFlux(BaseImageModel):
                 num_inference_steps=self.num_inference_steps,
                 guidance_scale=self.guidance_scale,
                 generator=self.generator,
+                control_guidance_start=self.control_guidance_start,
+                control_guidance_end=self.control_guidance_end,
             ).images[0]
         end_time = time.time()
         self.time = end_time - start_time
-        
+        self.negative_prompt=None
         # Save the generated image
         os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", self.model), exist_ok=True)
 
-        filename = f"{uuid.uuid4()}.png"
-        save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", self.model, filename)
-        image_res.save(save_path)
-        bench_filename = f"{uuid.uuid4()}.png"
-        bench_save_path = os.path.join("generated_images", self.model, 'bench'+bench_filename)
-        ImageModelFlux.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res],output_path=bench_save_path)
+        # filename = f"{uuid.uuid4()}.png"
+        # save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", self.model, filename)
+        # 
+        i=os.path.basename(self.input_image).split('.')[0]
+        bench_filename = 'img'+str(i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
+        save_path1 = os.path.join("generated_images", self.model, bench_filename)
+        image_res.save(save_path1)
+        save_path2 = os.path.join("benchmark_images", self.model, bench_filename)
+        ImageModelFlux.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res],output_path=save_path2)
      
 
         return image_res, save_path
+    
+    def generate_bench(self,image_path,pose_path,mask_path):
+        for self.input_image in glob.glob(self.image):
+            for self.controlnet_conditioning_scale in [self.controlnet_conditioning_scale-0.1,self.controlnet_conditioning_scale,self.controlnet_conditioning_scale+0.1]:
+                for self.guidance_scale in [self.guidance_scale-1,self.guidance_scale,self.guidance_scale+1]:
+                        for self.strength in [self.strength-0.1,self.strength,self.strength+0.1]:
+                            for self.control_guidance_start in [self.control_guidance_start-0.1,self.control_guidance_start,self.control_guidance_start+0.1]:
+                                for self.control_guidance_end in [self.control_guidance_end-0.1,self.control_guidance_end,self.control_guidance_end+0.1]:
+                                    self.prepare_image(self.input_image,pose_path,mask_path)
+                                    self.generate_image()
 
     def clearn_mem(self):
         # Clear CUDA memory
@@ -131,16 +178,23 @@ if __name__ == "__main__":
     parser.add_argument("--mask_path", default=None, help="Path to the mask image")
     parser.add_argument("--prompt", required=True, help="Text prompt for image generation")
     parser.add_argument("--num_inference_steps", type=int, default=10, help="Number of inference steps")
-    parser.add_argument("--guidance_scale", type=float, default=7, help="Guidance scale")
-    parser.add_argument("--controlnet_conditioning_scale", type=float, default=1, help="ControlNet conditioning scale")
+    parser.add_argument("--guidance_scale", type=float, default=5, help="Guidance scale")
+    parser.add_argument("--controlnet_conditioning_scale", type=float, default=0.4, help="ControlNet conditioning scale")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--strength", type=float, default=0.99, help="Strength of the transformation")  # Add strength argument
+    parser.add_argument("--strength", type=float, default=0.9, help="Strength of the transformation")
+    parser.add_argument("--model", type=str, default='schnell', help="Model to use")
+    parser.add_argument("--quantize", type=str, default=None, help="Quantization to use")
+    parser.add_argument("--LoRA", type=bool, default=False, help="LoRA to use")
+    parser.add_argument("--prompt_embeds", type=str, default=None, help="Prompt embeds to use")
+    parser.add_argument("--pooled_prompt_embeds", type=str, default=None, help="Pooled prompt embeds to use")
+    parser.add_argument("--control_guidance_start", type=float, default=0.2, help="Control guidance start")
+    parser.add_argument("--control_guidance_end", type=float, default=0.5, help="Control guidance end")
+    parser.add_argument("--benchmark", type=bool, default=False, help="run benchmark with ranges pulled from user inputs +/-0.1")
+
 
     args = parser.parse_args()
 
     # Example usage of the ImageModelFLUX class with command-line arguments
-    if args.pose_path is None or args.mask_path is None:
-        args.pose_path, args.mask_path = ImageModelFlux.generate_image_extras(args.image_path,inv=True)
 
     image_model = ImageModelFlux(
         args.image_path, 
@@ -152,10 +206,25 @@ if __name__ == "__main__":
         controlnet_conditioning_scale=args.controlnet_conditioning_scale,
         seed=args.seed,
         # neg_prompt=args.neg_prompt,
-        strength=args.strength
+        strength=args.strength,
+        model=args.model,
+        quantize=args.quantize,
+        LoRA=args.LoRA,
+        prompt_embeds=args.prompt_embeds,
+        pooled_prompt_embeds=args.pooled_prompt_embeds,
+        control_guidance_start=args.control_guidance_start,
+        control_guidance_end=args.control_guidance_end
     )
-    image_model.prepare_image()
-    image_model.prepare_model()
-    generated_image, generated_image_path = image_model.generate_image()
-    print(f"Generated image saved at: {generated_image_path}")
+    
+    if args.quantize==None:
+        image_model.prepare_model()
+    else:
+        image_model.prepare_quant_model()
+    if args.benchmark==None:
+        image_model.prepare_image(args.image_path, args.pose_path,args.mask_path)
+        generated_image, generated_image_path = image_model.generate_image()
+        print(f"Generated image saved at: {generated_image_path}")
+    else:
+        image_model.generate_bench(args.image_path, args.pose_path,args.mask_path)
+    
     image_model.clearn_mem()

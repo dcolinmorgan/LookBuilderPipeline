@@ -17,6 +17,7 @@ setup(
         'accelerate',
         'numpy',
         'compel',
+        'glob'
         'dwpose',
         'huggingface-hub',
         'sentencepiece==0.2.0',

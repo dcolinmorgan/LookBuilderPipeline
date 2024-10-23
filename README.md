@@ -24,20 +24,30 @@ pip install -e .
 
 # SDXL
 ### One can run the pipeline with a single input image and a prompt. Mask and pose are optional they will be generated if not provided.
-## Running single image generation
 ```bash
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
 --image_path=LookBuilderPipeline/img/orig/p20.jpg \
 --prompt='a photo realistic image of a fashion model on a beach'
 
 ```
-# OpenFLUX w/ quant
-## Running single image generation
+# FLUX.1 schnell w/ quant
 ```bash
-python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_openfl2.py \
+python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_fl2.py \
 --image_path=LookBuilderPipeline/img/orig/p20.jpg \
 --prompt='a photo realistic image of a fashion model on a beach'
 --quantize='qfloat8'
+
+```
+
+
+# FLUX.1 schnell (quant) BENCHMARK
+### will run through all images in test-ai/upscaled/ and use the default parameters, unless user specifies, +/- 0.1
+```bash
+python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_fl2.py \
+--image_path=test-ai/upscaled/* \
+--prompt='a photo realistic image of a fashion model on a beach'\
+--quantize='qfloat8'\
+--benchmark=True
 
 ```
 
