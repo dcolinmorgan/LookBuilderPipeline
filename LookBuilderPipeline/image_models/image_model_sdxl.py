@@ -18,7 +18,7 @@ class ImageModelSDXL(BaseImageModel):
     def __init__(self, image, pose, mask, prompt, *args, **kwargs):
         # Initialize the SDXL image model
         super().__init__(image, pose, mask, prompt)
-        
+
         # Set default values
         self.num_inference_steps = kwargs.get('num_inference_steps', 30)
         self.guidance_scale = kwargs.get('guidance_scale', 7)

@@ -44,9 +44,10 @@ python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_fl2.py 
 ### will run through all images in test-ai/upscaled/ and use the default parameters, unless user specifies, +/- 0.1
 ```bash
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_fl2.py \
---image_path=test-ai/upscaled/* \
---prompt='a photo realistic image of a fashion model on a beach'\
+--image_path=test-ai/orig/p05.jpeg \
+--prompt='a photo realistic image of a black female fashion model'\
 --quantize='qfloat8'\
+--LoRA=True\
 --benchmark=True
 
 ```

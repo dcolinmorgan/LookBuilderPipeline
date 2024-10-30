@@ -1,8 +1,9 @@
 import numpy as np
 from diffusers.utils import load_image
-from LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.segment import segment_image, no_back, full_mask
 from LookBuilderPipeline.pose import detect_pose
 from LookBuilderPipeline.resize import resize_images
+from PIL import Image, ImageOps
 
 class BaseImageModel:
     def __init__(self, img, pose, mask, prompt):
@@ -30,8 +31,22 @@ class BaseImageModel:
         image=load_image(image)
         pose_image = detect_pose(image)
         _,final_mask,_ = segment_image(image,inverse=inv)
+        
+        # _,clothes = no_back(image)
 
-        return pose_image, final_mask
+        # clothes = clothes.convert("RGBA")
+
+        # pixdata = clothes.load()
+        
+        # width, height = clothes.size
+        # for y in range(height):
+        #     for x in range(width):
+        #         # Change transparent pixels to white
+        #         if pixdata[x, y][3] == 0:  # Check if the alpha value is 0 (transparent)
+        #             pixdata[x, y] = (255, 255, 255, 255)  # Set to white
+            
+
+        return pose_image, final_mask#, clothes
 
 
 
@@ -52,24 +67,62 @@ class BaseImageModel:
         fig.text(0.5, 0.01, f"Prompt: {self.prompt}       Neg_Prompt: {self.negative_prompt} \n Model: {self.model}  Time(s): {np.round(self.time,2)}  Time(m): {np.round(self.time/60,2)}  height: {self.height}  width: {self.width}    steps: {self.num_inference_steps}   seed: {self.seed}" "\n"
         f"cond_scale: {self.controlnet_conditioning_scale} guidance: {self.guidance_scale} strength: {self.strength}  Begin Cond Ratio: {self.control_guidance_start} End Cond Ratio:{self.control_guidance_end}", ha='center', fontsize=10, color='black', wrap=True)
         # fig.text(0.5, 0.0, f"cond_scale: {controlnet_conditioning_scale} guidance: {guidance_scale} strength: {strength}  Begin Cond Ratio: {control_guidance_start} End Cond Ratio:{control_guidance_end}", ha='center', fontsize=10, color='black', wrap=True)
+        fig.text(1, 0.75, f"i: {self.i}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.7, f"C: {self.controlnet_conditioning_scale}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.65, f"G: {self.guidance_scale}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.6, f"S: {self.strength}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.55, f"B: {self.control_guidance_start}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.5, f"E: {self.control_guidance_end}", ha='center', fontsize=8, color='black', wrap=True)
 
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
-        plt.tight_layout()
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+
+
+    
+        # text_to_save = f"""
+        # Prompt: {prompt} 
+        # Neg_Prompt: {negative_prompt}
+        # Model: {model}
+        # Time: {time}
+        # height: {height}
+        # width: {width}
+        # cond_scale: {controlnet_conditioning_scale}
+        # steps: {num_inference_steps}
+        # guidance: {guidance_scale}
+        # seed: {seed}
+        # strength:{strength}
+        # time: {time}"""
+        
+        #  # Save the text to a .txt file
+        # with open(output_path+'.txt', 'w') as file:  # Specify the desired file name
+            # file.write(text_to_save)  # Write the text to the file
+        
+        plt.tight_layout()  # Adjust the layout to prevent overlapping
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')  # Save the figure
         plt.close(fig)  # Close the figure to free up memory
 
+    def resize_with_padding(img, expected_size):
+        img.thumbnail((expected_size[0], expected_size[1]))
+        # print(img.size)
+        delta_width = expected_size[0] - img.size[0]
+        delta_height = expected_size[1] - img.size[1]
+        pad_width = delta_width // 2
+        pad_height = delta_height // 2
+        padding = (pad_width, pad_height, delta_width - pad_width, delta_height - pad_height)
+        return ImageOps.expand(img, padding)
 
 
     def prepare_image(self,input_image,pose_path,mask_path):
         """
         Prepare the pose and mask images to generate a new image using the diffusion model.
         """
+        def resize_with_padding(img, expected_size):
+            img.thumbnail((expected_size[0], expected_size[1]))
+            # print(img.size)
+            delta_width = expected_size[0] - img.size[0]
+            delta_height = expected_size[1] - img.size[1]
+            pad_width = delta_width // 2
+            pad_height = delta_height // 2
+            padding = (pad_width, pad_height, delta_width - pad_width, delta_height - pad_height)
+            return ImageOps.expand(img, padding)
 
         if pose_path is None or mask_path is None:
             self.pose, self.mask = self.generate_image_extras(input_image,inv=True)
@@ -85,15 +138,13 @@ class BaseImageModel:
         else:
             mask_image = self.mask
 
-        # if pose_image.size[0] < image.size[0]:  ## resize to pose image size if it is smaller
-        #     self.sm_image=resize_images(image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-        #     self.sm_pose_image=resize_images(pose_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-        #     self.sm_mask=resize_images(mask_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-            
-        # else:
-        self.sm_image=resize_images(image,image.size,aspect_ratio=None)
-        self.sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
-        self.sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+        # self.sm_image=resize_images(image,image.size,aspect_ratio=None)
+        # self.sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+        # self.sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+
+        self.sm_image=resize_with_padding(image,[1024,1024])
+        self.sm_pose_image=resize_with_padding(pose_image,[1024,1024])
+        self.sm_mask=resize_with_padding(mask_image,[1024,1024])
             
         self.width, self.height = self.sm_image.size
 

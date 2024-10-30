@@ -73,7 +73,7 @@ class ImageModelFlux(BaseImageModel):
         """
         Load the FLUX model and controlnet as individual components.
         """
-        if not glob.glob('flux-fp8'):
+        if not glob.glob('flux-schnell-fp8'):
             from huggingface_hub import snapshot_download
             # snapshot_download(repo_id="ostris/OpenFLUX.1",local_dir='flux-fp8')
             snapshot_download(repo_id="black-forest-labs/FLUX.1-schnell",local_dir='flux-schnell-fp8')
@@ -109,7 +109,8 @@ class ImageModelFlux(BaseImageModel):
         )
         
         if self.LoRA:
-            self.pipe.load_lora_weights('hugovntr/flux-schnell-realism', weight_name='schnell-realism_v2.3.safetensors', adapter_name="winner")
+            # self.pipe.load_lora_weights('hugovntr/flux-schnell-realism', weight_name='schnell-realism_v2.3.safetensors', adapter_name="winner")
+            self.pipe.load_lora_weights('prithivMLmods/Canopus-LoRA-Flux-UltraRealism-2.0', weight_name='Canopus-LoRA-Flux-UltraRealism.safetensors', adapter_name="winner")
 
             # Activate the LoRA
             self.pipe.set_adapters(["winner"], adapter_weights=[2.0])

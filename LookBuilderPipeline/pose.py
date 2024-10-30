@@ -2,7 +2,7 @@
 from controlnet_aux import OpenposeDetector  # For pose detection using OpenPose
 from diffusers.utils import load_image  # For loading images
 from .resize import resize_images
-
+import os,sys
 # Initialize the OpenPose detector using a pre-trained model from Hugging Face
 openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
 # from controlnet_aux.processor import Processor
@@ -13,6 +13,9 @@ from dwpose import DwposeDetector
 
 model = DwposeDetector.from_pretrained_default()
 
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+blockPrint()
 
 def detect_pose(image_path, resize=False, size=(512, 512)):
     """
