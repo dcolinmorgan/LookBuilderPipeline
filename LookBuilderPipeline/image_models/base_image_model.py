@@ -99,30 +99,22 @@ class BaseImageModel:
         plt.savefig(output_path, dpi=300, bbox_inches='tight')  # Save the figure
         plt.close(fig)  # Close the figure to free up memory
 
-    def resize_with_padding(img, expected_size):
+    def resize_with_padding(self, img, expected_size, color=0):
+        """Resize image with padding to maintain aspect ratio"""
         img.thumbnail((expected_size[0], expected_size[1]))
-        # print(img.size)
         delta_width = expected_size[0] - img.size[0]
         delta_height = expected_size[1] - img.size[1]
         pad_width = delta_width // 2
         pad_height = delta_height // 2
         padding = (pad_width, pad_height, delta_width - pad_width, delta_height - pad_height)
-        return ImageOps.expand(img, padding)
+        return ImageOps.expand(img, padding, color)
+
 
 
     def prepare_image(self,input_image,pose_path,mask_path):
         """
         Prepare the pose and mask images to generate a new image using the diffusion model.
         """
-        def resize_with_padding(img, expected_size):
-            img.thumbnail((expected_size[0], expected_size[1]))
-            # print(img.size)
-            delta_width = expected_size[0] - img.size[0]
-            delta_height = expected_size[1] - img.size[1]
-            pad_width = delta_width // 2
-            pad_height = delta_height // 2
-            padding = (pad_width, pad_height, delta_width - pad_width, delta_height - pad_height)
-            return ImageOps.expand(img, padding)
 
         if pose_path is None or mask_path is None:
             self.pose, self.mask = self.generate_image_extras(input_image,inv=True)
@@ -138,13 +130,13 @@ class BaseImageModel:
         else:
             mask_image = self.mask
 
-        # self.sm_image=resize_images(image,image.size,aspect_ratio=None)
-        # self.sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
-        # self.sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+        image=resize_images(image,image.size,aspect_ratio=None)
+        pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
+        mask_image=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
 
-        self.sm_image=resize_with_padding(image,[1024,1024])
-        self.sm_pose_image=resize_with_padding(pose_image,[1024,1024])
-        self.sm_mask=resize_with_padding(mask_image,[1024,1024])
-            
+        self.sm_image = self.resize_with_padding(image, [self.res, self.res])
+        self.sm_pose_image = self.resize_with_padding(pose_image, [self.res, self.res])
+        self.sm_mask = self.resize_with_padding(mask_image, [self.res, self.res], 255)
+
         self.width, self.height = self.sm_image.size
 

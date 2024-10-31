@@ -28,8 +28,17 @@ pip install -e .
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
 --image_path=LookBuilderPipeline/img/orig/p20.jpg \
 --prompt='a photo realistic image of a fashion model on a beach'
-
 ```
+# SDXL BENCHMARK
+### will run through all images in test-ai/upscaled/ and use the default parameters, unless user specifies, +/- 0.1
+
+```bash
+python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
+--image_path=test-ai/bench/* \
+--prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark, rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
+--benchmark='True'
+```
+
 # FLUX.1 schnell w/ quant
 ```bash
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_fl2.py \
@@ -44,11 +53,11 @@ python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_fl2.py 
 ### will run through all images in test-ai/upscaled/ and use the default parameters, unless user specifies, +/- 0.1
 ```bash
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_fl2.py \
---image_path=test-ai/orig/p05.jpeg \
---prompt='a photo realistic image of a black female fashion model'\
---quantize='qfloat8'\
---LoRA=True\
---benchmark=True
+--image_path=test-ai/bench/* \
+--prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark, rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
+--quantize='True' \
+--benchmark='True' \
+--LoRA='True'
 
 ```
 

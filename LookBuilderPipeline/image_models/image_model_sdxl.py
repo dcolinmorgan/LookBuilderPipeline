@@ -7,8 +7,8 @@ from diffusers.utils import load_image
 from transformers import pipeline 
 import torch.nn as nn
 from compel import Compel, ReturnedEmbeddingsType
-
-from LookBuilderPipeline.image_models.base_image_model import BaseImageModel#, prepare_image
+import glob
+from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.resize import resize_images
 
 # Import required components from diffusers
@@ -18,9 +18,9 @@ class ImageModelSDXL(BaseImageModel):
     def __init__(self, image, pose, mask, prompt, *args, **kwargs):
         # Initialize the SDXL image model
         super().__init__(image, pose, mask, prompt)
-
+        
         # Set default values
-        self.num_inference_steps = kwargs.get('num_inference_steps', 30)
+        self.num_inference_steps = kwargs.get('num_inference_steps', 28)
         self.guidance_scale = kwargs.get('guidance_scale', 7)
         self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1.0)
         self.seed = kwargs.get('seed', 42)
@@ -30,34 +30,11 @@ class ImageModelSDXL(BaseImageModel):
         self.strength = kwargs.get('strength', 0.99)
         self.LoRA = kwargs.get('LoRA', False)
         self.model = 'sdxl'
-
-    # def prepare_image(self):
-    #     """
-    #     Prepare the pose and mask images to generate a new image using the diffusion model.
-    #     """
-    #     # Load and resize images
-    #     image = load_image(self.image)
-    #     if isinstance(self.pose,str):
-    #         pose_image = load_image(self.pose)
-    #     else:
-    #         pose_image = self.pose
-    #     if isinstance(self.mask,str):
-    #         mask_image = load_image(self.mask)
-    #     else:
-    #         mask_image = self.mask
-            
-    #     ## keep input_image resolution and upscale pose (stick figure) VS downscaling to pose resolution
-    #     # if pose_image.size[0] < image.size[0]:  ## resize to pose image size if it is smaller
-    #     #     self.sm_image=resize_images(image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-    #     #     self.sm_pose_image=resize_images(pose_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-    #     #     self.sm_mask=resize_images(mask_image,pose_image.size,aspect_ratio=pose_image.size[0]/pose_image.size[1])
-            
-    #     # else:
-    #     self.sm_image=resize_images(image,image.size,aspect_ratio=None)
-    #     self.sm_pose_image=resize_images(pose_image,image.size,aspect_ratio=image.size[0]/image.size[1])
-    #     self.sm_mask=resize_images(mask_image,image.size,aspect_ratio=image.size[0]/image.size[1])
-            
-    #     self.width, self.height = self.sm_image.size
+        self.benchmark = kwargs.get('benchmark', False)
+        self.control_guidance_start=0
+        self.control_guidance_end=1
+        self.res = kwargs.get('res', 1280)
+    
 
     def prepare_model(self):
         """
@@ -74,9 +51,9 @@ class ImageModelSDXL(BaseImageModel):
         )
 
         # Load the pipeline + CN
-        self.pipe = StableDiffusionXLControlNetInpaintPipeline.from_pretrained(
-            # "RunDiffusion/Juggernaut-XL-v8",
-            "SG161222/RealVisXL_V5.0_Lightning",
+        self.pipe = StableDiffusionXLControlNetInpaintPipeline.from_single_file(#from_pretrained(
+            "https://huggingface.co/RunDiffusion/Juggernaut-XL-v9/blob/main/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors",
+            # "SG161222/RealVisXL_V5.0_Lightning",
             controlnet=controlnet_model,
             torch_dtype=torch.float16,
         )
@@ -85,28 +62,40 @@ class ImageModelSDXL(BaseImageModel):
         self.pipe.text_encoder.to(torch.float16)
         self.pipe.controlnet.to(torch.float16)
         self.pipe.to("cuda")
+        
+        self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
+
+            ## compel for prompt embedding allowing >77 tokens
+        compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])
+        self.conditioning, self.pooled = compel(self.prompt)
+
         if self.LoRA:
-            self.pipe.load_lora_weights('ntc-ai/SDXL-LoRA-slider.winner', weight_name='winner.safetensors', adapter_name="winner")
+            # from scheduling_tcd import TCDScheduler 
+            # pipe.scheduler = TCDScheduler.from_config(pipe.scheduler.config)
+            from diffusers import DDIMScheduler
+        
+            # self.pipe.load_lora_weights('h1t/TCD-SDXL-LoRA', weight_name='pytorch_lora_weights.safetensors', adapter_name="winner")
+            self.pipe.load_lora_weights('ByteDance/Hyper-SD', weight_name='Hyper-SDXL-8steps-lora.safetensors', adapter_name="BD")
+            self.pipe.fuse_lora()
+
+            self.pipe.scheduler = DDIMScheduler.from_config(self.pipe.scheduler.config, timestep_spacing="trailing")
 
             # Activate the LoRA
-            self.pipe.set_adapters(["winner"], adapter_weights=[2.0])
-            from diffusers import EulerAncestralDiscreteScheduler
-        self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
+            # self.pipe.set_adapters(["winner"], adapter_weights=[2.0])
+
 
     def generate_image(self):
         """
         Generate a new image using the diffusion model based on the pose, mask and prompt.
         """
-        ## compel for prompt embedding allowing >77 tokens
-        compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])
-        conditioning, pooled = compel(self.prompt)
+
         
         start_time = time.time()
         # Generate the image using the pipeline
         image_res = self.pipe(
             # prompt=self.prompt,
-            prompt_embeds=conditioning,
-            pooled_prompt_embeds=pooled,
+            prompt_embeds=self.conditioning,
+            pooled_prompt_embeds=self.pooled,
             image=self.sm_image,
             mask_image=self.sm_mask,
             control_image=self.sm_pose_image,
@@ -121,14 +110,35 @@ class ImageModelSDXL(BaseImageModel):
         self.time = end_time - start_time
         
         # Save the generated image
-        os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "sdxl"), exist_ok=True)
-        filename = f"{uuid.uuid4()}.png"
-        save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "sdxl", filename)
-        image_res.save(save_path)
-        bench_filename = f"{uuid.uuid4()}.png"
-        bench_save_path = os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", "sdxl", 'bench'+bench_filename)
-        ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res],output_path=bench_save_path)
+        save_path=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,"lora")
+        os.makedirs(save_path, exist_ok=True)
+
+        # filename = f"{uuid.uuid4()}.png"
+        os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images", self.model,"lora"), exist_ok=True)
+        # 
+        self.i=os.path.basename(self.input_image).split('.')[0]
+        bench_filename = 'img'+str(self.i)+'res'+str(self.res)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
+        if self.LoRA==True:
+            save_path1 = os.path.join("generated_images", self.model,'lora', bench_filename)
+            save_path2 = os.path.join("benchmark_images", self.model,'lora', bench_filename)
+        else:
+            save_path1 = os.path.join("generated_images", self.model,'nolora', bench_filename)
+            save_path2 = os.path.join("benchmark_images", self.model,'nolora', bench_filename)
+        image_res.save(save_path1)
+        ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
         return image_res, save_path
+    
+    def generate_bench(self,image_path,pose_path,mask_path):
+        for self.input_image in glob.glob(self.image):
+            # for self.controlnet_conditioning_scale in [self.controlnet_conditioning_scale-0.2,self.controlnet_conditioning_scale,self.controlnet_conditioning_scale+0.2]:
+            for self.guidance_scale in [self.guidance_scale-0.5,self.guidance_scale,self.guidance_scale+0.5]:
+                for self.strength in [self.strength]:#,self.strength+0.009]:
+                    for self.res in [768,1024,1280]:
+                            # for self.control_guidance_end in [self.control_guidance_end,self.control_guidance_end+0.1]:
+                        self.prepare_image(self.input_image,pose_path,mask_path)
+                        image_res, save_path = self.generate_image()
+                    # image_res = self.upscale_image(image_res)
+        
 
     def clearn_mem(self):
         # Clear CUDA memory
@@ -143,20 +153,22 @@ if __name__ == "__main__":
     parser.add_argument("--pose_path", default=None, help="Path to the pose image")
     parser.add_argument("--mask_path", default=None, help="Path to the mask image")
     parser.add_argument("--prompt", required=True, help="Text prompt for image generation")
-    parser.add_argument("--num_inference_steps", type=int, default=30, help="Number of inference steps")
+    parser.add_argument("--num_inference_steps", type=int, default=28, help="Number of inference steps")
     parser.add_argument("--guidance_scale", type=float, default=5, help="Guidance scale")
     parser.add_argument("--controlnet_conditioning_scale", type=float, default=1.0, help="ControlNet conditioning scale")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--negative_prompt", default="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
     parser.add_argument("--strength", type=float, default=0.8, help="Strength of the transformation")
     parser.add_argument("--LoRA", type=bool, default=False, help="use LoRA or not")
+    parser.add_argument("--benchmark", type=bool, default=False, help="run benchmark with ranges pulled from user inputs +/-0.1")   
+    parser.add_argument("--res", type=int, default=1280, help="Resolution of the image")
 
 
     args = parser.parse_args()
 
-    # Example usage of the ImageModelSDXL class with command-line arguments
-    if args.pose_path is None or args.mask_path is None:
-        args.pose_path, args.mask_path = ImageModelSDXL.generate_image_extras(args.image_path,inv=True)
+    # # Example usage of the ImageModelSDXL class with command-line arguments
+    # if args.pose_path is None or args.mask_path is None:
+    #     args.pose_path, args.mask_path = ImageModelSDXL.generate_image_extras(args.image_path,inv=True)
 
     image_model = ImageModelSDXL(
         args.image_path, 
@@ -171,8 +183,14 @@ if __name__ == "__main__":
         strength=args.strength,
         LoRA=args.LoRA
     )
-    image_model.prepare_image()
+
     image_model.prepare_model()
-    generated_image, generated_image_path = image_model.generate_image()
-    print(f"Generated image saved at: {generated_image_path}")
+    if args.benchmark==None:
+        image_model.prepare_image(args.image_path, args.pose_path,args.mask_path)
+        generated_image, generated_image_path = image_model.generate_image()
+        # generated_image = image_model.upscale_image(generated_image)  ## will explode the VRAM at this point, need to unload pipe1 or run in series
+        print(f"Generated image saved at: {generated_image_path}")
+    else:
+        image_model.generate_bench(args.image_path, args.pose_path,args.mask_path)
+    
     image_model.clearn_mem()
