@@ -34,6 +34,8 @@ class ImageModelSDXL(BaseImageModel):
         self.control_guidance_start=0
         self.control_guidance_end=1
         self.res = kwargs.get('res', 1280)
+        self.control_guidance_start=0.0
+        self.control_guidance_end=1.0
     
 
     def prepare_model(self):
@@ -108,25 +110,30 @@ class ImageModelSDXL(BaseImageModel):
         ).images[0]
         end_time = time.time()
         self.time = end_time - start_time
+        self.i=os.path.basename(self.input_image).split('.')[0]
         
         # Save the generated image
-        save_path=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,"lora")
-        os.makedirs(save_path, exist_ok=True)
+        save_pathA=os.path.join("LookBuilderPipeline","generated_images",self.model,"lora")
+        save_pathB=os.path.join("LookBuilderPipeline","generated_images",self.model,"nolora")
+        save_pathC=os.path.join("LookBuilderPipeline","benchmark_images",self.model,"lora")
+        save_pathD=os.path.join("LookBuilderPipeline","benchmark_images",self.model,"nolora")
 
-        # filename = f"{uuid.uuid4()}.png"
-        os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images", self.model,"lora"), exist_ok=True)
-        # 
-        self.i=os.path.basename(self.input_image).split('.')[0]
-        bench_filename = 'img'+str(self.i)+'res'+str(self.res)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
+        os.makedirs(save_pathA, exist_ok=True)
+        os.makedirs(save_pathB, exist_ok=True)
+        os.makedirs(save_pathC, exist_ok=True)
+        os.makedirs(save_pathD, exist_ok=True)
+        
+        bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
         if self.LoRA==True:
-            save_path1 = os.path.join("generated_images", self.model,'lora', bench_filename)
-            save_path2 = os.path.join("benchmark_images", self.model,'lora', bench_filename)
+            save_path1 = os.path.join(save_pathA, bench_filename)
+            save_path2 = os.path.join(save_pathC, bench_filename)
         else:
-            save_path1 = os.path.join("generated_images", self.model,'nolora', bench_filename)
-            save_path2 = os.path.join("benchmark_images", self.model,'nolora', bench_filename)
+            save_path1 = os.path.join(save_pathB, bench_filename)
+            save_path2 = os.path.join(save_pathD, bench_filename)
         image_res.save(save_path1)
         ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
-        return image_res, save_path
+
+        return image_res, save_path1
     
     def generate_bench(self,image_path,pose_path,mask_path):
         for self.input_image in glob.glob(self.image):

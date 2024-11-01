@@ -4,22 +4,22 @@
 
 ```bash
 export GH_PAT= ## from doppler secrets
-git clone https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
-cd LookBuilderPipeline
-apt-get update && apt-get install -y libgl1 ## should run automatically in install step
-pip install -e .
+git clone -b openflux https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
+# may need this next step on some INTEL machines
+# apt-get update && apt-get install -y libgl1 ## should run automatically in install step
+pip install -e LookBuilderPipeline/.
 ```
 ## parameters & their affect on generation:
 
   - `control_mode=4`,  this dictates `openpose` 
-  - `controlnet_conditioning_scale=0.3`
-    - 0.2 to 0.4 seem ok -- lower for better outpainting, raise if limbs are off the pose image
-  - `strength=0.9` strength of prompt on image
+  - `controlnet_conditioning_scale=1.0`
+    - 0.2 to 0.4 seem ok -- lower for better outpainting, raise if limbs are off the **pose** image
+  - `strength=1.0` strength of **mask** on generation
     - this is good for most images -- can override mask/pose if too high (0.95), generate cartoon if too low (0.85) \
     - can be lower based on image, 0.7 works for some images
-  - `num_inference_steps=20`
+  - `num_inference_steps=28`
     - 20-40 this is good for most images, sometimes more is needed for more detail
-  - `guidance_scale=6`
+  - `guidance_scale=7.5` **prompt**
     - 5 is good for most images, lower for more creative results
 
 # SDXL
@@ -36,6 +36,13 @@ python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
 --image_path=test-ai/bench/* \
 --prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark, rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
+--benchmark='True'
+```
+
+```bash
+python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
+--image_path=test-ai/glow/* \
+--prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
 --benchmark='True'
 ```
 

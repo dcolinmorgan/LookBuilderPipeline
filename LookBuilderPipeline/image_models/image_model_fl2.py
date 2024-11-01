@@ -42,6 +42,7 @@ class ImageModelFlux(BaseImageModel):
         self.control_guidance_end = kwargs.get('control_guidance_end', 1)
         self.benchmark = kwargs.get('benchmark', False)
         self.res = kwargs.get('res', 1280)
+        self.openflux = kwargs.get('openflux', False)
         
 
     def prepare_model(self):
@@ -71,8 +72,10 @@ class ImageModelFlux(BaseImageModel):
         """
         if not glob.glob('flux-schnell-fp8'):
             from huggingface_hub import snapshot_download
-            # snapshot_download(repo_id="ostris/OpenFLUX.1",local_dir='flux-fp8')
-            snapshot_download(repo_id="black-forest-labs/FLUX.1-schnell",local_dir='flux-schnell-fp8')
+            if self.openflux==True:
+                snapshot_download(repo_id="ostris/OpenFLUX.1",local_dir='flux-schnell-fp8')
+            else:
+                snapshot_download(repo_id="black-forest-labs/FLUX.1-schnell",local_dir='flux-schnell-fp8')
         
         from diffusers import FluxControlNetInpaintPipeline, FluxTransformer2DModel
         from torchao.quantization import quantize_, int8_weight_only
@@ -103,7 +106,7 @@ class ImageModelFlux(BaseImageModel):
         self.pipe = FluxControlNetInpaintPipeline.from_pretrained(
             'flux-schnell-fp8',
             controlnet=controlnet,
-            transformer = self.transformer,
+            transformer = transformer,
             torch_dtype = torch.bfloat16,
         )
 
@@ -156,21 +159,31 @@ class ImageModelFlux(BaseImageModel):
         end_time = time.time()
         self.time = end_time - start_time
         self.negative_prompt=None
-        # Save the generated image
-        save_path=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images", self.model)
-        os.makedirs(save_path, exist_ok=True)
-
-        # filename = f"{uuid.uuid4()}.png"
-        os.makedirs(os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images", self.model), exist_ok=True)
-        # 
         self.i=os.path.basename(self.input_image).split('.')[0]
+
+        # Save the generated image
+        save_pathA=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,"lora")
+        save_pathB=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,"nolora")
+        save_pathC=os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images",self.model,"lora")
+        save_pathD=os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images",self.model,"nolora")
+
+        os.makedirs(save_pathA, exist_ok=True)
+        os.makedirs(save_pathB, exist_ok=True)
+        os.makedirs(save_pathC, exist_ok=True)
+        os.makedirs(save_pathD, exist_ok=True)
+        
         bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
-        save_path1 = os.path.join("generated_images", self.model, bench_filename)
+        if self.LoRA==True:
+            save_path1 = os.path.join(save_pathA, bench_filename)
+            save_path2 = os.path.join(save_pathC, bench_filename)
+        else:
+            save_path1 = os.path.join(save_pathB, bench_filename)
+            save_path2 = os.path.join(save_pathD, bench_filename)
         image_res.save(save_path1)
-        save_path2 = os.path.join("benchmark_images", self.model,bench_filename)
         ImageModelFlux.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
 
-        return image_res, save_path
+        return image_res, save_path1
+
     
     def upscale_image(image_res,image_path):
         import torch
@@ -187,7 +200,7 @@ class ImageModelFlux(BaseImageModel):
             pipe2 = FluxControlNetPipeline.from_pretrained(
                 'flux-schnell-fp8',
                 controlnet=controlnet2,
-                transformer=self.transformer,
+                transformer=transformer,
                 torch_dtype=torch.bfloat16
                 )
         else:
@@ -214,15 +227,6 @@ class ImageModelFlux(BaseImageModel):
             width=image_res.size[0]
         ).images[0]
         
-        bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
-        if self.LoRA==True:
-            save_path1 = os.path.join("generated_images", self.model,'lora', bench_filename)
-            save_path2 = os.path.join("benchmark_images", self.model,'lora', bench_filename)
-        else:
-            save_path1 = os.path.join("generated_images", self.model,'nolora', bench_filename)
-            save_path2 = os.path.join("benchmark_images", self.model,'nolora', bench_filename)
-        image_res.save(save_path1)
-        ImageModelFlux.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
 
         return image_res
 
@@ -263,6 +267,7 @@ if __name__ == "__main__":
     parser.add_argument("--control_guidance_end", type=float, default=1, help="Control guidance end")
     parser.add_argument("--benchmark", type=bool, default=False, help="run benchmark with ranges pulled from user inputs +/-0.1")
     parser.add_argument("--res", type=int, default=1280, help="Resolution of the image")
+    parser.add_argument("--openflux", type=bool, default=False, help="Use OpenFLUX")
 
 
     args = parser.parse_args()
