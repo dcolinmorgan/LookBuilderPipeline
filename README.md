@@ -26,7 +26,7 @@ pip install -e LookBuilderPipeline/.
 ### One can run the pipeline with a single input image and a prompt. Mask and pose are optional they will be generated if not provided.
 ```bash
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
---image_path=LookBuilderPipeline/img/orig/p20.jpg \
+--image_path=LookBuilderPipeline/img/p09.jpg \
 --prompt='a photo realistic image of a fashion model on a beach'
 ```
 # SDXL BENCHMARK
@@ -38,34 +38,13 @@ python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py
 --prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark, rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
 --benchmark='True'
 ```
-
+### with LoRA
 ```bash
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
 --image_path=test-ai/glow/* \
 --prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
---benchmark='True'
-```
-
-# FLUX.1 schnell w/ quant
-```bash
-python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_fl2.py \
---image_path=LookBuilderPipeline/img/orig/p20.jpg \
---prompt='a photo realistic image of a fashion model on a beach'
---quantize='qfloat8'
-
-```
-
-
-# FLUX.1 schnell (quant) BENCHMARK
-### will run through all images in test-ai/upscaled/ and use the default parameters, unless user specifies, +/- 0.1
-```bash
-python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_fl2.py \
---image_path=test-ai/bench/* \
---prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark, rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
---quantize='True' \
 --benchmark='True' \
 --LoRA='True'
-
 ```
 
 ## Running the tests
