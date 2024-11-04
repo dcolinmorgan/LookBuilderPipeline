@@ -1,77 +1,63 @@
-# Import the necessary modules from your project
+import logging
+import signal
+import sys
+import argparse
 
-from segmentation.segmentation import segment_image
-from pose.pose import detect_pose
-from image_models.image_model_sd3 import generate_image_sd3
-from image_models.image_model_fl2 import generate_image_flux
-
-
-# Function to run the pipeline with the Stable Diffusion 3 model
-def run_pipeline_sd3(image, prompt):
+def run_ping_listener():
     """
-    Run the entire pipeline and generate the final image using Stable Diffusion 3 with ControlNet.
-    
-    Args:
-        image (object): The input image object.
-        prompt (str): The textual prompt to guide the image generation.
-    
-    Returns:
-        object: The generated image using Stable Diffusion 3.
+    Launch the notification manager in ping-listening mode.
     """
-    # Step 1: Segment the image to extract the outfit (minimum) and additional elements
-    segmented_clothes, mask = segment_image(image)
-    print("Segmentation completed.")
-
-    # Step 2: Detect the pose of the model in the image
-    pose = detect_pose(image)
-    print("Pose detection completed.")
-
-    # Step 3: Generate the final image using Stable Diffusion 3
-    generated_image = generate_image_sd3(pose, segmented_clothes, mask, prompt)
-    print("Image generation with SD3 completed.")
+    from LookBuilderPipeline.manager.notification_manager import NotificationManager
     
-    return generated_image
-
-
-# Function to run the pipeline with the Flux model
-def run_pipeline_flux(image, prompt):
-    """
-    Run the entire pipeline and generate the final image using the Flux model.
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
     
-    Args:
-        image (object): The input image object.
-        prompt (str): The textual prompt to guide the image generation.
+    nm = NotificationManager()
     
-    Returns:
-        object: The generated image using the Flux model.
-    """
-    # Step 1: Segment the image to extract the outfit (minimum) and additional elements
-    segmented_clothes, mask = segment_image(image)
-    print("Segmentation completed.")
-
-    # Step 2: Detect the pose of the model in the image
-    pose = detect_pose(image)
-    print("Pose detection completed.")
-
-    # Step 3: Generate the final image using the Flux model
-    generated_image = generate_image_flux(pose, segmented_clothes, mask, prompt)
-    print("Image generation with Flux completed.")
+    def signal_handler(sig, frame):
+        logger.info("Shutting down ping listener...")
+        nm.stop_listening()
+        sys.exit(0)
     
-    return generated_image
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    try:
+        logger.info("Starting ping listener...")
+        while True:
+            nm.listen_for_ping(timeout=300)  # 5 minutes timeout
+    except Exception as e:
+        logger.error(f"Error in ping listener: {str(e)}")
+        nm.stop_listening()
+        sys.exit(1)
 
+def run_pipeline():
+    """Run the main image processing pipeline."""
+    from segmentation.segmentation import segment_image
+    from pose.pose import detect_pose
+    from image_models.image_model_sd3 import generate_image_sd3
+    from image_models.image_model_fl2 import generate_image_flux
+    
+    test_image = "sample_image.jpg"
+    test_prompt = "A model in a futuristic outfit"
 
-# Main execution for testing both pipelines
-if __name__ == "__main__":
-    # Placeholder image and prompt (replace these with actual image and prompt)
-    test_image = "sample_image.jpg"  # Replace with actual image object
-    test_prompt = "A model in a futuristic outfit"  # Example prompt
-
-    # Run the pipeline with Stable Diffusion 3
     print("Running pipeline with Stable Diffusion 3...")
     sd3_output = run_pipeline_sd3(test_image, test_prompt)
     print(f"Output from SD3 model: {sd3_output}")
 
-    # Run the pipeline with the Flux model
     print("Running pipeline with Flux model...")
     flux_output = run_pipeline_flux(test_image, test_prompt)
     print(f"Output from Flux model: {flux_output}")
+
+# Main execution
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Run LookBuilder Pipeline or Ping Listener')
+    parser.add_argument('--mode', choices=['pipeline', 'ping'], 
+                       default='pipeline', help='Mode to run: pipeline or ping listener')
+    
+    args = parser.parse_args()
+    
+    if args.mode == 'ping':
+        run_ping_listener()
+    else:
+        run_pipeline()
