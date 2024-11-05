@@ -10,11 +10,13 @@ class ProcessQueue(Base):
 
     process_id = Column(Integer, primary_key=True)
     image_id = Column(Integer, nullable=False)
-    next_step = Column(String(50), nullable=False)
-    parameters = Column(JSONB, nullable=True, server_default='{}')
-    status = Column(String(20), nullable=False, default='pending')
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
-    updated_at = Column(DateTime, nullable=False, default=datetime.now)
+    next_step = Column(String, nullable=False)
+    status = Column(String, nullable=False)
+    parameters = Column(JSONB, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    requested_by = Column(String, nullable=True)  # Client that requested the process
+    served_by = Column(String, nullable=True)     # Server/worker that processed it
 
     VALID_STATUSES = ('pending', 'processing', 'completed', 'error')
 
