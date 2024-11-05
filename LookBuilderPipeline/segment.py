@@ -8,7 +8,7 @@ from .resize import resize_images
 # Initialize the segmentation model using a pre-trained model from Hugging Face
 segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")
 
-def segment_image(image_path, additional_option=None, resize=False, size=(512, 512), inverse=False):
+def segment_image(self,image_path, additional_option=None, resize=False, size=(512, 512), inverse=False):
     """
     Function for segmenting an image and returning the outfit with optional additions.
     
@@ -34,7 +34,7 @@ def segment_image(image_path, additional_option=None, resize=False, size=(512, 5
     segments = segmenter(seg_img)
 
     # Define the labels for the segments we want to include
-    segment_include = ["Upper-clothes", "Skirt", "Pants", "Dress", "Belt", "Bag", "Scarf"]
+    segment_include = ["Upper-clothes", "Skirt", "Pants", "Dress", "Belt", "Bag", "Scarf","Left-shoe", "Right-shoe"]
     
     # Extend the segments to include additional options if specified
     if additional_option in ["shoe"]:
@@ -72,7 +72,7 @@ def segment_image(image_path, additional_option=None, resize=False, size=(512, 5
     # Return the segmented outfit image, the mask, and the final mask array
     return seg_img, final_mask, final_array
 
-def full_mask(original_image,flux_image):
+def full_mask(self,original_image,flux_image):
     seg_img = load_image(original_image)
     segments = segmenter(seg_img)
     segment_include = ["Upper-clothes", "Skirt", "Pants", "Dress", "Belt", "Bag", "Scarf","Left-shoe","Right-shoe"]
@@ -103,7 +103,7 @@ def full_mask(original_image,flux_image):
 
 
 
-def no_back(original_image):
+def no_back(self,original_image):
     seg_img = load_image(original_image)
     segments = segmenter(seg_img)
     segment_include = ["Background"]

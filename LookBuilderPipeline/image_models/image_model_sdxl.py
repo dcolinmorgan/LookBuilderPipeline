@@ -10,6 +10,7 @@ from compel import Compel, ReturnedEmbeddingsType
 import glob
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.resize import resize_images
+from LookBuilderPipeline.annotate import annotate_images, image_answers
 
 # Import required components from diffusers
 from diffusers import StableDiffusionXLControlNetInpaintPipeline, ControlNetModel, DDIMScheduler
@@ -21,15 +22,15 @@ class ImageModelSDXL(BaseImageModel):
         
         # Set default values
         self.num_inference_steps = kwargs.get('num_inference_steps', 50)
-        self.guidance_scale = kwargs.get('guidance_scale', 7)
+        self.guidance_scale = kwargs.get('guidance_scale', 7.5)
         self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1.0)
-        self.seed = kwargs.get('seed', 42)
+        self.seed = kwargs.get('seed', 420042)
         self.prompt = kwargs.get('prompt', prompt)
         self.image = kwargs.get('image', image)
-        self.negative_prompt = kwargs.get('negative_prompt', "ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
+        self.negative_prompt = kwargs.get('negative_prompt', "dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
         self.strength = kwargs.get('strength', 1.0)
         self.LoRA = kwargs.get('LoRA', False)
-        self.model = 'sdxl'
+        self.model = 'sdxl_studio_crop1280'
         self.benchmark = kwargs.get('benchmark', False)
         self.control_guidance_start=0
         self.control_guidance_end=1
@@ -37,6 +38,7 @@ class ImageModelSDXL(BaseImageModel):
         self.control_guidance_start=0.0
         self.control_guidance_end=1.0
         self.lora_weight=kwargs.get('lora_weight', 1.0)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
 
     def prepare_model(self):
@@ -104,12 +106,12 @@ class ImageModelSDXL(BaseImageModel):
         elif self.LoRA==5:
             self.loraout="styleC"
             self.pipe.load_lora_weights('lora-styleC', weight_name='pytorch_lora_weights.safetensors',adapter_name=self.loraout)
-        elif self.LoRA==6:
-            self.loraout="h1t"
-            self.pipe.load_lora_weights('h1t/TCD-SDXL-LoRA', weight_name='pytorch_lora_weights.safetensors',adapter_name=self.loraout)
-        elif self.LoRA==7:
-            self.loraout="12step"
-            self.pipe.load_lora_weights('ByteDance/Hyper-SD', weight_name='Hyper-SDXL-12steps-CFG-lora.safetensors',adapter_name=self.loraout)
+        # elif self.LoRA==6:
+        #     self.loraout="h1t"
+        #     self.pipe.load_lora_weights('h1t/TCD-SDXL-LoRA', weight_name='pytorch_lora_weights.safetensors',adapter_name=self.loraout)
+        # elif self.LoRA==7:
+        #     self.loraout="12step"
+        #     self.pipe.load_lora_weights('ByteDance/Hyper-SD', weight_name='Hyper-SDXL-12steps-CFG-lora.safetensors',adapter_name=self.loraout)
             # self.pipe.fuse_lora()
         elif self.LoRA==8:
             self.loraout="high fashion"
@@ -155,6 +157,8 @@ class ImageModelSDXL(BaseImageModel):
             prompt_embeds=self.conditioning,
             pooled_prompt_embeds=self.pooled,
             image=self.sm_image,
+            padding_mask_crop=8,
+            original_size=(self.res,self.res),
             mask_image=self.sm_mask,
             control_image=self.sm_pose_image,
             negative_prompt=self.negative_prompt,
@@ -181,12 +185,15 @@ class ImageModelSDXL(BaseImageModel):
         save_path1 = os.path.join(save_pathA, bench_filename)
         save_path2 = os.path.join(save_pathC, bench_filename)
         image_res.save(save_path1)
+
+        self.annot='irregularities:'+image_answers(image_res)+'. desc:'+annotate_images(image_res)
+        
         ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
 
         return image_res, save_path1
     
     def generate_bench(self,image_path,pose_path,mask_path):
-        self.res=1024
+        self.res=1280
         guidance_scale=self.guidance_scale
         strength=self.strength
         LoRA=[0,2,3,4,5,6,7,8]
@@ -221,10 +228,10 @@ if __name__ == "__main__":
     parser.add_argument("--mask_path", default=None, help="Path to the mask image")
     parser.add_argument("--prompt", required=True, help="Text prompt for image generation")
     parser.add_argument("--num_inference_steps", type=int, default=50, help="Number of inference steps")
-    parser.add_argument("--guidance_scale", type=float, default=7, help="Guidance scale")
+    parser.add_argument("--guidance_scale", type=float, default=7.7, help="Guidance scale")
     parser.add_argument("--controlnet_conditioning_scale", type=float, default=1.0, help="ControlNet conditioning scale")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--negative_prompt", default="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
+    parser.add_argument("--seed", type=int, default=420042, help="Random seed")
+    parser.add_argument("--negative_prompt", default="dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
     parser.add_argument("--strength", type=float, default=1.0, help="Strength of the transformation")
     parser.add_argument("--LoRA", type=bool, default=False, help="use LoRA or not")
     parser.add_argument("--benchmark", type=bool, default=False, help="run benchmark with ranges pulled from user inputs +/-0.1")   

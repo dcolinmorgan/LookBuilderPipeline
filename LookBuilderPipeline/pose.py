@@ -18,7 +18,7 @@ def blockPrint():
     sys.stdout = open(os.devnull, 'w')
 blockPrint()
 
-def detect_pose(image_path, resize=False, size=(512, 512)):
+def detect_pose(self,image_path, resize=False, size=(512, 512)):
     """
     Function for detecting the pose in an image.
     
@@ -45,7 +45,7 @@ def detect_pose(image_path, resize=False, size=(512, 512)):
         include_body=True,
         image_and_json=True,
         detect_resolution=512,
-        device=device)
+        device=self.device)
     
     # pose_image = openpose(image, hand_and_face=False, output_type='cv2')
     

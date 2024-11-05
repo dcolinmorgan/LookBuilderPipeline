@@ -22,15 +22,15 @@ class BaseImageModel:
         self.prompt = prompt
 
 
-    def generate_image_extras(self,image,inv=False):
+    def generate_image_extras(self,imageA,inv=False):
         """
         used to generate extra images for the various controlnets
         """
-        print("running on:",image)
+        print("running on:",imageA)
         # label = str(np.random.randint(100000000))
-        image=load_image(image)
-        pose_image = detect_pose(image)
-        _,final_mask,_ = segment_image(image,inverse=inv)
+        image=load_image(imageA)
+        pose_image = detect_pose(self,imageA)
+        _,final_mask,_ = segment_image(self,imageA,inverse=inv)
         
         # _,clothes = no_back(image)
 
@@ -64,9 +64,11 @@ class BaseImageModel:
             axis('off')
 
         # Add text to the image
-        fig.text(0.5, 0.01, f"Prompt: {self.prompt}       Neg_Prompt: {self.negative_prompt} \n Model: {self.model}  Time(s): {np.round(self.time,2)}  Time(m): {np.round(self.time/60,2)}  height: {self.height}  width: {self.width}    steps: {self.num_inference_steps}   seed: {self.seed}" "\n"
-        f"cond_scale: {self.controlnet_conditioning_scale} guidance: {self.guidance_scale} strength: {self.strength}  Begin Cond Ratio: {self.control_guidance_start} End Cond Ratio:{self.control_guidance_end}", ha='center', fontsize=10, color='black', wrap=True)
+        fig.text(0.5, 0.01, f"Prompt: {self.prompt}       Neg_Prompt: {self.negative_prompt} \n Model: {self.model} LoRA: {self.LoRA}  Time(s): {np.round(self.time,2)}  Time(m): {np.round(self.time/60,2)}  height: {self.height}  width: {self.width}    steps: {self.num_inference_steps}   seed: {self.seed}" "\n"
+        f"cond_scale: {self.controlnet_conditioning_scale} guidance: {self.guidance_scale} strength: {self.strength}  Begin Cond Ratio: {self.control_guidance_start} End Cond Ratio:{self.control_guidance_end}" "\n"
+        f"annotation: {self.annot}",ha='center', fontsize=10, color='black', wrap=True)
         # fig.text(0.5, 0.0, f"cond_scale: {controlnet_conditioning_scale} guidance: {guidance_scale} strength: {strength}  Begin Cond Ratio: {control_guidance_start} End Cond Ratio:{control_guidance_end}", ha='center', fontsize=10, color='black', wrap=True)
+        fig.text(1, 0.8, f"l: {self.LoRA}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.75, f"i: {self.i}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.7, f"C: {self.controlnet_conditioning_scale}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.65, f"G: {self.guidance_scale}", ha='center', fontsize=8, color='black', wrap=True)
@@ -74,27 +76,6 @@ class BaseImageModel:
         fig.text(1, 0.55, f"B: {self.control_guidance_start}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.5, f"E: {self.control_guidance_end}", ha='center', fontsize=8, color='black', wrap=True)
 
-
-
-    
-        # text_to_save = f"""
-        # Prompt: {prompt} 
-        # Neg_Prompt: {negative_prompt}
-        # Model: {model}
-        # Time: {time}
-        # height: {height}
-        # width: {width}
-        # cond_scale: {controlnet_conditioning_scale}
-        # steps: {num_inference_steps}
-        # guidance: {guidance_scale}
-        # seed: {seed}
-        # strength:{strength}
-        # time: {time}"""
-        
-        #  # Save the text to a .txt file
-        # with open(output_path+'.txt', 'w') as file:  # Specify the desired file name
-            # file.write(text_to_save)  # Write the text to the file
-        
         plt.tight_layout()  # Adjust the layout to prevent overlapping
         plt.savefig(output_path, dpi=300, bbox_inches='tight')  # Save the figure
         plt.close(fig)  # Close the figure to free up memory
