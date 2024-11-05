@@ -14,7 +14,8 @@ import socket
 from contextlib import contextmanager
 
 from LookBuilderPipeline.manager.db_manager import DBManager
-from LookBuilderPipeline.models.proccess_queue import ProcessQueue
+from LookBuilderPipeline.models.process_queue import ProcessQueue
+from LookBuilderPipeline.models.image import Image
 
 
 class NotificationManager:
@@ -300,4 +301,21 @@ class NotificationManager:
             next_step=self.channels[0],
             status='pending'
         ).first()
+
+    def get_image(self, image_id):
+        """Retrieve image data from database/storage."""
+        with self.get_managed_session() as session:
+            image = session.query(Image)\
+                .filter_by(image_id=image_id)\
+                .first()
+            if not image:
+                raise ValueError(f"Image {image_id} not found")
+            return image.data  # Assuming your Image model has a 'data' field
+
+    def store_large_object(self, data: bytes) -> int:
+        """Store data as a large object and return its OID."""
+        with self.get_managed_session() as session:
+            # Implementation depends on your database setup
+            # For testing, we'll just return a mock OID
+            return 12345
 

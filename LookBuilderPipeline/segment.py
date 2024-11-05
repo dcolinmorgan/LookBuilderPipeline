@@ -3,7 +3,7 @@ from diffusers.utils import load_image  # For loading images
 from transformers import pipeline  # For using pre-trained models
 import numpy as np  # For numerical operations on arrays
 from PIL import Image, ImageOps  # For image manipulation
-from .resize import resize_images
+from .utils.resize import resize_images
 
 # Initialize the segmentation model using a pre-trained model from Hugging Face
 segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes")

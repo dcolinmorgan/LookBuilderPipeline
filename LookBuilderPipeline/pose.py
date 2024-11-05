@@ -1,7 +1,7 @@
 # Import necessary libraries for pose detection
 from controlnet_aux import OpenposeDetector  # For pose detection using OpenPose
 from diffusers.utils import load_image  # For loading images
-from .resize import resize_images
+from .utils.resize import resize_images
 import os,sys
 # Initialize the OpenPose detector using a pre-trained model from Hugging Face
 openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')

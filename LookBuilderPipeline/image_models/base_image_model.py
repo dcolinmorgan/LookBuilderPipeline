@@ -2,7 +2,7 @@ import numpy as np
 from diffusers.utils import load_image
 from LookBuilderPipeline.segment import segment_image, no_back, full_mask
 from LookBuilderPipeline.pose import detect_pose
-from LookBuilderPipeline.resize import resize_images
+from LookBuilderPipeline.utils.resize import resize_images
 from PIL import Image, ImageOps
 
 class BaseImageModel:

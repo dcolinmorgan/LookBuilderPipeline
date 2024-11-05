@@ -36,7 +36,7 @@ dir=glob.glob('test-ai/orig/p05.jpeg')
 
 shuffle(dir)
 
-from LookBuilderPipeline.resize import resize_images
+from LookBuilderPipeline.utils.resize import resize_images
 from LookBuilderPipeline.segment import segment_image, full_mask
 from LookBuilderPipeline.pose import detect_pose
 

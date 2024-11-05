@@ -9,7 +9,7 @@ import torch.nn as nn
 from compel import Compel, ReturnedEmbeddingsType
 import glob
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
-from LookBuilderPipeline.resize import resize_images
+from LookBuilderPipeline.utils.resize import resize_images
 
 # Import required components from diffusers
 from diffusers import StableDiffusionXLControlNetInpaintPipeline, ControlNetModel, DDIMScheduler

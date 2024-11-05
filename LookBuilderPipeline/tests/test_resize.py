@@ -1,6 +1,6 @@
 import pytest
 from diffusers.utils import load_image
-from LookBuilderPipeline.resize import resize_images
+from LookBuilderPipeline.utils.resize import resize_images
 from PIL import Image
 import numpy as np
 
