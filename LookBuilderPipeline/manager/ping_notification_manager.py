@@ -11,45 +11,12 @@ class PingNotificationManager(NotificationManager):
         self.channels = ['ping']
         self.required_fields = ['process_id', 'image_id']  # Define required fields
     
-    def process_notification(self, channel, payload):
-        """Process notifications for the ping channel."""
-        if channel == 'ping':
-            parsed_data = self.parse_payload(payload)
-            validated_data = self.validate_process_data(parsed_data)
-            self.process_ping(validated_data)
-    
-    def process_existing_queue(self):
-        """Process any existing unprocessed ping notifications."""
-        try:
-            logging.info("Checking for existing unprocessed ping notifications...")
-            
-            with self.get_managed_session() as session:
-                pending_pings = self.get_processes_for_client(
-                    session,
-                    next_step='ping',
-                    status='pending'
-                ).all()
-                
-                if not pending_pings:
-                    logging.info("No pending ping notifications found")
-                    return
-                
-                logging.info(f"Found {len(pending_pings)} unprocessed ping notifications")
-                
-                for ping in pending_pings:
-                    try:
-                        self.process_ping({
-                            'process_id': ping.process_id,
-                            'image_id': ping.image_id
-                        })
-                        logging.info(f"Processed existing ping {ping.process_id}")
-                    except Exception as e:
-                        logging.error(f"Error processing existing ping {ping.process_id}: {str(e)}")
-                        continue
-                        
-        except Exception as e:
-            logging.error(f"Error processing existing queue: {str(e)}")
-            raise
+    def process_item(self, ping):
+        """Process a single ping notification."""
+        return self.process_ping({
+            'process_id': ping.process_id,
+            'image_id': ping.image_id
+        })
 
     def process_ping(self, ping_data):
         """Process a ping notification through its stages."""
@@ -89,3 +56,9 @@ class PingNotificationManager(NotificationManager):
             session.flush()  # Ensure we have the ID before committing
             pong_id = pong_process.process_id
             return pong_id
+
+    def handle_notification(self, channel, data):
+        """Handle ping notifications."""
+        if channel == 'ping':
+            return self.process_ping(data)
+        return None

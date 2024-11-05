@@ -32,6 +32,9 @@ class NotificationManager:
         self.server_name = socket.gethostname()  # Identify this server
         self.client_name = None  # For testing or specific client instances
         self.required_fields = []  # Subclasses will define required fields
+        self.process_delay = 0.1  # Time to yield between processing items
+        self.max_processing_attempts = 10  # Maximum number of processing attempts
+        self.max_attempts = 100  # Safety limit for continuous processing
     
     def setup(self):
         """Set up the notification manager."""
@@ -119,11 +122,61 @@ class NotificationManager:
                 logging.error("Full traceback:", exc_info=True)
 
     def process_notification(self, channel, payload):
-        """Process a notification. To be implemented by subclasses."""
+        """Process a notification."""
+        if channel not in self.channels:
+            logging.warning(f"Received notification for unsupported channel: {channel}")
+            return
+            
+        try:
+            parsed_data = self.parse_payload(payload)
+            self.validate_process_data(parsed_data)
+            return self.handle_notification(channel, parsed_data)
+        except Exception as e:
+            logging.error(f"Error processing notification on channel {channel}: {str(e)}")
+            raise
+
+    def handle_notification(self, channel, data):
+        """Handle a specific notification. To be implemented by subclasses."""
         raise NotImplementedError
 
     def process_existing_queue(self):
-        """Process existing queue. To be implemented by subclasses."""
+        """Process one item at a time, checking for more after each completion."""
+        try:
+            logging.info(f"Checking for existing unprocessed {self.channels} notifications...")
+            
+            processed_count = 0
+            attempts = 0
+
+            while attempts < self.max_attempts:
+                attempts += 1
+                
+                # Get and process one item
+                with self.get_managed_session() as session:
+                    pending_item = self.get_next_pending_process(session)
+                    
+                    if not pending_item:
+                        if processed_count == 0:
+                            logging.info(f"No pending {self.channels} notifications found")
+                        else:
+                            logging.info(f"Completed processing {processed_count} notifications")
+                        return
+                    
+                    try:
+                        self.process_item(pending_item)
+                        processed_count += 1
+                        logging.info(f"Processed {pending_item.next_step} {pending_item.process_id}")
+                    except Exception as e:
+                        logging.error(f"Error processing {pending_item.next_step} {pending_item.process_id}: {str(e)}")
+
+            if attempts >= self.max_attempts:
+                logging.warning(f"Reached maximum processing attempts ({self.max_attempts})")
+
+        except Exception as e:
+            logging.error(f"Error in queue processing: {str(e)}")
+            raise
+
+    def process_item(self, item):
+        """Process a single queue item. To be implemented by subclasses."""
         raise NotImplementedError
 
     def stop(self):
@@ -235,8 +288,16 @@ class NotificationManager:
                 
                 # Update to completed
                 self.update_process_status(session, process_id, 'completed')
-                
+                 
                 return result
         except Exception as e:
             return self.handle_process_error(process_id, e)
+
+    def get_next_pending_process(self, session):
+        """Get a single pending process."""
+        return self.get_processes_for_client(
+            session,
+            next_step=self.channels[0],
+            status='pending'
+        ).first()
 
