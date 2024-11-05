@@ -3,15 +3,16 @@ from controlnet_aux import OpenposeDetector  # For pose detection using OpenPose
 from diffusers.utils import load_image  # For loading images
 from .resize import resize_images
 import os,sys
-# Initialize the OpenPose detector using a pre-trained model from Hugging Face
-openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
-from controlnet_aux.processor import Processor
-processor_id = 'openpose_full'
-openpose = Processor(processor_id)
+import torch
+# # Initialize the OpenPose detector using a pre-trained model from Hugging Face
+# openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
+# from controlnet_aux.processor import Processor
+# processor_id = 'openpose_full'
+# openpose = Processor(processor_id)
 
-# from dwpose import DwposeDetector
+from dwpose import DwposeDetector
 
-# model = DwposeDetector.from_pretrained_default()
+model = DwposeDetector.from_pretrained_default()
 
 def blockPrint():
     sys.stdout = open(os.devnull, 'w')
@@ -34,15 +35,17 @@ def detect_pose(image_path, resize=False, size=(512, 512)):
         image = load_image(image_path).convert("RGB")
     else:
         image=image_path
-        
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # Use the OpenPose detector to detect the pose in the image
-    pose_img = openpose(image) #,include_hand=True,include_face=False)
-    # pose_img,j,source = model(image,
-    #     include_hand=True,
-    #     include_face=True,
-    #     include_body=True,
-    #     image_and_json=True,
-    #     detect_resolution=512)
+    # pose_img = openpose(image) #,include_hand=True,include_face=False)
+    pose_img,j,source = model(image,
+        include_hand=True,
+        include_face=True,
+        include_body=True,
+        image_and_json=True,
+        detect_resolution=512,
+        device=device)
     
     # pose_image = openpose(image, hand_and_face=False, output_type='cv2')
     

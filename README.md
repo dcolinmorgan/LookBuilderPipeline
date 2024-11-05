@@ -41,7 +41,7 @@ python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py
 ### with LoRA
 ```bash
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
---image_path=test-ai/glow/* \
+--image_path=shootjpglow-sorted/referance_images/* \
 --prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
 --benchmark='True' \
 --LoRA='True'
