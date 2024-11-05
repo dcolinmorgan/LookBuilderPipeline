@@ -1,10 +1,15 @@
+import threading
+from queue import Queue, Empty
 import select
 import psycopg2
 import time
 import logging
+import json
+import os
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from datetime import datetime
-from sqlalchemy import asc
+from sqlalchemy.exc import SQLAlchemyError, DBAPIError, DisconnectionError
+from psycopg2.errors import OperationalError
 
 from LookBuilderPipeline.manager.db_manager import DBManager
 from LookBuilderPipeline.models.proccess_queue import ProcessQueue
@@ -12,146 +17,279 @@ from LookBuilderPipeline.models.proccess_queue import ProcessQueue
 
 class NotificationManager:
     def __init__(self):
-        # Use the DBManager to get session and engine
         self.db_manager = DBManager()
         self.session = self.db_manager.get_session()
+        self.notification_queue = Queue()
+        self.should_listen = True
+        self.processor_thread = None
+        self.listener_thread = None
         self.conn = None
-        self.should_listen = False
-        self.setup()
-
-    def listen_for_notifications(self, channel_name, max_notifications=10, timeout=30):
-        """
-        Listen for notifications on specified channel and process queue when notified.
-        
-        Args:
-            channel_name (str): The notification channel to listen to
-            max_notifications (int): Maximum number of notifications to process
-            timeout (int): How long to listen for in seconds
-        """
-        conn = self.db_manager.engine.raw_connection()
-        conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-        
-        cursor = conn.cursor()
-        cursor.execute(f"LISTEN {channel_name};")
-        
-        logging.info(f"Listening for notifications on channel: {channel_name}")
-        start_time = time.time()
-        notifications = []
-        
-        while len(notifications) < max_notifications and time.time() - start_time < timeout:
-            if select.select([conn], [], [], 5) == ([], [], []):
-                logging.debug("Waiting for notification...")
-            else:
-                conn.poll()
-                while conn.notifies:
-                    notify = conn.notifies.pop(0)
-                    logging.info(f"Received notification on {channel_name}: {notify.payload}")
-                    notifications.append(notify.payload)
-                    # Process the queue immediately when notification is received
-                    self.process_queue()
-        
-        return notifications
+        self.cursor = None
+        # Don't call setup in __init__
     
-    
-    def setup_notification_listener(self):
-        logging.debug("Setting up notification listener")
+    def process_existing_queue(self):
+        """Process any existing unprocessed notifications in the queue."""
         try:
-            self.conn = self.db_manager.engine.raw_connection()
-            self.conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-            cursor = self.conn.cursor()
-            cursor.execute("LISTEN new_proceess;")
-            self.should_listen = True
-            logging.debug("Notification listener set up successfully")
-        except Exception as e:
-            logging.error(f"Error setting up notification listener: {str(e)}")
-            self.stop_listening()
-
-    def stop_listening(self):
-        logging.debug("Stopping notification listener")
-        self.should_listen = False
-        if self.conn:
-            self.conn.close()
-            self.conn = None
-        logging.debug("Notification listener stopped")
-
-        
-    def setup(self):
-        """Initialize the notification manager and process any pending items in queue."""
-        logging.info("Setting up NotificationManager")
-        self.setup_notification_listener()
-        # Process any pending items in the queue on startup
-        self.process_queue()
-        logging.info("NotificationManager setup complete")
-
-    def pop_process(self):
-        """Pop the oldest pending process from the queue and mark it as processing."""
-        process = None
-        try:
-            process = self.session.query(ProcessQueue)\
-                .filter(ProcessQueue.status == 'pending')\
-                .order_by(asc(ProcessQueue.created_at))\
-                .first()
+            logging.info("Checking for existing unprocessed notifications...")
             
-            if process:
-                process.status = 'processing'
-                process.updated_at = datetime.now()
-                self.session.commit()
-            return process
+            with self.db_manager.get_session() as session:
+                # Find all pending ping processes
+                pending_pings = session.query(ProcessQueue)\
+                    .filter_by(next_step='ping', status='pending')\
+                    .all()
+                
+                if not pending_pings:
+                    logging.info("No pending notifications found")
+                    return
+                
+                logging.info(f"Found {len(pending_pings)} unprocessed notifications")
+                
+                # Process each pending ping
+                for ping in pending_pings:
+                    try:
+                        ping_data = {
+                            'process_id': ping.process_id,
+                            'image_id': ping.image_id
+                        }
+                        self.process_ping(ping_data)
+                        logging.info(f"Processed existing ping {ping.process_id}")
+                        
+                    except Exception as e:
+                        logging.error(f"Error processing existing ping {ping.process_id}: {str(e)}")
+                        continue
+                        
         except Exception as e:
-            self.session.rollback()
-            logging.error(f"Error popping process from queue: {str(e)}")
-            if process:
-                process.status = f'error: {str(e)[:100]}'
-                process.updated_at = datetime.now()
-            return None
+            logging.error(f"Error processing existing queue: {str(e)}")
+            raise
 
-    def process_queue(self):
-        """Process all items in the queue until empty."""
-        logging.info("Starting queue processing")
-        while True:
-            process = self.pop_process()
-            if not process:
-                logging.info("Queue is empty")
-                break
+    def setup(self):
+        """Set up the notification manager."""
+        logging.info("Setting up NotificationManager")
+        
+        try:
+            # Process any existing notifications first
+            self.process_existing_queue()
+            
+            # Set up notification listening
+            self.conn = self.db_manager.get_connection()
+            self.cursor = self.conn.cursor()
+            
+            # Listen only for ping notifications
+            self.cursor.execute("LISTEN ping;")
+            
+            # Start the listener thread
+            self.listener_thread = threading.Thread(
+                target=self._listen_for_notifications,
+                name="NotificationListener"
+            )
+            self.listener_thread.daemon = True
+            self.listener_thread.start()
+            
+            # Start the processor thread
+            self.processor_thread = threading.Thread(
+                target=self._process_notifications,
+                name="NotificationProcessor"
+            )
+            self.processor_thread.daemon = True
+            self.processor_thread.start()
+            
+            logging.info("NotificationManager setup complete")
+            
+        except Exception as e:
+            logging.error(f"Error during NotificationManager setup: {str(e)}")
+            raise
+
+    def _listen_for_notifications(self):
+        """Background thread to listen for notifications."""
+        logging.info("Starting notification listener thread")
+        
+        while self.should_listen:
+            try:
+                logging.debug("Waiting for notifications...")
+                if select.select([self.conn], [], [], 1.0)[0]:
+                    self.conn.poll()
+                    while self.conn.notifies:
+                        notify = self.conn.notifies.pop()
+                        logging.info(f"Raw notification received: {notify}")
+                        logging.info(f"Channel: {notify.channel}, Payload: {notify.payload}")
+                        self.notification_queue.put((notify.channel, notify.payload))
+                        #should go to proccesss notifications 
+                        logging.info("Notification added to queue")
+                else:
+                    logging.debug("No notifications in this poll cycle")
+            except Exception as e:
+                logging.error(f"Error in notification listener: {str(e)}")
+                # Try to reconnect
+                try:
+                    logging.info("Attempting to reconnect...")
+                    self.conn = psycopg2.connect(
+                        dbname=os.getenv('DB_NAME', 'lookbuilderhub_db'),
+                        user=os.getenv('DB_USERNAME', 'lookbuilderhub_user'),
+                        password=os.getenv('DB_PASSWORD', 'lookbuilderhub_password'),
+                        host=os.getenv('DB_HOST', 'localhost')
+                    )
+                    self.conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+                    cur = self.conn.cursor()
+                    cur.execute('LISTEN ping;')
+                    logging.info("Reconnected successfully")
+                except Exception as reconnect_error:
+                    logging.error(f"Reconnection failed: {str(reconnect_error)}")
+                    time.sleep(5)  # Wait before trying again
+
+    def _process_notifications(self):
+        """Background thread to process notifications."""
+        logging.info(f"Processor thread {threading.current_thread().name} started")
+        
+        while self.should_listen:
+            try:
+                channel, payload = self.notification_queue.get(timeout=1.0)
+                logging.info(f"Processing notification: Channel={channel}, Payload={payload}")
+                
+                # Only process ping notifications
+                if channel == 'ping':
+                    self.process_ping(payload)
+                    
+            except Empty:
+                continue
+            except Exception as e:
+                logging.error(f"Error processing notification: {str(e)}")
+                logging.error("Full traceback:", exc_info=True)
+
+    def process_ping(self, ping_data):
+        """
+        Process a ping notification through its stages.
+        """
+        try:
+            if isinstance(ping_data, str):
+                ping_data = json.loads(ping_data)
+            
+            image_id = ping_data.get('image_id')
+            ping_process_id = ping_data.get('process_id')
+            
+            if not image_id or not ping_process_id:
+                raise ValueError("Missing required ping data (image_id or process_id)")
+                
+            try:
+                # Stage 1: Mark as processing
+                self.update_ping_status(ping_process_id, 'processing')
+                
+                try:
+                    # Stage 2: Create pong
+                    pong_process = self.create_pong_process(image_id, ping_process_id)
+                    
+                    # Stage 3: Mark as completed
+                    self.update_ping_status(ping_process_id, 'completed')
+                    
+                    return pong_process
+                    
+                except Exception as e:
+                    # If pong creation fails, mark ping as error
+                    logging.error(f"Error in pong creation: {str(e)}")
+                    self.update_ping_status(ping_process_id, 'error')
+                    raise
+                    
+            except Exception as e:
+                logging.error(f"Error in process_ping: {str(e)}")
+                # Ensure ping is marked as error if not already
+                try:
+                    self.update_ping_status(ping_process_id, 'error')
+                except Exception as update_error:
+                    logging.error(f"Failed to update ping status to error: {str(update_error)}")
+                raise
+                
+        except Exception as e:
+            logging.error(f"Error processing ping: {str(e)}")
+            raise
+
+    def update_ping_status(self, ping_process_id, status):
+        """Update the status of a ping process."""
+        try:
+            # Get a fresh session for this operation
+            session = self.db_manager.get_session()
             
             try:
-                logging.info(f"Processing queue item {process.process_id}")
-                # Here you would implement the actual processing logic
-                # based on process.next_step and process.parameters
+                ping_process = session.query(ProcessQueue)\
+                    .filter(ProcessQueue.process_id == ping_process_id)\
+                    .with_for_update()\
+                    .first()
                 
-                # Mark as completed after successful processing
-                process.status = 'completed'
-                process.updated_at = datetime.now()
-                self.session.commit()
+                if not ping_process:
+                    raise ValueError(f"Ping process {ping_process_id} not found")
+                    
+                ping_process.status = status
+                ping_process.updated_at = datetime.now()
+                session.commit()
+                logging.info(f"Updated ping process {ping_process_id} status to {status}")
                 
             except Exception as e:
-                logging.error(f"Error processing queue item {process.process_id}: {str(e)}")
-                # Don't handle the error here since pop_process already did
-                break
+                session.rollback()
+                logging.error(f"Error updating ping status: {str(e)}")
+                raise
+            finally:
+                session.close()
+                
+        except Exception as e:
+            logging.error(f"Error in update_ping_status: {str(e)}")
+            raise
 
-    def listen_for_ping(self, timeout=30):
-        """
-        Listen for ping notifications and respond with a pong process.
+    def create_pong_process(self, image_id, ping_process_id):
+        """Create a new pong process."""
+        logging.info(f"Creating pong process for ping {ping_process_id}")
         
-        Args:
-            timeout (int): How long to listen for in seconds
-        """
-        notifications = self.listen_for_notifications('ping', timeout=timeout)
-        for ping_id in notifications:
-            self.create_pong_process(ping_id)
-
-    def create_pong_process(self, ping_id):
-        """Create a new process queue item for pong response."""
         try:
+            # Get a fresh session for this operation
+            session = self.db_manager.get_session()
+            
             pong_process = ProcessQueue(
+                image_id=image_id,
                 next_step='pong',
-                parameters={'ping_id': ping_id},
+                parameters={
+                    'ping_process_id': ping_process_id,
+                    'image_id': image_id
+                },
                 status='pending'
             )
-            self.session.add(pong_process)
-            self.session.commit()
-            logging.info(f"Created pong process for ping {ping_id}")
+            
+            session.add(pong_process)
+            session.commit()
+            
+            # Get the ID before closing the session
+            pong_id = pong_process.process_id
+            logging.info(f"Created pong process with ID: {pong_id}")
+            
+            return pong_id
+            
         except Exception as e:
-            self.session.rollback()
+            session.rollback()
             logging.error(f"Error creating pong process: {str(e)}")
+            raise
+        finally:
+            session.close()
+
+    def stop(self):
+        """Stop the notification manager."""
+        logging.info("Stopping NotificationManager...")
+        self.should_listen = False
+        
+        # Stop listener thread
+        if self.listener_thread and self.listener_thread.is_alive():
+            self.listener_thread.join(timeout=5)
+            if self.listener_thread.is_alive():
+                logging.warning("Listener thread did not stop cleanly")
+        
+        # Stop processor thread
+        if self.processor_thread and self.processor_thread.is_alive():
+            self.processor_thread.join(timeout=5)
+            if self.processor_thread.is_alive():
+                logging.warning("Processor thread did not stop cleanly")
+        
+        # Clean up database connections
+        if self.cursor:
+            self.cursor.close()
+        if self.conn:
+            self.conn.close()
+        if self.session:
+            self.session.close()
+            
+        logging.info("NotificationManager stopped")
 

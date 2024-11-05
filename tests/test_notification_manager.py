@@ -5,124 +5,213 @@ from LookBuilderPipeline.manager.notification_manager import NotificationManager
 from LookBuilderPipeline.models.proccess_queue import ProcessQueue
 
 @pytest.fixture
-def mock_db_setup():
-    with patch('LookBuilderPipeline.manager.notification_manager.DBManager') as mock_db_manager:
-        # Mock DBManager and its connection
-        mock_engine = Mock()
-        mock_conn = Mock()
-        mock_session = Mock()
-        
-        # Setup the mock connection
-        mock_engine.raw_connection.return_value = mock_conn
-        mock_db_instance = Mock()
-        mock_db_instance.engine = mock_engine
-        mock_db_instance.get_session.return_value = mock_session
-        mock_db_manager.return_value = mock_db_instance
-        
-        yield mock_db_instance, mock_conn, mock_session
+def notification_manager():
+    return NotificationManager()
 
-def test_startup_processes_existing_queue(mock_db_setup):
-    """Test that startup processes existing items in queue"""
-    mock_db_instance, mock_conn, mock_session = mock_db_setup
-    
-    # Create mock queue items
-    mock_items = [
-        ProcessQueue(
-            process_id=i,
-            status='pending',
-            created_at=datetime.now()
-        ) for i in range(1, 4)
-    ]
-    
-    # Setup mock query responses
-    mock_session.query.return_value.filter.return_value.order_by.return_value.first.side_effect = mock_items + [None]
-    
-    # Initialize and run setup
-    nm = NotificationManager()
-    
-    # Verify all items were processed
-    assert mock_session.commit.call_count == 6  # 3 items × 2 commits (status update + completion)
-    
-def test_notification_triggers_queue_processing(mock_db_setup):
-    """Test that receiving a notification triggers queue processing"""
-    mock_db_instance, mock_conn, mock_session = mock_db_setup
-    
-    # Create mock notification
-    mock_notify = Mock()
-    mock_notify.payload = "123"
-    mock_conn.notifies = [mock_notify]
-    
-    # Setup mock process queue item
-    mock_process = ProcessQueue(process_id=1, status='pending', created_at=datetime.now())
-    
-    # Need to handle both the initial setup call and the notification processing
-    mock_session.query.return_value.filter.return_value.order_by.return_value.first.side_effect = [
-        None,  # For initial setup
-        mock_process,  # For notification processing
-        None  # To end processing
-    ]
-    
-    with patch('LookBuilderPipeline.manager.notification_manager.select.select', 
-              return_value=([mock_conn], [], [])):
-        nm = NotificationManager()
-        notifications = nm.listen_for_notifications('test_channel', max_notifications=1, timeout=1)
-        
-        # Verify notification was received and queue was processed
-        assert len(notifications) == 1
-        assert notifications[0] == "123"
-        assert mock_conn.cursor.called
-        assert mock_session.commit.call_count == 2  # One for status update, one for completion
-
-def test_process_queue_handles_error(mock_db_setup):
-    """Test that process queue handles errors appropriately"""
-    mock_db_instance, mock_conn, mock_session = mock_db_setup
-    
-    # Setup mock process that will raise an exception
-    mock_process = ProcessQueue(
-        process_id=1,
-        status='pending',
-        created_at=datetime.now()
+def test_update_ping_status(notification_manager):
+    """Test updating a ping process status."""
+    # Create a test ping process
+    ping_process = ProcessQueue(
+        image_id=1,
+        next_step='ping',
+        status='pending'
     )
     
-    # Setup the mock to return our process once, then None
-    mock_session.query.return_value.filter.return_value.order_by.return_value.first.side_effect = [mock_process, None]
+    with notification_manager.session.begin():
+        notification_manager.session.add(ping_process)
+        notification_manager.session.flush()
+        process_id = ping_process.process_id
     
-    # Make first commit raise an exception
-    error_message = "Database connection lost"
-    mock_session.commit.side_effect = Exception(error_message)
+    # Test status transitions
+    notification_manager.update_ping_status(process_id, 'processing')
     
-    nm = NotificationManager()
-    nm.process_queue()
+    # Verify processing status with fresh session
+    with notification_manager.db_manager.get_session() as verify_session:
+        updated_ping = verify_session.query(ProcessQueue)\
+            .filter_by(process_id=process_id)\
+            .first()
+        assert updated_ping.status == 'processing'
     
-    # Verify error handling
-    assert mock_process.status.startswith('error: Database connection lost')
-    mock_session.rollback.assert_called_once()
-    assert mock_session.commit.call_count == 1  # Only o ne commit attempt
+    # Test next transition
+    notification_manager.update_ping_status(process_id, 'completed')
+    
+    # Verify completed status with fresh session
+    with notification_manager.db_manager.get_session() as verify_session:
+        updated_ping = verify_session.query(ProcessQueue)\
+            .filter_by(process_id=process_id)\
+            .first()
+        assert updated_ping.status == 'completed'
 
-def test_ping_creates_pong_process(mock_db_setup):
-    """Test that receiving a ping notification creates a pong process."""
-    mock_db_instance, mock_conn, mock_session = mock_db_setup
+def test_create_pong_process(notification_manager):
+    """Test creating a pong process."""
+    # Create initial ping process
+    ping_process = ProcessQueue(
+        image_id=1,
+        next_step='ping',
+        status='pending'
+    )
     
-    # Create mock ping notification
-    mock_notify = Mock()
-    mock_notify.payload = "ping-123"
-    mock_conn.notifies = [mock_notify]
+    with notification_manager.session.begin():
+        notification_manager.session.add(ping_process)
+        notification_manager.session.flush()
+        ping_id = ping_process.process_id
     
-    # Setup mock process queue item for initial process_queue call
-    mock_session.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
+    # Create pong process
+    pong_id = notification_manager.create_pong_process(
+        image_id=1,
+        ping_process_id=ping_id
+    )
     
-    with patch('LookBuilderPipeline.manager.notification_manager.select.select', 
-              return_value=([mock_conn], [], [])):
-        nm = NotificationManager()
-        nm.listen_for_ping(timeout=1)
+    # Verify pong process
+    with notification_manager.session.begin():
+        pong = notification_manager.session.query(ProcessQueue)\
+            .filter_by(process_id=pong_id)\
+            .first()
+        assert pong.next_step == 'pong'
+        assert pong.status == 'pending'
+        assert pong.image_id == 1
+        assert pong.parameters['ping_process_id'] == ping_id
+
+def test_full_ping_processing(notification_manager):
+    """Test the complete ping-to-pong process."""
+    # Create initial ping process
+    ping_process = ProcessQueue(
+        image_id=1,
+        next_step='ping',
+        status='pending'
+    )
+    
+    with notification_manager.session.begin():
+        notification_manager.session.add(ping_process)
+        notification_manager.session.flush()
+        ping_id = ping_process.process_id
+    
+    # Process the ping
+    ping_data = {
+        'process_id': ping_id,
+        'image_id': 1
+    }
+    notification_manager.process_ping(ping_data)
+    
+    # Verify state transitions
+    with notification_manager.session.begin():
+        # Check ping status progression
+        ping = notification_manager.session.query(ProcessQueue)\
+            .filter_by(process_id=ping_id)\
+            .first()
+        assert ping.status == 'completed'
         
-        # Verify pong process was created
-        mock_session.add.assert_called_once()
-        mock_session.commit.assert_called_once()
+        # Verify pong was created
+        pong = notification_manager.session.query(ProcessQueue)\
+            .filter_by(next_step='pong')\
+            .filter_by(parameters={'ping_process_id': ping_id, 'image_id': 1})\
+            .first()
+        assert pong is not None
+        assert pong.status == 'pending'
+
+def test_error_handling(notification_manager):
+    """Test error handling during ping processing."""
+    # Create ping process
+    ping_process = ProcessQueue(
+        image_id=1,
+        next_step='ping',
+        status='pending'
+    )
+    
+    with notification_manager.session.begin():
+        notification_manager.session.add(ping_process)
+        notification_manager.session.flush()
+        ping_id = ping_process.process_id
+    
+    ping_data = {
+        'process_id': ping_id,
+        'image_id': 1
+    }
+    
+    # Simulate error during pong creation
+    with patch.object(notification_manager, 'create_pong_process', side_effect=Exception('Test error')):
+        with pytest.raises(Exception):
+            notification_manager.process_ping(ping_data)
         
-        # Get the ProcessQueue object that was added
-        added_process = mock_session.add.call_args[0][0]
-        assert isinstance(added_process, ProcessQueue)
-        assert added_process.next_step == 'pong'
-        assert added_process.parameters['ping_id'] == 'ping-123'
-        assert added_process.status == 'pending'
+        # Verify error state
+        with notification_manager.session.begin():
+            ping = notification_manager.session.query(ProcessQueue)\
+                .filter_by(process_id=ping_id)\
+                .first()
+            assert ping.status == 'error'
+
+def test_process_existing_queue(notification_manager):
+    """Test processing of existing unprocessed notifications on startup."""
+    # Create multiple unprocessed ping processes
+    unprocessed_pings = []
+    for i in range(3):
+        ping_process = ProcessQueue(
+            image_id=1,
+            next_step='ping',
+            status='pending'
+        )
+        with notification_manager.session.begin():
+            notification_manager.session.add(ping_process)
+            notification_manager.session.flush()
+            unprocessed_pings.append(ping_process.process_id)
+    
+    # Create a completed ping to verify we only process pending ones
+    completed_ping = ProcessQueue(
+        image_id=1,
+        next_step='ping',
+        status='completed'
+    )
+    with notification_manager.session.begin():
+        notification_manager.session.add(completed_ping)
+        notification_manager.session.flush()
+        completed_ping_id = completed_ping.process_id
+    
+    # Process existing queue
+    notification_manager.process_existing_queue()
+    
+    # Verify all unprocessed pings were processed
+    with notification_manager.db_manager.get_session() as verify_session:
+        # Check all original pings are completed
+        for ping_id in unprocessed_pings:
+            ping = verify_session.query(ProcessQueue)\
+                .filter_by(process_id=ping_id)\
+                .first()
+            assert ping.status == 'completed'
+            
+            # Verify pong was created for each ping
+            pong = verify_session.query(ProcessQueue)\
+                .filter_by(next_step='pong')\
+                .filter(ProcessQueue.parameters['ping_process_id'].astext == str(ping_id))\
+                .first()
+            assert pong is not None
+            assert pong.status == 'pending'
+        
+        # Verify the already completed ping wasn't reprocessed
+        completed = verify_session.query(ProcessQueue)\
+            .filter_by(process_id=completed_ping_id)\
+            .first()
+        assert completed.status == 'completed'
+        
+        # Verify no extra pongs were created
+        pong_count = verify_session.query(ProcessQueue)\
+            .filter_by(next_step='pong')\
+            .count()
+        assert pong_count == len(unprocessed_pings)
+    
+    # Create a pending pong to verify we don't process pongs
+    pending_pong = ProcessQueue(
+        image_id=1,
+        next_step='pong',
+        status='pending'
+    )
+    with notification_manager.session.begin():
+        notification_manager.session.add(pending_pong)
+        notification_manager.session.flush()
+        pending_pong_id = pending_pong.process_id
+    
+    # Additional verification
+    pong = verify_session.query(ProcessQueue)\
+        .filter_by(process_id=pending_pong_id)\
+        .first()
+    assert pong.status == 'pending'
+    assert pong.next_step == 'pong'
