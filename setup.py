@@ -19,6 +19,7 @@ setup(
         'compel',
         'glob2',
         'dwpose',
+        "bitsandbytes",
         'huggingface-hub',
         'sentencepiece==0.2.0',
         'diffusers @ git+https://github.com/huggingface/diffusers.git',
@@ -28,5 +29,6 @@ setup(
         'protobuf',
         'controlnet_aux',
         'opencv-python',
+        'flash-attn --no-build-isolation',
     ],
 )

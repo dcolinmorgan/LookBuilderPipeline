@@ -10,7 +10,8 @@ from compel import Compel, ReturnedEmbeddingsType
 import glob
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.resize import resize_images
-from LookBuilderPipeline.annotate import annotate_images, image_answers
+from LookBuilderPipeline.annotate import annotate_images, image_blip, image_llava
+from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
 
 # Import required components from diffusers
 from diffusers import StableDiffusionXLControlNetInpaintPipeline, ControlNetModel, DDIMScheduler
@@ -172,6 +173,15 @@ class ImageModelSDXL(BaseImageModel):
         self.time = end_time - start_time
         self.i=os.path.basename(self.input_image).split('.')[0]
         
+        ImageModelFlux.prepare_img2img_model(self)
+        image_res2=self.flux_pipe(image=image_res,
+                       prompt="keep the original image but upscale it to 1920x1080",
+                       strength=self.strength,
+                       generator=self.generator,
+                       num_inference_steps=self.num_inference_steps,
+                       guidance_scale=self.guidance_scale,
+                       )
+        
         # Save the generated image
         save_pathA=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,self.loraout)
         save_pathC=os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images",self.model,self.loraout)
@@ -186,9 +196,9 @@ class ImageModelSDXL(BaseImageModel):
         save_path2 = os.path.join(save_pathC, bench_filename)
         image_res.save(save_path1)
 
-        self.annot='irregularities:'+image_answers(image_res)+'. desc:'+annotate_images(image_res)
+        self.annot='llava:'+image_llava(self,image_res)+'. blip2:'+image_blip(self,image_res)+'. desc:'+annotate_images(image_res)
         
-        ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
+        ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res,image_res2], output_path=save_path2)
 
         return image_res, save_path1
     

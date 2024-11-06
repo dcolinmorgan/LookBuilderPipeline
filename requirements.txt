@@ -18,6 +18,7 @@ dwpose
 torchao
 sd_embed @ git+https://github.com/xhinker/sd_embed.git
 glob2
+bitsandbytes
 controlnet_aux #==0.0.6
 opencv-python
-
+flash-attn --no-build-isolation
