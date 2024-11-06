@@ -2,8 +2,10 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import OID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from typing import List
 
 from .base import Base
+from .user import User
 
 class ImageVariant(Base):
     __tablename__ = 'image_variants'

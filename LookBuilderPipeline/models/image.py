@@ -4,9 +4,11 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from PIL import Image as PILImage
 from io import BytesIO
+from typing import List
 
 from .base import Base
 from ..utils.resize import resize_images
+from .user import User
 
 class Image(Base):
     __tablename__ = 'images'
@@ -18,6 +20,8 @@ class Image(Base):
     updated_at = Column(DateTime, onupdate=func.now())
     processed = Column(Boolean, default=False)
     user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+
+    user: Mapped["User"] = relationship("User", back_populates="images")
 
     def get_or_create_resize_variant(self, session, size: int, aspect_ratio: float = 1.0, square: bool = False):
         """Get an existing resize variant or create a new one if it doesn't exist."""
