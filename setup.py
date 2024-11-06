@@ -29,6 +29,6 @@ setup(
         'protobuf',
         'controlnet_aux',
         'opencv-python',
-        'flash-attn',# --no-build-isolation',
+        # 'flash-attn',# --no-build-isolation',
     ],
 )
