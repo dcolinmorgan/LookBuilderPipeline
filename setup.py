@@ -3,6 +3,7 @@ import os
 
 # Run shell command to install system dependencies
 os.system('apt-get update && apt-get install -y libgl1')
+os.system('git clone https://github.com/Modegen/DWPose.git LookBuilderPipeline/LookBuilderPipeline/')
 
 setup(
     name='LookBuilderPipeline',

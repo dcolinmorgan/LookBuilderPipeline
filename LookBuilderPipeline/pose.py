@@ -1,5 +1,5 @@
 # Import necessary libraries for pose detection
-from controlnet_aux import OpenposeDetector  # For pose detection using OpenPose
+# from controlnet_aux import OpenposeDetector  # For pose detection using OpenPose
 from diffusers.utils import load_image  # For loading images
 from .resize import resize_images
 import os,sys
@@ -10,7 +10,7 @@ import torch
 # processor_id = 'openpose_full'
 # openpose = Processor(processor_id)
 
-from dwpose import DwposeDetector
+from .DWPose.src.dwpose import DwposeDetector
 
 model = DwposeDetector.from_pretrained_default()
 
