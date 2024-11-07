@@ -31,7 +31,7 @@ class ImageModelSDXL(BaseImageModel):
         self.negative_prompt = kwargs.get('negative_prompt', "dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
         self.strength = kwargs.get('strength', 1.0)
         self.LoRA = kwargs.get('LoRA', False)
-        self.model = 'sdxl_studio_crop1280'
+        self.model = 'sdxl_studio_crop1280_flix'
         self.benchmark = kwargs.get('benchmark', False)
         self.control_guidance_start=0
         self.control_guidance_end=1
@@ -150,7 +150,7 @@ class ImageModelSDXL(BaseImageModel):
         Generate a new image using the diffusion model based on the pose, mask and prompt.
         """
 
-        
+        image_model.prepare_model()
         start_time = time.time()
         # Generate the image using the pipeline
         image_res = self.pipe(
@@ -172,15 +172,32 @@ class ImageModelSDXL(BaseImageModel):
         end_time = time.time()
         self.time = end_time - start_time
         self.i=os.path.basename(self.input_image).split('.')[0]
+        del self.pipe
+        torch.cuda.empty_cache()
         
-        ImageModelFlux.prepare_img2img_model(self)
-        image_res2=self.flux_pipe(image=image_res,
-                       prompt="keep the original image but upscale it to 1920x1080",
-                       strength=self.strength,
-                       generator=self.generator,
-                       num_inference_steps=self.num_inference_steps,
-                       guidance_scale=self.guidance_scale,
-                       )
+        self.quantize=True
+        # ImageModelFlux.prepare_img2img_model(self)
+        # image_res2=self.flux_pipe(image=image_res,
+        #                prompt="keep the original image but upscale it to 1920x1080",
+        #                strength=self.strength,
+        #                generator=self.generator,
+        #                num_inference_steps=self.num_inference_steps,
+        #                guidance_scale=self.guidance_scale,
+        #                ).images[0]
+        ImageModelFlux.prepare_upscale_image(self)
+        w,h=image_res.size
+        image_res = image_res.resize((w * 4, h * 4))
+        image_res2 = self.flux_pipe(
+            prompt="", 
+            control_image=image_res,
+            controlnet_conditioning_scale=1.0,
+            num_inference_steps=4, 
+            guidance_scale=7.5,
+            height=image_res.size[1],
+            width=image_res.size[0]
+        ).images[0]
+        del self.flux_pipe
+        torch.cuda.empty_cache()
         
         # Save the generated image
         save_pathA=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,self.loraout)
@@ -196,7 +213,9 @@ class ImageModelSDXL(BaseImageModel):
         save_path2 = os.path.join(save_pathC, bench_filename)
         image_res.save(save_path1)
 
-        self.annot='llava:'+image_llava(self,image_res)+'. blip2:'+image_blip(self,image_res)+'. desc:'+annotate_images(image_res)
+        # self.annot='llava:'+image_llava(self,image_res)+'. blip2:'+image_blip(self,image_res)+'. desc:'+annotate_images(image_res)
+        self.annot='llava: not yet. blip2:not yet either. desc:'+annotate_images(image_res)
+
         
         ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res,image_res2], output_path=save_path2)
 
@@ -211,7 +230,7 @@ class ImageModelSDXL(BaseImageModel):
 
         for self.LoRA in LoRA:
             for self.lora_weight in lora_weights:
-                image_model.prepare_model()
+                # image_model.prepare_model()
                 for self.input_image in glob.glob(self.image):
                 # for self.controlnet_conditioning_scale in [self.controlnet_conditioning_scale-0.2,self.controlnet_conditioning_scale,self.controlnet_conditioning_scale+0.2]:
                     for self.guidance_scale in [guidance_scale]:

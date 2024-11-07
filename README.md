@@ -109,3 +109,11 @@ python3 base_image_model_api.py
      http://localhost:5005/generate_image
 ```
 
+## comms with DB
+
+```bash
+history|grep psql
+psql ${DB_NAME}
+select * from process_queue where id = 1
+
+```

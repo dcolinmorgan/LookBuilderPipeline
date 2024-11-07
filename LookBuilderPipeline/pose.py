@@ -43,6 +43,7 @@ def detect_pose(self,image_path, resize=False, size=(512, 512)):
         include_hand=True,
         include_face=True,
         include_body=True,
+        include_foot=True,
         image_and_json=True,
         detect_resolution=512,
         device=self.device)

@@ -14,7 +14,7 @@ diffusers @ git+https://github.com/huggingface/diffusers.git
 tokenizers #==0.19
 protobuf
 compel
-dwpose
+dwpose @ git+https://github.com/Modegen/DWPose.git
 torchao
 sd_embed @ git+https://github.com/xhinker/sd_embed.git
 glob2

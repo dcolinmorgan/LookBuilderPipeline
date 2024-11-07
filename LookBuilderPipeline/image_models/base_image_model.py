@@ -30,7 +30,7 @@ class BaseImageModel:
         # label = str(np.random.randint(100000000))
         image=load_image(imageA)
         pose_image = detect_pose(self,imageA)
-        _,final_mask,_ = segment_image(self,imageA,inverse=inv)
+        _,final_mask,_ = segment_image(imageA,inverse=inv)
         
         # _,clothes = no_back(image)
 

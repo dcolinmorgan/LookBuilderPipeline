@@ -11,13 +11,13 @@ from LookBuilderPipeline.resize import resize_images
 from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
 
 # Import required components from diffusers
-from diffusers import FluxControlNetInpaintPipeline, FluxImg2ImgPipeline, FluxTransformer2DModel
+from diffusers import FluxControlNetInpaintPipeline, FluxImg2ImgPipeline, FluxTransformer2DModel, FluxControlNetPipeline
 from diffusers.models.controlnet_flux import FluxControlNetModel
 
 # ## change flux inpainting pipeline to allow negative-prompt in OpenFlux
 # PTH=(os.path.abspath(inspect.getfile(Fluxpipeline)))
 # orig_pipe='/'.join(PTH.split('/')[:-1])+'/pipeline_flux_controlnet_inpainting.py'
-# mod_pipe='LookBuilderPipeline/LookBuilderPipeline/image_models/openflux/pipeline_flux_controlnet_inpainting.py'
+# mod_pipe='LookBuilderpipeline/LookBuilderpipeline/image_models/openflux/pipeline_flux_controlnet_inpainting.py'
 # shutil.copy(mod_pipe, orig_pipe)
 
 class ImageModelFlux(BaseImageModel):
@@ -68,7 +68,7 @@ class ImageModelFlux(BaseImageModel):
 
         self.flux_pipe.text_encoder.to(torch.bfloat16)
         self.flux_pipe.controlnet.to(torch.bfloat16)
-        self.flux_pipe.enable_model_cpu_offload()()
+        self.flux_pipe.enable_model_cpu_offload()
         # self.prompt_embeds, self.pooled_prompt_embeds = get_weighted_text_embeddings_flux1(pipe=self.flux_pipe, prompt=self.prompt)
 
     def prepare_img2img_model(self):
@@ -78,7 +78,7 @@ class ImageModelFlux(BaseImageModel):
         # Set up the pipeline
         base_model = 'black-forest-labs/FLUX.1-schnell'
 
-        transformer=ImageModelFlux.prepare_quant_model(self)  # quant or not
+        transformer= ImageModelFlux.prepare_quant_model(self)  # quant or not
 
         self.flux_pipe = FluxImg2ImgPipeline.from_pretrained(base_model,
             transformer = transformer,
@@ -87,9 +87,29 @@ class ImageModelFlux(BaseImageModel):
         # pipe.to("cuda")
 
         self.flux_pipe.text_encoder.to(torch.bfloat16)
-        self.flux_pipe.controlnet.to(torch.bfloat16)
-        self.flux_pipe.enable_model_cpu_offload()()
+        # self.flux_pipe.controlnet.to(torch.bfloat16)
+        self.flux_pipe.enable_sequential_cpu_offload()
         # self.prompt_embeds, self.pooled_prompt_embeds = get_weighted_text_embeddings_flux1(pipe=self.flux_pipe, prompt=self.prompt)
+        
+    def prepare_upscale_image(self):
+        base_model = 'black-forest-labs/FLUX.1-schnell'
+        # Load pipeline
+        controlnet2 = FluxControlNetModel.from_pretrained(
+        "jasperai/Flux.1-dev-Controlnet-Upscaler",
+        torch_dtype=torch.bfloat16
+        )
+        transformer=ImageModelFlux.prepare_quant_model(self)  # quant or not
+        self.flux_pipe = FluxControlNetPipeline.from_pretrained(base_model,
+            controlnet=controlnet2, 
+            transformer = transformer,
+            torch_dtype=torch.bfloat16)
+        self.flux_pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
+        self.flux_pipe.to("cpu")
+
+        # self.flux_pipe.text_encoder.to(torch.bfloat16)
+        # self.flux_pipe.controlnet.to(torch.bfloat16)
+        # self.flux_pipe.enable_model_cpu_offload()
+        # self.flux_pipe.enable_sequential_cpu_offload()
 
 
     def prepare_quant_model(self):
@@ -112,7 +132,7 @@ class ImageModelFlux(BaseImageModel):
                 torch_dtype = torch.bfloat16
             ) 
             quantize_(self.transformer, int8_weight_only())
-            self.transformer.save_pretrained('flux-schnell-fp8/quant_transformer/',safe_serialization=False)
+            # self.transformer.save_pretrained('flux-schnell-fp8/quant_transformer/',safe_serialization=False)
         if self.quantize and os.path.exists('flux-schnell-fp8/quant_transformer/diffusion_pytorch_model-00001-of-00002.bin'):
             self.transformer = FluxTransformer2DModel.from_pretrained(
                 'flux-schnell-fp8',
@@ -187,47 +207,9 @@ class ImageModelFlux(BaseImageModel):
 
         self.annot='llava:'+image_llava(self,image_res)+'. blip2:'+image_blip(self,image_res)+'. desc:'+annotate_images(image_res)
         
-        ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
+        ImageModelFlux.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
 
         return image_res, save_path1
-
-    
-    def upscale_image(image_res,image_path):
-        import torch
-        from diffusers.utils import load_image
-        from diffusers import FluxControlNetModel
-        from diffusers.pipelines import FluxControlNetpipeline
-
-        # Load pipeline
-        controlnet2 = FluxControlNetModel.from_pretrained(
-            "jasperai/Flux.1-dev-Controlnet-Upscaler",
-            torch_dtype=torch.bfloat16
-            )
-        
-        ImageModelFlux.prepare_quant_model(self)  # quant or not
-        self.flux_pipe = FluxControlNetInpaintpipeline.from_pretrained(base_model,
-            controlnet=controlnet2, 
-            transformer = self.transformer,
-            torch_dtype=torch.bfloat16)
-        self.flux_pipe.enable_model_cpu_offload()
-
-        w, h = image_res.size
-
-        # Upscale x4
-        image_res = image_res.resize((w * 4, h * 4))
-
-        image_res = self.flux_pipe(
-            prompt="", 
-            control_image=image_res,
-            controlnet_conditioning_scale=0.6,
-            num_inference_steps=28, 
-            guidance_scale=3.5,
-            height=image_res.size[1],
-            width=image_res.size[0]
-        ).images[0]
-        
-
-        return image_res
 
     def generate_bench(self,image_path,pose_path,mask_path):
         for self.input_image in glob.glob(self.image):

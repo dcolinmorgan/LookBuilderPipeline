@@ -58,9 +58,9 @@ def image_llava(self,image: Union[str, Image.Image, List[Union[str, Image.Image]
         model_id, 
         torch_dtype=torch.float16, 
         low_cpu_mem_usage=True, 
-        load_in_4bit=True,
-        use_flash_attention_2=True
-    ).to(0)
+        # load_in_4bit=True, 
+        # use_flash_attention_2=True
+    ).to('cpu')
     
     processor = AutoProcessor.from_pretrained(model_id)
     
@@ -76,7 +76,7 @@ def image_llava(self,image: Union[str, Image.Image, List[Union[str, Image.Image]
             ],
         },
     ]
-    prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+    prompt = processor.apply_chat_template(chat_template,conversation, add_generation_prompt=True)
     
     inputs = processor(images=image, text=prompt, return_tensors='pt').to(0, torch.float16)
     
