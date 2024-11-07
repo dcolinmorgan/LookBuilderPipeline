@@ -63,6 +63,7 @@ class NotificationManager:
     
     def _start_threads(self):
         """Start the listener and processor threads."""
+        logging.info("Starting listener and processor threads")
         self.listener_thread = threading.Thread(
             target=self._listen_for_notifications,
             name="NotificationListener"
@@ -130,8 +131,25 @@ class NotificationManager:
             
         try:
             parsed_data = self.parse_payload(payload)
-            self.validate_process_data(parsed_data)
-            return self.handle_notification(channel, parsed_data)
+            # Only validate process_id is present
+            self.validate_process_data(parsed_data, required_fields=['process_id'])
+            
+            # Get full process data
+            with self.get_managed_session() as session:
+                process = session.query(ProcessQueue).get(parsed_data['process_id'])
+                if not process:
+                    raise ValueError(f"Process {parsed_data['process_id']} not found")
+                
+                # Create full data dictionary from process
+                full_data = {
+                    'process_id': process.process_id,
+                    'image_id': process.image_id,
+                    'next_step': process.next_step,
+                    'status': process.status,
+                    'parameters': process.parameters or {}
+                }
+                
+                return self.handle_notification(channel, full_data)
         except Exception as e:
             logging.error(f"Error processing notification on channel {channel}: {str(e)}")
             raise
@@ -197,13 +215,15 @@ class NotificationManager:
             
         logging.info("NotificationManager stopped")
 
-    def create_process(self, **kwargs):
-        """Create a new process with server identification."""
-        process = ProcessQueue(
-            requested_by=self.client_name,
-            **kwargs
+    def create_process(self, image_id: int, next_step: str, status: str = 'pending', parameters: dict = None) -> ProcessQueue:
+        """Create a new process in the queue."""
+        return ProcessQueue(
+            image_id=image_id,
+            next_step=next_step,
+            status=status,
+            parameters=parameters or {},
+            requested_by=f"LookBuilderPipeline@{self.server_name}",  # Updated format
         )
-        return process
 
     def get_processes_for_client(self, session, **filters):
         """Get processes with client filtering."""
@@ -231,7 +251,7 @@ class NotificationManager:
             
         process.status = status
         process.updated_at = datetime.now()
-        process.served_by = self.server_name
+        process.served_by = f"LookBuilderPipeline@{self.server_name}"
         return process
 
     def parse_payload(self, payload):
@@ -246,7 +266,7 @@ class NotificationManager:
 
     def validate_process_data(self, data, required_fields=None):
         """Validate process data has required fields."""
-        fields_to_check = required_fields or self.required_fields
+        fields_to_check = required_fields or ['process_id']  # Default to only requiring process_id
         missing_fields = [field for field in fields_to_check if not data.get(field)]
         
         if missing_fields:

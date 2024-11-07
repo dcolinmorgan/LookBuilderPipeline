@@ -26,13 +26,18 @@ def run_ping_listener():
 def run_resize_listener():
     """Run the resize notification listener."""
     logging.info("Starting resize listener...")
+    nm = ResizeNotificationManager()
+    nm.setup()
+    
     try:
-        nm = ResizeNotificationManager()
-        nm.setup()
-        nm.process_existing_queue()
-        nm.listen()
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        logging.info("Shutting down...")
+        nm.stop()
     except Exception as e:
-        logging.error(f"Error during resize listener setup: {str(e)}")
+        logging.error(f"Error in resize listener: {str(e)}")
+        nm.stop()
         raise
 
 def main():

@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 from datetime import datetime
 from LookBuilderPipeline.manager.notification_manager import NotificationManager
 from LookBuilderPipeline.manager.ping_notification_manager import PingNotificationManager
-from LookBuilderPipeline.models.proccess_queue import ProcessQueue
+from LookBuilderPipeline.models.process_queue import ProcessQueue
 
 @pytest.fixture
 def notification_manager():

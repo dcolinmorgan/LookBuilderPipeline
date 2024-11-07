@@ -1,90 +1,110 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
-from sqlalchemy.dialects.postgresql import OID, JSONB
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from PIL import Image as PILImage
-from io import BytesIO
-from typing import List
-
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, Float, Boolean
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import Float, Boolean
+from datetime import datetime
 from .base import Base
-from ..utils.resize import resize_images
-from .user import User
+import logging
 
 class Image(Base):
     __tablename__ = 'images'
 
     image_id = Column(Integer, primary_key=True)
-    image_oid = Column(OID, nullable=False)
-    image_type = Column(String(10), nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, onupdate=func.now())
-    processed = Column(Boolean, default=False)
-    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    image_oid = Column(Integer)
+    user_id = Column(Integer, ForeignKey('users.user_id'))
+    created_at = Column(DateTime, default=datetime.now)
 
-    user: Mapped["User"] = relationship("User", back_populates="images")
-
-    def get_or_create_resize_variant(self, session, size: int, aspect_ratio: float = 1.0, square: bool = False):
-        """Get an existing resize variant or create a new one if it doesn't exist."""
-        from .image_variant import ImageVariant  # Import here to avoid circular import
+    def get_image_data(self, session):
+        """Get the image data from the large object storage."""
+        logging.info(f"Attempting to get image data for image_id={self.image_id}, image_oid={self.image_oid}")
         
-        # Look for existing variant with matching parameters
-        existing_variant = (
-            session.query(ImageVariant)
-            .filter_by(
-                source_image_id=self.image_id,
-                variant_type='resized',
-                parameters={
-                    'size': size,
-                    'aspect_ratio': aspect_ratio,
-                    'square': square
-                }
+        if not self.image_oid:
+            logging.error(f"No image_oid found for image {self.image_id}")
+            return None
+            
+        try:
+            logging.info(f"Creating lobject for image {self.image_id} with oid {self.image_oid}")
+            connection = session.connection().connection
+            
+            lob = connection.lobject(oid=self.image_oid, mode='rb')
+            logging.info(f"Successfully created lobject for image {self.image_id}")
+            
+            data = lob.read()
+            logging.info(f"Successfully read {len(data)} bytes from image {self.image_id}")
+            
+            lob.close()
+            return data
+            
+        except Exception as e:
+            logging.error(f"Error reading image data for image {self.image_id}: {str(e)}", exc_info=True)
+            return None
+
+    def get_resize_variant(self, size: int, aspect_ratio: float = 1.0, square: bool = False):
+        """Get an existing resize variant with the specified parameters."""
+        # Import here to avoid circular imports
+        from .image_variant import ImageVariant
+        
+        return (
+            self.variants
+            .filter(
+                ImageVariant.parameters['size'].astext.cast(Integer) == size,
+                ImageVariant.parameters['aspect_ratio'].astext.cast(Float) == aspect_ratio,
+                ImageVariant.parameters['square'].astext.cast(Boolean) == square
             )
             .first()
         )
 
-        if existing_variant:
-            return existing_variant
-
-        # Create new variant if none exists
-        image_bytes = self.get_image_data(session)
-        resized_image = resize_images(
-            image_bytes,
-            target_size=size,
-            aspect_ratio=aspect_ratio,
-            square=square
-        )
-
-        # Convert resized PIL Image back to bytes
-        output = BytesIO()
-        resized_image.save(output, format='PNG')
-        resized_bytes = output.getvalue()
-
-        # Store the resized image
-        variant_oid = self.store_large_object(session, resized_bytes)
-
-        # Create and return the new variant
+    def get_or_create_resize_variant(self, session, size: int, aspect_ratio: float = 1.0, square: bool = False):
+        """Get an existing resize variant or create a new one if it doesn't exist."""
+        # Import here to avoid circular imports
+        from .image_variant import ImageVariant
+        
+        # First try to get an existing variant
+        variant = self.get_resize_variant(size, aspect_ratio, square)
+        if variant:
+            return variant
+            
+        # If no variant exists, create a new one
+        image_data = self.get_image_data(session)
+        if not image_data:
+            raise ValueError(f"Image {self.image_id} has no data")
+            
+        # Import the resize_images function using relative import
+        from ..utils.resize import resize_images
+        
+        # Create the resized image
+        resized_image = resize_images(image_data, size, aspect_ratio, square)
+        
+        # Convert the resized image to bytes if it isn't already
+        if not isinstance(resized_image, bytes):
+            from io import BytesIO
+            img_byte_arr = BytesIO()
+            resized_image.save(img_byte_arr, format='PNG')  # or 'JPEG' depending on your needs
+            resized_image = img_byte_arr.getvalue()
+        
+        # Store the resized image as a large object
+        lob = session.connection().connection.lobject(mode='wb')
+        lob.write(resized_image)
+        oid = lob.oid  # Get the OID before closing
+        lob.close()
+        
+        # Create the variant with parameters in JSONB
         variant = ImageVariant(
             source_image_id=self.image_id,
-            variant_oid=variant_oid,
+            variant_oid=oid,
             variant_type='resized',
             parameters={
                 'size': size,
                 'aspect_ratio': aspect_ratio,
                 'square': square
             },
-            user_id=self.user_id
+            processed=True
         )
+        
+        # Add and flush to get the variant_id
         session.add(variant)
-        session.flush()  # Ensure variant_id is generated
+        session.flush()
+        
         return variant
 
-    def get_image_data(self, session) -> bytes:
-        """Get the image data from the database."""
-        # Implementation depends on your database setup
-        # This should retrieve the image data using self.image_oid
-        pass
-
-    def store_large_object(self, session, data: bytes) -> int:
-        """Store image data as a large object and return its OID."""
-        # Implementation depends on your database setup
-        pass
+    def __repr__(self):
+        return f"<Image(image_id={self.image_id}, oid={self.image_oid})>"
