@@ -31,12 +31,9 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ "${{ github.event.inputs.model }}" == "flux" ]; then
-          pip install diffusers==0.30.2;  # Install Flux model
-        elif [ "${{ github.event.inputs.model }}" == "sdxl" ]; then
-          pip install diffusers==0.27.2;  # Install SDXL model
-        fi
         pip install -r requirements.txt
+        git clone https://github.com/Modegen/DWPose.git LookBuilderPipeline/LookBuilderPipeline/
+
 
     - name: Run tests
       run: |

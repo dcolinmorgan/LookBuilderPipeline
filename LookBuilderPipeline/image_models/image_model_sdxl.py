@@ -178,7 +178,7 @@ class ImageModelSDXL(BaseImageModel):
         os.makedirs(save_pathC, exist_ok=True)
         
         # bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
-        bench_filename = 'img'+str(self.i)+str(self.lora_weight)+'.png'
+        bench_filename = 'img'+str(self.i)+str(self.blur)+'.png'
 
         save_path1 = os.path.join(save_pathA, bench_filename)
         save_path2 = os.path.join(save_pathC, bench_filename)

@@ -72,7 +72,7 @@ class BaseImageModel:
         fig.text(1, 0.7, f"C: {self.controlnet_conditioning_scale}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.65, f"G: {self.guidance_scale}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.6, f"S: {self.strength}", ha='center', fontsize=8, color='black', wrap=True)
-
+        fig.text(1, 0.55, f"B: {self.blur}", ha='center', fontsize=8, color='black', wrap=True)
         plt.tight_layout()  # Adjust the layout to prevent overlapping
         plt.savefig(output_path, dpi=300,bbox_inches='tight')  # Save the figure
         plt.close(fig)  # Close the figure to free up memory
