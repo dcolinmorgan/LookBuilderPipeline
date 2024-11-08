@@ -31,7 +31,7 @@ class ImageModelSDXL(BaseImageModel):
         self.negative_prompt = kwargs.get('negative_prompt', "dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
         self.strength = kwargs.get('strength', 1.0)
         self.LoRA = kwargs.get('LoRA', False)
-        self.model = 'sdxl_studio_crop1280_flix'
+        self.model = 'sdxl_blur'
         self.benchmark = kwargs.get('benchmark', False)
         self.control_guidance_start=0
         self.control_guidance_end=1
@@ -115,6 +115,13 @@ class ImageModelSDXL(BaseImageModel):
 
         image_model.prepare_model()
         start_time = time.time()
+        ## try bluring mask for better outpaint 
+        self.sm_mask.save('testcv2.png')
+        self.sm_mask=cv2.imread('testcv2.png')
+        self.sm_mask = cv2.cvtColor(self.sm_mask, cv2.COLOR_BGR2GRAY)
+        self.sm_mask = cv2.GaussianBlur(self.sm_mask, (self.blur, self.blur), 0)
+        self.sm_mask = Image.fromarray(self.sm_mask)
+        
         # Generate the image using the pipeline
         image_res = self.pipe(
             # prompt=self.prompt,
@@ -189,22 +196,24 @@ class ImageModelSDXL(BaseImageModel):
         self.res=1280
         guidance_scale=self.guidance_scale
         strength=self.strength
-        LoRA=[0,2,3,4,5,6,7,8]
-        lora_weights=[0.5,1.0,1.5,2]
+        blur=[51,101,151]
+        # LoRA=[0],2,3,4,5,6,7,8]
+        # lora_weights=[0.5,1.0,1.5,2]
 
-        for self.LoRA in LoRA:
-            for self.lora_weight in lora_weights:
-                # image_model.prepare_model()
-                for self.input_image in glob.glob(self.image):
+        # for self.LoRA in LoRA:
+        for self.blur in blur:
+            # for self.lora_weight in lora_weights:
+            image_model.prepare_model()
+            for self.input_image in glob.glob(self.image):
                 # for self.controlnet_conditioning_scale in [self.controlnet_conditioning_scale-0.2,self.controlnet_conditioning_scale,self.controlnet_conditioning_scale+0.2]:
-                    for self.guidance_scale in [guidance_scale]:
-                        for self.strength in [strength]:
+                for self.guidance_scale in [guidance_scale]:
+                    for self.strength in [strength]:
                         # for self.res in [768,1024,1280]:
                                 # for self.control_guidance_end in [self.control_guidance_end,self.control_guidance_end+0.1]:
-                            self.prepare_image(self.input_image,pose_path,mask_path)
-                            image_res, save_path = self.generate_image()
+                        self.prepare_image(self.input_image,pose_path,mask_path)
+                        image_res, save_path = self.generate_image()
                         # image_res = self.upscale_image(image_res)
-            self.pipe.unload_lora_weights()
+            # self.pipe.unload_lora_weights()
         
 
     def clearn_mem(self):
