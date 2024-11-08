@@ -74,70 +74,33 @@ class ImageModelSDXL(BaseImageModel):
 
 
         # if self.LoRA:
-        from diffusers import EulerAncestralDiscreteScheduler
+        # from diffusers import EulerAncestralDiscreteScheduler
+        # from diffusers import DDIMScheduler
 
-        # from scheduling_tcd import TCDScheduler 
-        # pipe.scheduler = TCDScheduler.from_config(pipe.scheduler.config)
-        from diffusers import DDIMScheduler
-    
-        # self.pipe.load_lora_weights('ByteDance/Hyper-SD', weight_name='Hyper-SDXL-8steps-lora.safetensors', adapter_name="BD")
-
-        # self.pipe.fuse_lora()
-        
-
-        # self.pipe.scheduler = DDIMScheduler.from_config(self.pipe.scheduler.config, timestep_spacing="trailing")
-        # self.pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(self.pipe.scheduler.config)
 
         # Load the LoRA
-        # self.pipe.load_lora_weights('ntc-ai/SDXL-LoRA-slider.extremely-detailed', weight_name='extremely detailed.safetensors', adapter_name="extremely detailed")
         if self.LoRA==0 or self.LoRA==False:
             self.loraout="noLora"
-        # elif self.LoRA==1:
-        #     self.loraout="photo in phst artstyle"
-        #     self.pipe.load_lora_weights('lora-A', weight_name='EssenzStyleLoRav1.2Skynet.safetensors',adapter_name=self.loraout)
-        elif self.LoRA==2:
+        elif self.LoRA==1:
             self.loraout="Cinematic"
             self.pipe.load_lora_weights('lora-A', weight_name='JuggernautCinematicXLLoRA.safetensors',adapter_name=self.loraout)
-        elif self.LoRA==3:
+        elif self.LoRA==2:
             self.loraout="Analog"
             self.pipe.load_lora_weights('lora-A', weight_name='AnalogRedmondV2.safetensors',adapter_name=self.loraout)
-        elif self.LoRA==4:
+        elif self.LoRA==3:
             self.loraout="highdetail"
             self.pipe.load_lora_weights('lora-A', weight_name='SDXLHighDetailv5.safetensors',adapter_name=self.loraout)
-        elif self.LoRA==5:
-            self.loraout="styleC"
-            self.pipe.load_lora_weights('lora-styleC', weight_name='pytorch_lora_weights.safetensors',adapter_name=self.loraout)
-        # elif self.LoRA==6:
-        #     self.loraout="h1t"
-        #     self.pipe.load_lora_weights('h1t/TCD-SDXL-LoRA', weight_name='pytorch_lora_weights.safetensors',adapter_name=self.loraout)
-        # elif self.LoRA==7:
-        #     self.loraout="12step"
-        #     self.pipe.load_lora_weights('ByteDance/Hyper-SD', weight_name='Hyper-SDXL-12steps-CFG-lora.safetensors',adapter_name=self.loraout)
-            # self.pipe.fuse_lora()
-        elif self.LoRA==8:
-            self.loraout="high fashion"
-            self.pipe.load_lora_weights('studio', weight_name='pytorch_lora_weights.safetensors',adapter_name=self.loraout)
-
 
         if self.LoRA!=0:
             # self.pipe.fuse_lora()
             # Activate the LoRA
             self.pipe.set_adapters(self.loraout, adapter_weights=[self.lora_weight])
-        
-            
-
             # self.pipe.scheduler = DDIMScheduler.from_config(self.pipe.scheduler.config, timestep_spacing="trailing")
 
-        # Activate the LoRA
-        # self.pipe.set_adapters(["extremely detailed"], adapter_weights=[2.0])
-
-
-        # Activate the LoRA
-        # self.pipe.set_adapters(["winner"], adapter_weights=[2.0])
+        # Activate compel for long prompts
         compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])
         if self.LoRA==0:
             ## compel for prompt embedding allowing >77 tokens
-            
             self.conditioning, self.pooled = compel(self.prompt)
         if self.LoRA!=0:
             self.conditioning, self.pooled = compel(self.prompt+self.loraout)
@@ -172,10 +135,10 @@ class ImageModelSDXL(BaseImageModel):
         end_time = time.time()
         self.time = end_time - start_time
         self.i=os.path.basename(self.input_image).split('.')[0]
-        del self.pipe
-        torch.cuda.empty_cache()
+        # del self.pipe
+        # torch.cuda.empty_cache()
         
-        self.quantize=True
+        # self.quantize=True
         # ImageModelFlux.prepare_img2img_model(self)
         # image_res2=self.flux_pipe(image=image_res,
         #                prompt="keep the original image but upscale it to 1920x1080",
@@ -184,20 +147,21 @@ class ImageModelSDXL(BaseImageModel):
         #                num_inference_steps=self.num_inference_steps,
         #                guidance_scale=self.guidance_scale,
         #                ).images[0]
-        ImageModelFlux.prepare_upscale_image(self)
-        w,h=image_res.size
-        image_res = image_res.resize((w * 4, h * 4))
-        image_res2 = self.flux_pipe(
-            prompt="", 
-            control_image=image_res,
-            controlnet_conditioning_scale=1.0,
-            num_inference_steps=4, 
-            guidance_scale=7.5,
-            height=image_res.size[1],
-            width=image_res.size[0]
-        ).images[0]
-        del self.flux_pipe
-        torch.cuda.empty_cache()
+        
+        # ImageModelFlux.prepare_upscale_image(self)
+        # w,h=image_res.size
+        # image_res = image_res.resize((w * 4, h * 4))
+        # image_res2 = self.flux_pipe(
+        #     prompt="", 
+        #     control_image=image_res,
+        #     controlnet_conditioning_scale=1.0,
+        #     num_inference_steps=4, 
+        #     guidance_scale=7.5,
+        #     height=image_res.size[1],
+        #     width=image_res.size[0]
+        # ).images[0]
+        # del self.flux_pipe
+        # torch.cuda.empty_cache()
         
         # Save the generated image
         save_pathA=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,self.loraout)
@@ -271,8 +235,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # # Example usage of the ImageModelSDXL class with command-line arguments
-    # if args.pose_path is None or args.mask_path is None:
-    #     args.pose_path, args.mask_path = ImageModelSDXL.generate_image_extras(args.image_path,inv=True)
 
     image_model = ImageModelSDXL(
         args.image_path, 

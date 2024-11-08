@@ -4,7 +4,11 @@ from LookBuilderPipeline.segment import segment_image, no_back, full_mask
 from LookBuilderPipeline.pose import detect_pose
 from LookBuilderPipeline.resize import resize_images
 from PIL import Image, ImageOps
-
+from matplotlib.pyplot import figure, imshow, axis
+from matplotlib.image import imread
+import matplotlib.pyplot as plt
+import matplotlib.text as mtext
+import textwrap
 class BaseImageModel:
     def __init__(self, img, pose, mask, prompt):
         """
@@ -48,12 +52,7 @@ class BaseImageModel:
 
         return pose_image, final_mask#, clothes
 
-
-
     def showImagesHorizontally(self,list_of_files, output_path):
-        from matplotlib.pyplot import figure, imshow, axis
-        from matplotlib.image import imread
-        import matplotlib.pyplot as plt
 
         fig = figure(figsize=(10,5))
         number_of_files = len(list_of_files)
@@ -64,20 +63,18 @@ class BaseImageModel:
             axis('off')
 
         # Add text to the image
-        fig.text(0.5, 0.01, f"Prompt: {self.prompt}       Neg_Prompt: {self.negative_prompt} \n Model: {self.model} LoRA: {self.LoRA}  Time(s): {np.round(self.time,2)}  Time(m): {np.round(self.time/60,2)}  height: {self.height}  width: {self.width}    steps: {self.num_inference_steps}   seed: {self.seed}" "\n"
-        f"cond_scale: {self.controlnet_conditioning_scale} guidance: {self.guidance_scale} strength: {self.strength}  Begin Cond Ratio: {self.control_guidance_start} End Cond Ratio:{self.control_guidance_end}" "\n"
-        f"annotation: {self.annot}",ha='center', fontsize=10, color='black', wrap=True)
-        # fig.text(0.5, 0.0, f"cond_scale: {controlnet_conditioning_scale} guidance: {guidance_scale} strength: {strength}  Begin Cond Ratio: {control_guidance_start} End Cond Ratio:{control_guidance_end}", ha='center', fontsize=10, color='black', wrap=True)
+        fig.text(0.5, 0.1, f"Prompt: {textwrap.fill(self.prompt,width=200)}", ha='center', fontsize=10, color='black',wrap=True)
+        fig.text(0.5, 0.05, f"Neg_Prompt: {textwrap.fill(self.negative_prompt,width=200)}", ha='center', fontsize=10, color='black',wrap=True)
+
+        fig.text(0.5, 0.01, f" Model: {self.model}  Time(s): {np.round(self.time,2)}  Time(m): {np.round(self.time/60,2)}  height: {self.height}  width: {self.width}    steps: {self.num_inference_steps}   seed: {self.seed} \n cond_scale: {self.controlnet_conditioning_scale} guidance: {self.guidance_scale} strength: {self.strength}", ha='center', fontsize=10, color='black', wrap=True)
         fig.text(1, 0.8, f"l: {self.LoRA}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.75, f"i: {self.i}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.7, f"C: {self.controlnet_conditioning_scale}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.65, f"G: {self.guidance_scale}", ha='center', fontsize=8, color='black', wrap=True)
         fig.text(1, 0.6, f"S: {self.strength}", ha='center', fontsize=8, color='black', wrap=True)
-        fig.text(1, 0.55, f"B: {self.control_guidance_start}", ha='center', fontsize=8, color='black', wrap=True)
-        fig.text(1, 0.5, f"E: {self.control_guidance_end}", ha='center', fontsize=8, color='black', wrap=True)
 
         plt.tight_layout()  # Adjust the layout to prevent overlapping
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')  # Save the figure
+        plt.savefig(output_path, dpi=300,bbox_inches='tight')  # Save the figure
         plt.close(fig)  # Close the figure to free up memory
 
     def resize_with_padding(self, img, expected_size, color=0):
@@ -89,7 +86,6 @@ class BaseImageModel:
         pad_height = delta_height // 2
         padding = (pad_width, pad_height, delta_width - pad_width, delta_height - pad_height)
         return ImageOps.expand(img, padding, color)
-
 
 
     def prepare_image(self,input_image,pose_path,mask_path):
