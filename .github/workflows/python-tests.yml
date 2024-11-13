@@ -32,7 +32,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        git submodule add https://github.com/Modegen/DWPose.git LookBuilderPipeline/LookBuilderPipeline/
+        git submodule add https://github.com/Modegen/DWPose.git LookBuilderPipeline/DWPose/
         git submodule init && git submodule update
 
     - name: Run tests
