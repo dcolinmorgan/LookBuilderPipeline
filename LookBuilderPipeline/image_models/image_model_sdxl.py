@@ -99,7 +99,8 @@ class ImageModelSDXL(BaseImageModel):
 
         # Activate compel for long prompts
         compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])
-        if self.LoRA==0:
+        if self.LoRA==False:
+            self.loraout="nolora"
             ## compel for prompt embedding allowing >77 tokens
             self.conditioning, self.pooled = compel(self.prompt)
         if self.LoRA!=0:
@@ -260,7 +261,7 @@ if __name__ == "__main__":
     )
 
     
-    if args.benchmark==None:
+    if args.benchmark==False:
         image_model.prepare_model()
         image_model.prepare_image(args.image_path, args.pose_path,args.mask_path)
         generated_image, generated_image_path = image_model.generate_image()
