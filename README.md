@@ -4,7 +4,7 @@
 
 ```bash
 export GH_PAT= ## from doppler secrets
-git clone -b openflux https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
+git clone -b sdxl https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
 # may need this next step on some INTEL machines
 # apt-get update && apt-get install -y libgl1 ## should run automatically in install step
 pip install -e LookBuilderPipeline/.
