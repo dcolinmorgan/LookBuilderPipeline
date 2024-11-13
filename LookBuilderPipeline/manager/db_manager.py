@@ -3,6 +3,8 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import os
+from typing import Optional
+from ..models.user import User
 
 class DBManager:
     def __init__(self):
@@ -34,4 +36,34 @@ class DBManager:
             'host': os.getenv('DB_HOST', 'localhost'),
             'port': os.getenv('DB_PORT', '5432')
         }
+    
+    def get_user(self, session, user_id: Optional[int] = None, email: Optional[str] = None) -> Optional[User]:
+        """
+        Get a user by ID or email.
+        
+        Args:
+            session: SQLAlchemy session
+            user_id (Optional[int]): User ID to look up
+            email (Optional[str]): User email to look up
+            
+        Returns:
+            Optional[User]: User object if found, None otherwise
+            
+        Raises:
+            ValueError: If neither user_id nor email is provided
+        """
+        if user_id is None and email is None:
+            raise ValueError("Must provide either user_id or email")
+            
+        query = session.query(User)
+        
+        if user_id is not None:
+            return query.get(user_id)
+            
+        if email is not None:
+            return query.filter(User.email == email).first()
+            
+        return None
+    
+    
         

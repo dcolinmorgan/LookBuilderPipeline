@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Index
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import func
 from typing import List
+from werkzeug.security import check_password_hash
 
 from LookBuilderPipeline.models.image import Image
 
@@ -25,3 +26,15 @@ class User(Base):
 
     def __repr__(self):
         return f"<User(id={self.user_id}, email={self.email})>"
+
+    def check_password(self, password: str) -> bool:
+        """
+        Check if the provided password matches the stored hash.
+        
+        Args:
+            password (str): The password to check
+            
+        Returns:
+            bool: True if password matches, False otherwise
+        """
+        return check_password_hash(self.password_hash, password)
