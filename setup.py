@@ -3,7 +3,7 @@ import os
 
 # Run shell command to install system dependencies
 os.system('apt-get update && apt-get install -y libgl1')
-os.system('git submodule add https://github.com/Modegen/DWPose.git DWPose/')
+os.system('git submodule add https://github.com/Modegen/DWPose.git LookBuilderPipeline/DWPose/')
 os.system('git submodule init && git submodule update')
 
 setup(
