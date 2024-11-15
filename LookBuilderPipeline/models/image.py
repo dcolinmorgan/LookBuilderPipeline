@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, Float, Boolean
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, Float, Boolean, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import Float, Boolean
 from datetime import datetime
@@ -12,6 +12,11 @@ class Image(Base):
     image_oid = Column(Integer)
     user_id = Column(Integer, ForeignKey('users.user_id'))
     created_at = Column(DateTime, default=datetime.now)
+
+        # Add this line with your other column definitions:
+    image_type = Column(String(10), nullable=False)  # Add this line
+    updated_at = Column(DateTime)  # Add this
+    processed = Column(Boolean, default=False)  # Add this
 
     def get_image_data(self, session):
         """Get the image data from the large object storage."""
