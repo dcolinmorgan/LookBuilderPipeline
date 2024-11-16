@@ -1,6 +1,6 @@
 # Import necessary libraries for image processing and segmentation
 from diffusers.utils import load_image  # For loading images
-from transformers import pipeline  # For using pre-trained models
+from transformers import pipeline  # For using pre-trained LookBuilderPipeline.models
 import numpy as np  # For numerical operations on arrays
 from PIL import Image, ImageOps  # For image manipulation
 from .resize import resize_images

@@ -5,12 +5,12 @@ pytest
 torch
 mediapipe
 accelerate
-
+bitsandbytes
 numpy
 huggingface-hub
 sentencepiece==0.2.0
 diffusers @ git+https://github.com/huggingface/diffusers.git
-
+python-dotenv
 tokenizers #==0.19
 protobuf
 compel

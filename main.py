@@ -1,77 +1,61 @@
-# Import the necessary modules from your project
+import logging
+import argparse
+import time
+from LookBuilderPipeline.manager.ping_notification_manager import PingNotificationManager
+from LookBuilderPipeline.manager.resize_notification_manager import ResizeNotificationManager
+from LookBuilderPipeline.manager.segment_notification_manager import SegmentNotificationManager
+from LookBuilderPipeline.manager.pose_notification_manager import PoseNotificationManager
+from LookBuilderPipeline.manager.loadpipe_notification_manager import LoadPipeNotificationManager
+from LookBuilderPipeline.manager.runpipe_notification_manager import RunPipeNotificationManager
+logging.basicConfig(level=logging.INFO)
 
-from segmentation.segmentation import segment_image
-from pose.pose import detect_pose
-from image_models.image_model_sd3 import generate_image_sd3
-from image_models.image_model_fl2 import generate_image_flux
-
-
-# Function to run the pipeline with the Stable Diffusion 3 model
-def run_pipeline_sd3(image, prompt):
-    """
-    Run the entire pipeline and generate the final image using Stable Diffusion 3 with ControlNet.
+def run_listener(mode):
+    """Run the ping notification listener."""
+    logging.info("Starting ping listener...")
+    if mode == 'ping':
+        nm = PingNotificationManager()
+    elif mode == 'resize':
+        nm = ResizeNotificationManager()
+    elif mode == 'segment':
+        nm = SegmentNotificationManager()
+    elif mode == 'pose':
+        nm = PoseNotificationManager()
+    elif mode == 'loadpipe':
+        nm = LoadPipeNotificationManager()
+    elif mode == 'runpipe':
+        nm = RunPipeNotificationManager()
+    nm.setup()
     
-    Args:
-        image (object): The input image object.
-        prompt (str): The textual prompt to guide the image generation.
-    
-    Returns:
-        object: The generated image using Stable Diffusion 3.
-    """
-    # Step 1: Segment the image to extract the outfit (minimum) and additional elements
-    segmented_clothes, mask = segment_image(image)
-    print("Segmentation completed.")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        logging.info("Shutting down...")
+        nm.stop()
+    except Exception as e:
+        logging.error(f"Error in ping listener: {str(e)}")
+        nm.stop()
+        raise
 
-    # Step 2: Detect the pose of the model in the image
-    pose = detect_pose(image)
-    print("Pose detection completed.")
+def main():
+    parser = argparse.ArgumentParser(description='LookBuilder Pipeline')
+    parser.add_argument('--mode', choices=['ping', 'resize','segment','pose','loadpipe','runpipe'], required=True,
+                      help='Mode to run the application in')
 
-    # Step 3: Generate the final image using Stable Diffusion 3
-    generated_image = generate_image_sd3(pose, segmented_clothes, mask, prompt)
-    print("Image generation with SD3 completed.")
-    
-    return generated_image
+    args = parser.parse_args()
 
+    if args.mode == 'ping':
+        run_listener('ping')
+    elif args.mode == 'resize':
+        run_listener('resize')
+    elif args.mode == 'segment':
+        run_listener('segment')
+    elif args.mode == 'pose':
+        run_listener('pose')
+    elif args.mode == 'loadpipe':
+        run_listener('loadpipe')
+    elif args.mode == 'runpipe':
+        run_listener('runpipe')
 
-# Function to run the pipeline with the Flux model
-def run_pipeline_flux(image, prompt):
-    """
-    Run the entire pipeline and generate the final image using the Flux model.
-    
-    Args:
-        image (object): The input image object.
-        prompt (str): The textual prompt to guide the image generation.
-    
-    Returns:
-        object: The generated image using the Flux model.
-    """
-    # Step 1: Segment the image to extract the outfit (minimum) and additional elements
-    segmented_clothes, mask = segment_image(image)
-    print("Segmentation completed.")
-
-    # Step 2: Detect the pose of the model in the image
-    pose = detect_pose(image)
-    print("Pose detection completed.")
-
-    # Step 3: Generate the final image using the Flux model
-    generated_image = generate_image_flux(pose, segmented_clothes, mask, prompt)
-    print("Image generation with Flux completed.")
-    
-    return generated_image
-
-
-# Main execution for testing both pipelines
-if __name__ == "__main__":
-    # Placeholder image and prompt (replace these with actual image and prompt)
-    test_image = "sample_image.jpg"  # Replace with actual image object
-    test_prompt = "A model in a futuristic outfit"  # Example prompt
-
-    # Run the pipeline with Stable Diffusion 3
-    print("Running pipeline with Stable Diffusion 3...")
-    sd3_output = run_pipeline_sd3(test_image, test_prompt)
-    print(f"Output from SD3 model: {sd3_output}")
-
-    # Run the pipeline with the Flux model
-    print("Running pipeline with Flux model...")
-    flux_output = run_pipeline_flux(test_image, test_prompt)
-    print(f"Output from Flux model: {flux_output}")
+if __name__ == '__main__':
+    main()
