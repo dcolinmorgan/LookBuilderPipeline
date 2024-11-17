@@ -1,13 +1,25 @@
 """Define relationships between Image and its variants."""
 from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, Table
+from sqlalchemy.sql import func
+from .base import Base
+
+look_images = Table(
+    'look_images',
+    Base.metadata,
+    Column('look_id', Integer, ForeignKey('looks.look_id', ondelete='CASCADE'), primary_key=True),
+    Column('image_id', Integer, ForeignKey('images.image_id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', DateTime, server_default=func.now())
+)
 
 # Image to ImageVariant relationship
 def setup_relationships():
     from .image import Image
     from .image_variant import ImageVariant
     from .user import User
+    from .look import Look
     
-    # Image-ImageVariant relationships
+    # Existing relationships
     Image.variants = relationship(
         "ImageVariant",
         back_populates="source_image",
@@ -31,6 +43,33 @@ def setup_relationships():
     Image.user = relationship(
         "User",
         back_populates="images"
+    )
+
+    # Look relationships with explicit join conditions
+    Look.user = relationship(
+        "User",
+        back_populates="looks",
+        primaryjoin="Look.user_id == User.user_id"
+    )
+    
+    User.looks = relationship(
+        "Look",
+        back_populates="user",
+        primaryjoin="Look.user_id == User.user_id",
+        cascade="all, delete-orphan"
+    )
+
+    # Image-Look relationships
+    Image.looks = relationship(
+        "Look",
+        secondary=look_images,
+        back_populates="images"
+    )
+    
+    Look.images = relationship(
+        "Image",
+        secondary=look_images,
+        back_populates="looks"
     )
 
 # Call setup at the end of __init__.py

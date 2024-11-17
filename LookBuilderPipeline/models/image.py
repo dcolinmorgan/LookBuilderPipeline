@@ -1,9 +1,11 @@
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, Float, Boolean, String
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import Float, Boolean
 from datetime import datetime
 from .base import Base
 import logging
+from sqlalchemy.orm import relationship
+from .image_relationships import look_images
 
 class Image(Base):
     __tablename__ = 'images'
@@ -17,6 +19,9 @@ class Image(Base):
     image_type = Column(String(10), nullable=False)  # Add this line
     updated_at = Column(DateTime)  # Add this
     processed = Column(Boolean, default=False)  # Add this
+
+    # Add this relationship
+    looks = relationship("Look", secondary=look_images, back_populates="images")
 
     def get_image_data(self, session):
         """Get the image data from the large object storage."""

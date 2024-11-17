@@ -19,6 +19,7 @@ class User(Base):
 
     # Relationships
     images: Mapped[List["Image"]] = relationship("Image", back_populates="user")
+    looks = relationship("Look", back_populates="user", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index('idx_user_email', 'email'),
