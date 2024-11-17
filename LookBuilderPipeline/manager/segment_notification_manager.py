@@ -11,24 +11,14 @@ import select
 class SegmentNotificationManager(NotificationManager):
     def __init__(self):
         super().__init__()
-<<<<<<< HEAD
-        logging.info("Initializing ResizeNotificationManager")
-        self.channels = ['segment_image']
-        logging.info(f"ResizeNotificationManager listening on channels: {self.channels}")
-=======
         logging.info("Initializing SegmentNotificationManager")
         self.channels = ['segment_image']
         logging.info(f"SegmentNotificationManager listening on channels: {self.channels}")
->>>>>>> origin/managers+models
         self.required_fields = ['process_id', 'image_id', 'inverse']
 
     def handle_notification(self, channel, data):
         """Handle segment notifications."""
-<<<<<<< HEAD
-        logging.info(f"ResizeNotificationManager received: channel={channel}, data={data}")
-=======
         logging.info(f"SegmentNotificationManager received: channel={channel}, data={data}")
->>>>>>> origin/managers+models
         if channel == 'segment_image':
             # Get the full process data from ProcessQueue
             with self.get_managed_session() as session:
@@ -41,48 +31,27 @@ class SegmentNotificationManager(NotificationManager):
                         'inverse': process.parameters.get('inverse')
                     }
                     logging.info(f"Processing segment with parameters: {full_data}")
-<<<<<<< HEAD
-                    return self.process_resize(full_data)
-                else:
-                    logging.error(f"Process {data['process_id']} not found or has no parameters")
-            return None
-        logging.warning(f"ResizeNotificationManager received unexpected channel: {channel}")
-=======
                     return self.process_segment(full_data)
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None
         logging.warning(f"SegmentNotificationManager received unexpected channel: {channel}")
->>>>>>> origin/managers+models
         return None
 
     def process_item(self, segment):
         """Process a single segment notification."""
-<<<<<<< HEAD
-        return self.process_resize({
-=======
         return self.process_segment({
->>>>>>> origin/managers+models
             'process_id': segment.process_id,
             'image_id': segment.image_id,
             'inverse': segment.parameters.get('inverse')
         })
 
-<<<<<<< HEAD
-    def process_resize(self, resize_data):
-        """Process a segment notification through its stages."""
-        validated_data = self.validate_process_data(resize_data)
-        process_id = validated_data['process_id']
-        
-        def execute_resize_process(session):
-=======
     def process_segment(self, segment_data):
         """Process a segment notification through its stages."""
         validated_data = self.validate_process_data(segment_data)
         process_id = validated_data['process_id']
         
         def execute_segment_process(session):
->>>>>>> origin/managers+models
             # Get the image
             image = session.query(Image).get(validated_data['image_id'])
             if not image:
@@ -107,11 +76,7 @@ class SegmentNotificationManager(NotificationManager):
                 return None
 
             try:
-<<<<<<< HEAD
-                variant = image.get_or_create_resize_variant(
-=======
                 variant = image.get_or_create_segment_variant(
->>>>>>> origin/managers+models
                     session,
                     inverse=validated_data['inverse']
                 )
@@ -137,11 +102,7 @@ class SegmentNotificationManager(NotificationManager):
                 self.mark_process_error(session, process_id, error_msg)
                 return None
         
-<<<<<<< HEAD
-        return self.process_with_error_handling(process_id, execute_resize_process)
-=======
         return self.process_with_error_handling(process_id, execute_segment_process)
->>>>>>> origin/managers+models
 
     def mark_process_error(self, session, process_id, error_message):
         """Mark a process as error with an error message."""
