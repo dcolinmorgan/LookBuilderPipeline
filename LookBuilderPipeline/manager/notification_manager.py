@@ -199,7 +199,7 @@ class NotificationManager:
         raise NotImplementedError
 
     def stop(self):
-        """Stop the notification manager."""
+        """Stop the notification LookBuilderPipeline.manager."""
         logging.info("Stopping NotificationManager...")
         self.should_listen = False
         

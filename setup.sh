@@ -5,25 +5,24 @@
 mkdir -p external_deps
 cd external_deps
 
-# # Clone flux-controlnet-inpaint repository
-# if [ ! -d "flux-controlnet-inpaint" ]; then
-#     git clone https://${GH_PAT}@github.com/Modegen/flux-controlnet-inpaint.git
-# else
-#     echo "flux-controlnet-inpaint already exists, updating..."
-#     cd flux-controlnet-inpaint
-#     git pull
-#     cd ..
-# fi
-
-
-# Clone ControlNetPlus repository
-if [ ! -d "ControlNetPlus" ]; then
-    git clone https://${GH_PAT}@github.com/Modegen/ControlNetPlus.git
+# Clone DWPose repository
+if [ ! -d "DWPose" ]; then
+    git clone https://github.com/Modegen/DWPose.git LookBuilderPipeline/LookBuilderPipeline/
 else
-    echo "ControlNetPlus already exists, updating..."
-    cd ControlNetPlus
+    echo "DWPose already exists, updating..."
+    cd DWPose
     git pull
     cd ..
 fi
+
+# # Clone ControlNetPlus repository
+# if [ ! -d "ControlNetPlus" ]; then
+#     git clone https://${GH_PAT}@github.com/Modegen/ControlNetPlus.git
+# else
+#     echo "ControlNetPlus already exists, updating..."
+#     cd ControlNetPlus
+#     git pull
+#     cd ..
+# fi
 
 pip install -r requirements.txt

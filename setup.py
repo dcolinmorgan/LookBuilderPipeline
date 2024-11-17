@@ -3,6 +3,8 @@ import os
 
 # Run shell command to install system dependencies
 os.system('apt-get update && apt-get install -y libgl1')
+os.system('git submodule add https://github.com/Modegen/DWPose.git LookBuilderPipeline/DWPose/')
+os.system('git submodule init && git submodule update')
 
 setup(
     name='LookBuilderPipeline',
@@ -16,9 +18,12 @@ setup(
         'mediapipe',
         'accelerate',
         'numpy',
+        'python-dotenv',
         'compel',
         'glob2',
-        'dwpose',
+        'bitsandbytes',
+        'dwpose @git+https://github.com/Modegen/DWPose.git',
+        "bitsandbytes",
         'huggingface-hub',
         'sentencepiece==0.2.0',
         'diffusers @ git+https://github.com/huggingface/diffusers.git',
@@ -28,5 +33,6 @@ setup(
         'protobuf',
         'controlnet_aux',
         'opencv-python',
+        # 'flash-attn',# --no-build-isolation',
     ],
 )

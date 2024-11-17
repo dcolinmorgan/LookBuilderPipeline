@@ -4,6 +4,9 @@ import time
 from LookBuilderPipeline.manager.ping_notification_manager import PingNotificationManager
 from LookBuilderPipeline.manager.resize_notification_manager import ResizeNotificationManager
 from LookBuilderPipeline.manager.segment_notification_manager import SegmentNotificationManager
+from LookBuilderPipeline.manager.pose_notification_manager import PoseNotificationManager
+from LookBuilderPipeline.manager.loadpipe_notification_manager import LoadPipeNotificationManager
+from LookBuilderPipeline.manager.runpipe_notification_manager import RunPipeNotificationManager
 logging.basicConfig(level=logging.INFO)
 
 def run_listener(mode):
@@ -15,6 +18,12 @@ def run_listener(mode):
         nm = ResizeNotificationManager()
     elif mode == 'segment':
         nm = SegmentNotificationManager()
+    elif mode == 'pose':
+        nm = PoseNotificationManager()
+    elif mode == 'loadpipe':
+        nm = LoadPipeNotificationManager()
+    elif mode == 'runpipe':
+        nm = RunPipeNotificationManager()
     nm.setup()
     
     try:
@@ -30,7 +39,7 @@ def run_listener(mode):
 
 def main():
     parser = argparse.ArgumentParser(description='LookBuilder Pipeline')
-    parser.add_argument('--mode', choices=['ping', 'resize','segment'], required=True,
+    parser.add_argument('--mode', choices=['ping', 'resize','segment','pose','loadpipe','runpipe'], required=True,
                       help='Mode to run the application in')
 
     args = parser.parse_args()
@@ -41,6 +50,12 @@ def main():
         run_listener('resize')
     elif args.mode == 'segment':
         run_listener('segment')
+    elif args.mode == 'pose':
+        run_listener('pose')
+    elif args.mode == 'loadpipe':
+        run_listener('loadpipe')
+    elif args.mode == 'runpipe':
+        run_listener('runpipe')
 
 if __name__ == '__main__':
     main()

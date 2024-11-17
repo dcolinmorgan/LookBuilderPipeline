@@ -1,35 +1,25 @@
 import logging
 from LookBuilderPipeline.manager.notification_manager import NotificationManager
 from LookBuilderPipeline.models.process_queue import ProcessQueue
-from LookBuilderPipeline.segment import segment_image
+
 from PIL import Image
 from io import BytesIO
 from LookBuilderPipeline.models.image_variant import ImageVariant
 from LookBuilderPipeline.models.image import Image
 import select
 
-class SegmentNotificationManager(NotificationManager):
+class RunPipeNotificationManager(NotificationManager):
     def __init__(self):
         super().__init__()
-<<<<<<< HEAD
-        logging.info("Initializing ResizeNotificationManager")
-        self.channels = ['segment_image']
-        logging.info(f"ResizeNotificationManager listening on channels: {self.channels}")
-=======
-        logging.info("Initializing SegmentNotificationManager")
-        self.channels = ['segment_image']
-        logging.info(f"SegmentNotificationManager listening on channels: {self.channels}")
->>>>>>> origin/managers+models
-        self.required_fields = ['process_id', 'image_id', 'inverse']
+        logging.info("Initializing RunPipeNotificationManager")
+        self.channels = ['runpipe']
+        logging.info(f"RunPipeNotificationManager listening on channels: {self.channels}")
+        self.required_fields = ['process_id', 'image_id']
 
     def handle_notification(self, channel, data):
-        """Handle segment notifications."""
-<<<<<<< HEAD
-        logging.info(f"ResizeNotificationManager received: channel={channel}, data={data}")
-=======
-        logging.info(f"SegmentNotificationManager received: channel={channel}, data={data}")
->>>>>>> origin/managers+models
-        if channel == 'segment_image':
+        """Handle runpipe notifications."""
+        logging.info(f"RunPipeNotificationManager received: channel={channel}, data={data}")
+        if channel == 'runpipe':
             # Get the full process data from ProcessQueue
             with self.get_managed_session() as session:
                 process = session.query(ProcessQueue).get(data['process_id'])
@@ -38,51 +28,37 @@ class SegmentNotificationManager(NotificationManager):
                     full_data = {
                         'process_id': data['process_id'],
                         'image_id': data['image_id'],
-                        'inverse': process.parameters.get('inverse')
+                        'pipe': process.parameters.get('pipe'),
                     }
-                    logging.info(f"Processing segment with parameters: {full_data}")
-<<<<<<< HEAD
-                    return self.process_resize(full_data)
+                    logging.info(f"Processing runpipe with parameters: {full_data}")
+                    # if process.parameters.get('pipe') == 'sdxl':
+                    #     from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
+                    #     self.ImageModelSDXL.generate_image()
+                    # elif process.parameters.get('pipe') == 'flux':
+                    #     from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
+                    #     self.ImageModelFlux.generate_image()
+                                                      
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None
-        logging.warning(f"ResizeNotificationManager received unexpected channel: {channel}")
-=======
-                    return self.process_segment(full_data)
-                else:
-                    logging.error(f"Process {data['process_id']} not found or has no parameters")
-            return None
-        logging.warning(f"SegmentNotificationManager received unexpected channel: {channel}")
->>>>>>> origin/managers+models
+        logging.warning(f"runpipeNotificationManager received unexpected channel: {channel}")
         return None
 
-    def process_item(self, segment):
-        """Process a single segment notification."""
-<<<<<<< HEAD
-        return self.process_resize({
-=======
-        return self.process_segment({
->>>>>>> origin/managers+models
-            'process_id': segment.process_id,
-            'image_id': segment.image_id,
-            'inverse': segment.parameters.get('inverse')
+    def process_item(self, runpipe):
+        """Process a single runpipe notification."""
+        return self.process_runpipe({
+            'process_id': runpipe.process_id,
+            'image_id': runpipe.image_id,
+            'pipe': runpipe.parameters.get('pipe'),
+
         })
 
-<<<<<<< HEAD
-    def process_resize(self, resize_data):
-        """Process a segment notification through its stages."""
-        validated_data = self.validate_process_data(resize_data)
+    def process_runpipe(self, runpipe_data):
+        """Process a runpipe notification through its stages."""
+        validated_data = self.validate_process_data(runpipe_data)
         process_id = validated_data['process_id']
         
-        def execute_resize_process(session):
-=======
-    def process_segment(self, segment_data):
-        """Process a segment notification through its stages."""
-        validated_data = self.validate_process_data(segment_data)
-        process_id = validated_data['process_id']
-        
-        def execute_segment_process(session):
->>>>>>> origin/managers+models
+        def execute_runpipe_process(session):
             # Get the image
             image = session.query(Image).get(validated_data['image_id'])
             if not image:
@@ -107,19 +83,15 @@ class SegmentNotificationManager(NotificationManager):
                 return None
 
             try:
-<<<<<<< HEAD
-                variant = image.get_or_create_resize_variant(
-=======
-                variant = image.get_or_create_segment_variant(
->>>>>>> origin/managers+models
+                variant = image.get_or_create_runpipe_variant(
                     session,
                     inverse=validated_data['inverse']
                 )
                 
                 if not variant:
                     error_msg = (
-                        f"Failed to create segment variant for image {validated_data['image_id']}. "
-                        f"The segment operation completed but returned no variant. "
+                        f"Failed to create runpipe variant for image {validated_data['image_id']}. "
+                        f"The runpipe operation completed but returned no variant. "
                         f"This might indicate an issue with the image processing."
                     )
                     logging.error(error_msg)
@@ -130,18 +102,14 @@ class SegmentNotificationManager(NotificationManager):
                 
             except Exception as e:
                 error_msg = (
-                    f"Error creating segment variant: {str(e)}. "
+                    f"Error creating runpipe variant: {str(e)}. "
                     f"This could be due to invalid image data or insufficient system resources."
                 )
                 logging.error(error_msg)
                 self.mark_process_error(session, process_id, error_msg)
                 return None
         
-<<<<<<< HEAD
-        return self.process_with_error_handling(process_id, execute_resize_process)
-=======
-        return self.process_with_error_handling(process_id, execute_segment_process)
->>>>>>> origin/managers+models
+        return self.process_with_error_handling(process_id, execute_runpipe_process)
 
     def mark_process_error(self, session, process_id, error_message):
         """Mark a process as error with an error message."""
@@ -153,7 +121,7 @@ class SegmentNotificationManager(NotificationManager):
 
     def _listen_for_notifications(self):
         """Override parent method to add more logging"""
-        logging.info("Starting segment notification listener thread")
+        logging.info("Starting runpipe notification listener thread")
         
         while self.should_listen:
             try:
@@ -161,9 +129,9 @@ class SegmentNotificationManager(NotificationManager):
                     self.conn.poll()
                     while self.conn.notifies:
                         notify = self.conn.notifies.pop()
-                        logging.info(f"segment raw notification received: {notify}")
+                        logging.info(f"runpipe raw notification received: {notify}")
                         self.notification_queue.put((notify.channel, notify.payload))
-                        logging.info(f"segment notification added to queue: {notify.channel}")
+                        logging.info(f"runpipe notification added to queue: {notify.channel}")
             except Exception as e:
-                logging.error(f"Error in segment notification listener: {str(e)}")
+                logging.error(f"Error in runpipe notification listener: {str(e)}")
                 self._handle_connection_error()

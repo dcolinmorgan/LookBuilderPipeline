@@ -5,19 +5,20 @@ pytest
 torch
 mediapipe
 accelerate
-
+bitsandbytes
 numpy
 huggingface-hub
 sentencepiece==0.2.0
 diffusers @ git+https://github.com/huggingface/diffusers.git
-
+python-dotenv
 tokenizers #==0.19
 protobuf
 compel
-
+dwpose @ git+https://github.com/Modegen/DWPose.git
 torchao
 sd_embed @ git+https://github.com/xhinker/sd_embed.git
 glob2
+bitsandbytes
 controlnet_aux #==0.0.6
 opencv-python
-
+# flash-attn #--no-build-isolation

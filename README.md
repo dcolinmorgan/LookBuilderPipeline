@@ -4,7 +4,7 @@
 
 ```bash
 export GH_PAT= ## from doppler secrets
-git clone -b openflux https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
+git clone -b sdxl https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
 # may need this next step on some INTEL machines
 # apt-get update && apt-get install -y libgl1 ## should run automatically in install step
 pip install -e LookBuilderPipeline/.
@@ -41,7 +41,7 @@ python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py
 ### with LoRA
 ```bash
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
---image_path=test-ai/glow/* \
+--image_path=shootjpglow-sorted/referance_images/* \
 --prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
 --benchmark='True' \
 --LoRA='True'
@@ -109,3 +109,11 @@ python3 base_image_model_api.py
      http://localhost:5005/generate_image
 ```
 
+## comms with DB
+
+```bash
+history|grep psql
+psql ${DB_NAME}
+select * from process_queue where id = 1
+
+```

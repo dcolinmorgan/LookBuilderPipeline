@@ -10,6 +10,8 @@ from compel import Compel, ReturnedEmbeddingsType
 import glob
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.utils.resize import resize_images
+from LookBuilderPipeline.annotate import annotate_images, image_blip, image_llava
+from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
 
 # Import required components from diffusers
 from diffusers import StableDiffusionXLControlNetInpaintPipeline, ControlNetModel, DDIMScheduler
@@ -21,21 +23,23 @@ class ImageModelSDXL(BaseImageModel):
         
         # Set default values
         self.num_inference_steps = kwargs.get('num_inference_steps', 50)
-        self.guidance_scale = kwargs.get('guidance_scale', 7)
+        self.guidance_scale = kwargs.get('guidance_scale', 7.5)
         self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1.0)
-        self.seed = kwargs.get('seed', 42)
+        self.seed = kwargs.get('seed', 420042)
         self.prompt = kwargs.get('prompt', prompt)
         self.image = kwargs.get('image', image)
-        self.negative_prompt = kwargs.get('negative_prompt', "ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
-        self.strength = kwargs.get('strength', 0.99)
+        self.negative_prompt = kwargs.get('negative_prompt', "dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
+        self.strength = kwargs.get('strength', 1.0)
         self.LoRA = kwargs.get('LoRA', False)
-        self.model = 'sdxl'
+        self.model = 'sdxl_blur'
         self.benchmark = kwargs.get('benchmark', False)
         self.control_guidance_start=0
         self.control_guidance_end=1
         self.res = kwargs.get('res', 1280)
         self.control_guidance_start=0.0
         self.control_guidance_end=1.0
+        self.lora_weight=kwargs.get('lora_weight', 1.0)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
 
     def prepare_model(self):
@@ -47,9 +51,10 @@ class ImageModelSDXL(BaseImageModel):
         
         # Load the controlnet
         controlnet_model = ControlNetModel.from_pretrained(
-            "xinsir/controlnet-union-sdxl-1.0",
+            # "xinsir/controlnet-union-sdxl-1.0",
+            "thibaud/controlnet-openpose-sdxl-1.0",
             torch_dtype=torch.float16,
-            use_safetensors=True,
+            # use_safetensors=True,
         )
 
         # Load the pipeline + CN
@@ -68,61 +73,37 @@ class ImageModelSDXL(BaseImageModel):
         self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
 
 
-        if self.LoRA:
-            from diffusers import EulerAncestralDiscreteScheduler
+        # if self.LoRA:
+        # from diffusers import EulerAncestralDiscreteScheduler
+        # from diffusers import DDIMScheduler
 
-            # from scheduling_tcd import TCDScheduler 
-            # pipe.scheduler = TCDScheduler.from_config(pipe.scheduler.config)
-            # from diffusers import DDIMScheduler
-        
-            # self.pipe.load_lora_weights('ByteDance/Hyper-SD', weight_name='Hyper-SDXL-8steps-lora.safetensors', adapter_name="BD")
 
+        # Load the LoRA
+        if self.LoRA==0 or self.LoRA==False:
+            self.loraout="noLora"
+        elif self.LoRA==1:
+            self.loraout="Cinematic"
+            self.pipe.load_lora_weights('lora-A', weight_name='JuggernautCinematicXLLoRA.safetensors',adapter_name=self.loraout)
+        elif self.LoRA==2:
+            self.loraout="Analog"
+            self.pipe.load_lora_weights('lora-A', weight_name='AnalogRedmondV2.safetensors',adapter_name=self.loraout)
+        elif self.LoRA==3:
+            self.loraout="highdetail"
+            self.pipe.load_lora_weights('lora-A', weight_name='SDXLHighDetailv5.safetensors',adapter_name=self.loraout)
+
+        if self.LoRA!=0:
             # self.pipe.fuse_lora()
-            
-
+            # Activate the LoRA
+            self.pipe.set_adapters(self.loraout, adapter_weights=[self.lora_weight])
             # self.pipe.scheduler = DDIMScheduler.from_config(self.pipe.scheduler.config, timestep_spacing="trailing")
-            # self.pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(self.pipe.scheduler.config)
 
-            # Load the LoRA
-            # self.pipe.load_lora_weights('ntc-ai/SDXL-LoRA-slider.extremely-detailed', weight_name='extremely detailed.safetensors', adapter_name="extremely detailed")
-            if self.LoRA==0:
-                self.pipe.load_lora_weights('ByteDance/Hyper-SD', weight_name='Hyper-SDXL-12steps-CFG-lora.safetensors')
-                self.loraout="12step"
-            if self.LoRA==1:
-                self.pipe.load_lora_weights('lora-A', weight_name='EssenzStyleLoRav1.2Skynet.safetensors')
-                self.loraout="photo in phst artstyle"
-            elif self.LoRA==2:
-                self.pipe.load_lora_weights('lora-A', 'JuggernautCinematicXLLoRA.safetensors')
-                self.loraout="Cinematic"
-            elif self.LoRA==3:
-                self.pipe.load_lora_weights('lora-A', 'AnalogRedmondV2.safetensors')
-                self.loraout="AnalogRedmAF"
-            elif self.LoRA==4:
-                self.pipe.load_lora_weights('lora-A', 'SDXLHighDetailv5.safetensors')
-                self.loraout="highdetail"
-            elif self.LoRA==5:
-                self.pipe.load_lora_weights('lora-styleC', weight_name='pytorch_lora_weights.safetensors')
-                self.loraout="styleC"
-            elif self.LoRA==6:
-                self.pipe.load_lora_weights('h1t/TCD-SDXL-LoRA', weight_name='pytorch_lora_weights.safetensors')
-                self.loraout="h1t"
-
-            self.pipe.fuse_lora()
-
-            self.pipe.scheduler = DDIMScheduler.from_config(self.pipe.scheduler.config, timestep_spacing="trailing")
-
-            # Activate the LoRA
-            # self.pipe.set_adapters(["extremely detailed"], adapter_weights=[2.0])
-
-
-            # Activate the LoRA
-            # self.pipe.set_adapters(["winner"], adapter_weights=[2.0])
+        # Activate compel for long prompts
         compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])
         if self.LoRA==False:
+            self.loraout="nolora"
             ## compel for prompt embedding allowing >77 tokens
-            
             self.conditioning, self.pooled = compel(self.prompt)
-        if self.LoRA!=False:
+        if self.LoRA!=0:
             self.conditioning, self.pooled = compel(self.prompt+self.loraout)
 
             
@@ -133,14 +114,23 @@ class ImageModelSDXL(BaseImageModel):
         Generate a new image using the diffusion model based on the pose, mask and prompt.
         """
 
-        
+        image_model.prepare_model()
         start_time = time.time()
+        ## try bluring mask for better outpaint 
+        self.sm_mask.save('testcv2.png')
+        self.sm_mask=cv2.imread('testcv2.png')
+        self.sm_mask = cv2.cvtColor(self.sm_mask, cv2.COLOR_BGR2GRAY)
+        self.sm_mask = cv2.GaussianBlur(self.sm_mask, (self.blur, self.blur), 0)
+        self.sm_mask = Image.fromarray(self.sm_mask)
+        
         # Generate the image using the pipeline
         image_res = self.pipe(
             # prompt=self.prompt,
             prompt_embeds=self.conditioning,
             pooled_prompt_embeds=self.pooled,
             image=self.sm_image,
+            padding_mask_crop=8,
+            original_size=(self.res,self.res),
             mask_image=self.sm_mask,
             control_image=self.sm_pose_image,
             negative_prompt=self.negative_prompt,
@@ -153,44 +143,78 @@ class ImageModelSDXL(BaseImageModel):
         end_time = time.time()
         self.time = end_time - start_time
         self.i=os.path.basename(self.input_image).split('.')[0]
+        # del self.pipe
+        # torch.cuda.empty_cache()
+        
+        # self.quantize=True
+        # ImageModelFlux.prepare_img2img_model(self)
+        # image_res2=self.flux_pipe(image=image_res,
+        #                prompt="keep the original image but upscale it to 1920x1080",
+        #                strength=self.strength,
+        #                generator=self.generator,
+        #                num_inference_steps=self.num_inference_steps,
+        #                guidance_scale=self.guidance_scale,
+        #                ).images[0]
+        
+        # ImageModelFlux.prepare_upscale_image(self)
+        # w,h=image_res.size
+        # image_res = image_res.resize((w * 4, h * 4))
+        # image_res2 = self.flux_pipe(
+        #     prompt="", 
+        #     control_image=image_res,
+        #     controlnet_conditioning_scale=1.0,
+        #     num_inference_steps=4, 
+        #     guidance_scale=7.5,
+        #     height=image_res.size[1],
+        #     width=image_res.size[0]
+        # ).images[0]
+        # del self.flux_pipe
+        # torch.cuda.empty_cache()
         
         # Save the generated image
         save_pathA=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,self.loraout)
-        save_pathB=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,"nolora")
         save_pathC=os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images",self.model,self.loraout)
-        save_pathD=os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images",self.model,"nolora")
 
         os.makedirs(save_pathA, exist_ok=True)
-        os.makedirs(save_pathB, exist_ok=True)
         os.makedirs(save_pathC, exist_ok=True)
-        os.makedirs(save_pathD, exist_ok=True)
         
-        bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
-        if self.LoRA==False:
-            save_path1 = os.path.join(save_pathB, bench_filename)
-            save_path2 = os.path.join(save_pathC, bench_filename)
-        else:
-            save_path1 = os.path.join(save_pathA, bench_filename)
-            save_path2 = os.path.join(save_pathC, bench_filename)
+        # bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
+        bench_filename = 'img'+str(self.i)+str(self.blur)+'.png'
+
+        save_path1 = os.path.join(save_pathA, bench_filename)
+        save_path2 = os.path.join(save_pathC, bench_filename)
         image_res.save(save_path1)
-        ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
+
+        # self.annot='llava:'+image_llava(self,image_res)+'. blip2:'+image_blip(self,image_res)+'. desc:'+annotate_images(image_res)
+        self.annot='llava: not yet. blip2:not yet either. desc:'+annotate_images(image_res)
+
+        
+        ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res,image_res2], output_path=save_path2)
 
         return image_res, save_path1
     
     def generate_bench(self,image_path,pose_path,mask_path):
-        self.res=1024
+        self.res=1280
         guidance_scale=self.guidance_scale
         strength=self.strength
-        for self.input_image in glob.glob(self.image):
-            for self.LoRA in [0,1,2,3,4,5,6]:
-            # for self.controlnet_conditioning_scale in [self.controlnet_conditioning_scale-0.2,self.controlnet_conditioning_scale,self.controlnet_conditioning_scale+0.2]:
+        blur=[51,101,151]
+        # LoRA=[0],2,3,4,5,6,7,8]
+        # lora_weights=[0.5,1.0,1.5,2]
+
+        # for self.LoRA in LoRA:
+        for self.blur in blur:
+            # for self.lora_weight in lora_weights:
+            image_model.prepare_model()
+            for self.input_image in glob.glob(self.image):
+                # for self.controlnet_conditioning_scale in [self.controlnet_conditioning_scale-0.2,self.controlnet_conditioning_scale,self.controlnet_conditioning_scale+0.2]:
                 for self.guidance_scale in [guidance_scale]:
-                    for self.strength in [strength,strength+0.009]:
-                    # for self.res in [768,1024,1280]:
-                            # for self.control_guidance_end in [self.control_guidance_end,self.control_guidance_end+0.1]:
+                    for self.strength in [strength]:
+                        # for self.res in [768,1024,1280]:
+                                # for self.control_guidance_end in [self.control_guidance_end,self.control_guidance_end+0.1]:
                         self.prepare_image(self.input_image,pose_path,mask_path)
                         image_res, save_path = self.generate_image()
-                    # image_res = self.upscale_image(image_res)
+                        # image_res = self.upscale_image(image_res)
+            # self.pipe.unload_lora_weights()
         
 
     def clearn_mem(self):
@@ -207,21 +231,20 @@ if __name__ == "__main__":
     parser.add_argument("--mask_path", default=None, help="Path to the mask image")
     parser.add_argument("--prompt", required=True, help="Text prompt for image generation")
     parser.add_argument("--num_inference_steps", type=int, default=50, help="Number of inference steps")
-    parser.add_argument("--guidance_scale", type=float, default=7, help="Guidance scale")
+    parser.add_argument("--guidance_scale", type=float, default=7.7, help="Guidance scale")
     parser.add_argument("--controlnet_conditioning_scale", type=float, default=1.0, help="ControlNet conditioning scale")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--negative_prompt", default="ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
-    parser.add_argument("--strength", type=float, default=0.99, help="Strength of the transformation")
+    parser.add_argument("--seed", type=int, default=420042, help="Random seed")
+    parser.add_argument("--negative_prompt", default="dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
+    parser.add_argument("--strength", type=float, default=1.0, help="Strength of the transformation")
     parser.add_argument("--LoRA", type=bool, default=False, help="use LoRA or not")
     parser.add_argument("--benchmark", type=bool, default=False, help="run benchmark with ranges pulled from user inputs +/-0.1")   
     parser.add_argument("--res", type=int, default=1280, help="Resolution of the image")
+    parser.add_argument("--lora_weight", type=str, default=1.0, help="weight of the LoRA")
 
 
     args = parser.parse_args()
 
     # # Example usage of the ImageModelSDXL class with command-line arguments
-    # if args.pose_path is None or args.mask_path is None:
-    #     args.pose_path, args.mask_path = ImageModelSDXL.generate_image_extras(args.image_path,inv=True)
 
     image_model = ImageModelSDXL(
         args.image_path, 
@@ -237,8 +260,9 @@ if __name__ == "__main__":
         LoRA=args.LoRA
     )
 
-    image_model.prepare_model()
-    if args.benchmark==None:
+    
+    if args.benchmark==False:
+        image_model.prepare_model()
         image_model.prepare_image(args.image_path, args.pose_path,args.mask_path)
         generated_image, generated_image_path = image_model.generate_image()
         # generated_image = image_model.upscale_image(generated_image)  ## will explode the VRAM at this point, need to unload pipe1 or run in series
