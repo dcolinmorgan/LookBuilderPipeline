@@ -11,11 +11,11 @@ from .base import Base
 class User(Base):
     __tablename__ = 'users'
 
-    user_id: Mapped[int] = Column(Integer, primary_key=True)
-    email: Mapped[str] = Column(String(255), unique=True, nullable=False)
-    password_hash: Mapped[str] = Column(String(255), nullable=False)
-    created_at: Mapped[DateTime] = Column(DateTime, server_default=func.now())
-    updated_at: Mapped[DateTime] = Column(DateTime, onupdate=func.now())
+    id = Column(Integer, primary_key=True)
+    email = Column(String)
+    password_hash = Column(String)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
 
     # Relationships
     images: Mapped[List["Image"]] = relationship("Image", back_populates="user")
@@ -26,7 +26,21 @@ class User(Base):
     )
 
     def __repr__(self):
-        return f"<User(id={self.user_id}, email={self.email})>"
+        return f"<User(id={self.id}, email={self.email})>"
+        
+    @classmethod
+    def get_by_email(cls, email):
+        """Get a user by their email"""
+        from LookBuilderPipeline.manager.db_manager import DBManager
+        
+        db_manager = DBManager()
+        with db_manager.get_session() as session:
+            try:
+                return db_manager.get_user(session, email=email)
+            except Exception as e:
+                logging.error(f"Error in get_by_email: {str(e)}")
+                raise
+
 
     def check_password(self, password: str) -> bool:
         """

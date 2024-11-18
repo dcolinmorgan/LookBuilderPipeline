@@ -37,26 +37,28 @@ def setup_relationships():
     User.images = relationship(
         "Image",
         back_populates="user",
+        primaryjoin="Image.user_id == User.id",
         lazy="dynamic"
     )
 
     Image.user = relationship(
         "User",
-        back_populates="images"
+        back_populates="images",
+        primaryjoin="Image.user_id == User.id"
     )
 
     # Look relationships with explicit join conditions
     Look.user = relationship(
         "User",
         back_populates="looks",
-        primaryjoin="Look.user_id == User.user_id"
+        primaryjoin="Look.user_id == User.id"
     )
     
     User.looks = relationship(
         "Look",
         back_populates="user",
-        primaryjoin="Look.user_id == User.user_id",
-        cascade="all, delete-orphan"
+        primaryjoin="Look.user_id == User.id",
+        cascade="all, delete"
     )
 
     # Image-Look relationships

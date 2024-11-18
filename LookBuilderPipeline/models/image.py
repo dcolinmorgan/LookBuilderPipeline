@@ -1,8 +1,13 @@
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, Float, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Boolean, cast, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import Float, Boolean
 from datetime import datetime
 from .base import Base
+from .image_variant import ImageVariant
+from LookBuilderPipeline.models.process_queue import ProcessQueue
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql import func
+from typing import Optional
 import logging
 
 class Image(Base):
@@ -10,8 +15,12 @@ class Image(Base):
 
     image_id = Column(Integer, primary_key=True)
     image_oid = Column(Integer)
-    user_id = Column(Integer, ForeignKey('users.user_id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
     created_at = Column(DateTime, default=datetime.now)
+
+    image_type = Column(String(10), nullable=False)  
+    updated_at = Column(DateTime) 
+    processed = Column(Boolean, default=False)  
 
     def get_image_data(self, session):
         """Get the image data from the large object storage."""
@@ -54,9 +63,11 @@ class Image(Base):
                 ImageVariant.parameters['square'].astext.cast(Boolean) == square
             ]
         elif variant_type == 'pose':
-            face = kwargs.get('face',True)
+            face = kwargs.get('face', True)
             filter_conditions = [
-                ImageVariant.parameters['face'].astext.cast(Integer) == face,
+                ImageVariant.variant_type == 'pose',
+                ImageVariant.source_image_id == self.image_id,
+                ImageVariant.parameters['face'].astext.cast(Boolean) == face
             ]
         elif variant_type == 'segment':
             inverse = kwargs.get('inverse', True)
@@ -87,14 +98,62 @@ class Image(Base):
         image_data = self.get_image_data(session)
         if not image_data:
             raise ValueError(f"Image {self.image_id} has no data")
-        process = session.query(ProcessQueue).get(data['process_id'])
+        
+        # Fix the process query - check if process_id exists first
+        process_id = kwargs.get('process_id')
+        process = None
+        if process_id is not None:
+            process = session.query(ProcessQueue).filter(ProcessQueue.process_id == process_id).first()
+
         # Import the appropriate function based on variant type
         if variant_type == 'resize':
             from LookBuilderPipeline.resize import resize_images
             resized_image = resize_images(image_data, kwargs['size'], aspect_ratio, square)
         elif variant_type == 'pose':
-            from LookBuilderPipeline.pose import detect_pose
-            resized_image = detect_pose(image_data)
+            from dwpose import DwposeDetector
+            import tempfile
+            from PIL import Image
+            import io
+
+            # Create a temporary file to save the image data
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+                temp_path = temp_file.name
+                # Convert image_data to PIL Image and save it
+                image = Image.open(io.BytesIO(image_data))
+                image.save(temp_path)
+                
+            try:
+                # Create instance and detect pose
+                model = DwposeDetector.from_pretrained_default()
+                pose_image, json_data, source = model(image, 
+                    include_hand=True,
+                    include_face=True,
+                    include_body=True,
+                    image_and_json=True)
+                    
+                # Convert pose_image back to bytes for storage
+                img_byte_arr = io.BytesIO()
+                pose_image.save(img_byte_arr, format='PNG')
+                pose_image_bytes = img_byte_arr.getvalue()
+                
+                # Create new variant and store in database
+                variant = ImageVariant(
+                    source_image_id=self.image_id,
+                    variant_type='pose',
+                    parameters={'face': kwargs.get('face', True)},
+                    processed=True
+                )
+                session.add(variant)
+                session.flush()  # Get the variant_id
+                
+                # Store the image data using create_lobject
+                variant.variant_oid = self.db_manager.create_lobject(session, pose_image_bytes)
+                
+                return variant
+                
+            finally:
+                import os
+                os.unlink(temp_path)  # Clean up the temporary file
         elif variant_type == 'segment':
             from LookBuilderPipeline.segment import segment_image
             resized_image = segment_image(image_data, inverse=kwargs.get('inverse', False))
@@ -102,11 +161,19 @@ class Image(Base):
             if process.parameters.get('pipe') == 'sdxl':
                 from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
                 self.ImageModelSDXL.prepare_model()
-                self.ImageModelSDXL.prepare_image(full_data.keys(['image_path','pose_path','mask_path']))
+                self.ImageModelSDXL.prepare_image({
+                    'image_path': kwargs.get('image_path'),
+                    'pose_path': kwargs.get('pose_path'),
+                    'mask_path': kwargs.get('mask_path')
+                })
             elif process.parameters.get('pipe') == 'flux':
                 from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
                 self.ImageModelFlux.prepare_model()
-                self.ImageModelFlux.prepare_image(full_data.keys(['image_path','pose_path','mask_path']))
+                self.ImageModelFlux.prepare_image({
+                    'image_path': kwargs.get('image_path'),
+                    'pose_path': kwargs.get('pose_path'),
+                    'mask_path': kwargs.get('mask_path')
+                })
         elif variant_type == 'runpipe':
             if process.parameters.get('pipe') == 'sdxl':
                 from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
@@ -150,10 +217,10 @@ class Image(Base):
         """Get or create a resize variant."""
         return self.get_variant(session, 'resize', size=size, aspect_ratio=aspect_ratio, square=square)
 
-    def get_or_create_pose_variant(self, session, face: bool):
-        """Get or create a pose variant."""
+    def get_or_create_pose_variant(self, session, face=True):
+        """Get or create a pose variant for the image."""
         return self.get_variant(session, 'pose', face=face)
-    
+
     def get_or_create_segment_variant(self, session, inverse: bool):
         """Get or create a segment variant."""
         return self.get_variant(session, 'segment', inverse=inverse)

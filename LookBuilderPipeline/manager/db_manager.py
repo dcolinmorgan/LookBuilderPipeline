@@ -5,6 +5,9 @@ from sqlalchemy.orm import sessionmaker
 import os
 from typing import Optional
 from ..models.user import User
+from contextlib import contextmanager
+import logging
+from sqlalchemy.orm import joinedload
 
 class DBManager:
     def __init__(self):
@@ -17,9 +20,42 @@ class DBManager:
         self.engine = create_engine(self.db_url)
         self.Session = sessionmaker(bind=self.engine)
 
+         # Initialize other attributes
+        self.channels = []
+        self.should_listen = True
+        self.conn = None
+        self.notification_queue = None
+
+    @contextmanager
     def get_session(self):
-        """Get a SQLAlchemy session."""
-        return self.Session()
+        """Provide a transactional scope around a series of operations."""
+        session = self.Session()
+        try:
+            yield session
+            session.commit()
+        except Exception as e:
+            logging.error(f"Database session error: {str(e)}")
+            session.rollback()
+            raise
+        finally:
+            try:
+                # Ensure connection is valid
+                session.execute('SELECT 1')
+                session.close()
+            except Exception:
+                # If connection is invalid, remove it from pool
+                session.bind.dispose()
+                session.close()
+
+    def safe_commit(self, session):
+        """Safely commit changes with error handling."""
+        try:
+            session.commit()
+            return True
+        except Exception as e:
+            logging.error(f"Commit error: {str(e)}")
+            session.rollback()
+            return False
 
     def get_connection(self):
         """Get a raw psycopg2 connection for LISTEN/NOTIFY."""
@@ -37,33 +73,37 @@ class DBManager:
             'port': os.getenv('DB_PORT', '5432')
         }
     
-    def get_user(self, session, user_id: Optional[int] = None, email: Optional[str] = None) -> Optional[User]:
+    def get_user(self, session, user_id: Optional[int] = None, email: Optional[str] = None) -> Optional[dict]:
         """
         Get a user by ID or email.
-        
-        Args:
-            session: SQLAlchemy session
-            user_id (Optional[int]): User ID to look up
-            email (Optional[str]): User email to look up
-            
-        Returns:
-            Optional[User]: User object if found, None otherwise
-            
-        Raises:
-            ValueError: If neither user_id nor email is provided
+        Returns a dictionary with user data.
         """
         if user_id is None and email is None:
             raise ValueError("Must provide either user_id or email")
             
-        query = session.query(User)
+        print(f"DBMANAGER : Getting user with user_id: {user_id} and email: {email}")
         
-        if user_id is not None:
-            return query.get(user_id)
-            
-        if email is not None:
-            return query.filter(User.email == email).first()
-            
-        return None
+        try:
+            query = session.query(User)
+            if user_id is not None:
+                user = query.get(user_id)
+            else:
+                user = query.filter(User.email == email).first()
+                
+            if user:
+                # Create a dictionary of user data while session is still open
+                return {
+                    'id': user.id,
+                    'email': user.email,
+                    'password_hash': user.password_hash,
+                    'created_at': user.created_at,
+                    'updated_at': user.updated_at
+                }
+            return None
+                
+        except Exception as e:
+            logging.error(f"Error getting user: {str(e)}")
+            raise
     
     
         

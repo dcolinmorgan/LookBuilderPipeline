@@ -155,8 +155,23 @@ class NotificationManager:
             raise
 
     def handle_notification(self, channel, data):
-        """Handle a specific notification. To be implemented by subclasses."""
-        raise NotImplementedError
+        """Handle notifications with proper error recovery."""
+        logging.info(f"Received notification: channel={channel}, data={data}")
+        
+        if channel in self.channels:
+            try:
+                process = self.db_manager.get_process(data['process_id'])
+                if process and process.parameters:
+                    with self.db_manager.get_session() as session:
+                        return self.process_item(process, session)
+                else:
+                    logging.error(f"Process {data['process_id']} not found or has no parameters")
+            except Exception as e:
+                logging.error(f"Error handling notification: {str(e)}")
+            finally:
+                # Ensure connection pool is clean
+                self.db_manager.engine.dispose()
+        return None
 
     def process_existing_queue(self):
         """Process one item at a time, checking for more after each completion."""
@@ -199,7 +214,7 @@ class NotificationManager:
         raise NotImplementedError
 
     def stop(self):
-        """Stop the notification LookBuilderPipeline.manager."""
+        """Stop the notification manager."""
         logging.info("Stopping NotificationManager...")
         self.should_listen = False
         
@@ -276,16 +291,14 @@ class NotificationManager:
     @contextmanager
     def get_managed_session(self):
         """Context manager for database sessions with error handling."""
-        session = self.db_manager.get_session()
-        try:
-            yield session
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            logging.error(f"Database session error: {str(e)}")
-            raise
-        finally:
-            session.close()
+        with self.db_manager.get_session() as session:
+            try:
+                yield session
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                logging.error(f"Database session error: {str(e)}")
+                raise
 
     def handle_process_error(self, process_id, error, status='error'):
         """Common error handling for process updates."""
@@ -338,4 +351,3 @@ class NotificationManager:
             # Implementation depends on your database setup
             # For testing, we'll just return a mock OID
             return 12345
-

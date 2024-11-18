@@ -20,22 +20,28 @@ class PoseNotificationManager(NotificationManager):
         """Handle pose notifications."""
         logging.info(f"PoseNotificationManager received: channel={channel}, data={data}")
         if channel == 'image_pose':
-            # Get the full process data from ProcessQueue
-            with self.get_managed_session() as session:
-                process = session.query(ProcessQueue).get(data['process_id'])
-                if process and process.parameters:
-                    # Merge the notification data with process parameters
-                    full_data = {
-                        'process_id': data['process_id'],
-                        'image_id': data['image_id'],
-                        'face': process.parameters.get('face')
-                    }
-                    logging.info(f"Processing pose with parameters: {full_data}")
-                    return self.process_pose(full_data)
-                else:
-                    logging.error(f"Process {data['process_id']} not found or has no parameters")
-            return None
-        logging.warning(f"PoseNotificationManager received unexpected channel: {channel}")
+            try:
+                with self.get_managed_session() as session:
+                    try:
+                        process = session.query(ProcessQueue).get(data['process_id'])
+                        if process and process.parameters:
+                            full_data = {
+                                'process_id': data['process_id'],
+                                'image_id': data['image_id'],
+                                'face': process.parameters.get('face')
+                            }
+                            logging.info(f"Processing pose with parameters: {full_data}")
+                            return self.process_pose(full_data, session)
+                        else:
+                            logging.error(f"Process {data['process_id']} not found or has no parameters")
+                            session.rollback()  # Explicitly rollback on error
+                    except Exception as e:
+                        logging.error(f"Database error in handle_notification: {str(e)}")
+                        session.rollback()  # Explicitly rollback on error
+                        raise
+            except Exception as e:
+                logging.error(f"Session error in handle_notification: {str(e)}")
+                return None
         return None
 
     def process_item(self, pose):
@@ -46,63 +52,33 @@ class PoseNotificationManager(NotificationManager):
             'face': pose.parameters.get('face')
         })
 
-    def process_pose(self, pose_data):
-        """Process a pose notification through its stages."""
-        validated_data = self.validate_process_data(pose_data)
-        process_id = validated_data['process_id']
-        
-        def execute_pose_process(session):
-            # Get the image
+    def process_pose(self, pose_data, session):
+        """Process pose with explicit session management."""
+        try:
+            validated_data = self.validate_process_data(pose_data)
+            process_id = validated_data['process_id']
+            
             image = session.query(Image).get(validated_data['image_id'])
             if not image:
-                error_msg = (
-                    f"Image {validated_data['image_id']} not found in database. "
-                    f"Please ensure the image was properly uploaded and exists in the database."
-                )
-                logging.error(error_msg)
-                self.mark_process_error(session, process_id, error_msg)
+                self.mark_process_error(session, process_id, "Image not found")
                 return None
 
-            # Check if image has data
-            image_data = image.get_image_data(session)
-            if not image_data:
-                error_msg = (
-                    f"Image {validated_data['image_id']} exists but has no data. "
-                    f"This could be due to an incomplete upload or data corruption. "
-                    f"Try re-uploading the image."
-                )
-                logging.error(error_msg)
-                self.mark_process_error(session, process_id, error_msg)
-                return None
-
-            try:
-                variant = image.get_or_create_pose_variant(
-                    session,
-                    face=validated_data['face']
-                )
-                
-                if not variant:
-                    error_msg = (
-                        f"Failed to create pose variant for image {validated_data['image_id']}. "
-                        f"The pose operation completed but returned no variant. "
-                        f"This might indicate an issue with the image processing."
-                    )
-                    logging.error(error_msg)
-                    self.mark_process_error(session, process_id, error_msg)
-                    return None
-                    
+            variant = image.get_or_create_pose_variant(
+                session, 
+                face=validated_data['face']
+            )
+            
+            if variant:
                 return variant.id
-                
-            except Exception as e:
-                error_msg = (
-                    f"Error creating pose variant: {str(e)}. "
-                    f"This could be due to invalid image data or insufficient system resources."
-                )
-                logging.error(error_msg)
-                self.mark_process_error(session, process_id, error_msg)
+            else:
+                self.mark_process_error(session, process_id, "Failed to create variant")
                 return None
-        
-        return self.process_with_error_handling(process_id, execute_pose_process)
+                
+        except Exception as e:
+            logging.error(f"Error in process_pose: {str(e)}")
+            if 'process_id' in locals():
+                self.mark_process_error(session, process_id, str(e))
+            raise
 
     def mark_process_error(self, session, process_id, error_message):
         """Mark a process as error with an error message."""
