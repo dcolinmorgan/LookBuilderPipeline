@@ -9,6 +9,9 @@ from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import func
 from typing import Optional
 import logging
+import numpy as np
+import os
+import cv2
 
 class Image(Base):
     __tablename__ = 'images'
@@ -21,6 +24,46 @@ class Image(Base):
     image_type = Column(String(10), nullable=False)  
     updated_at = Column(DateTime) 
     processed = Column(Boolean, default=False)  
+
+    # Use string reference for User
+    user = relationship("User", back_populates="images")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def get_db_manager(self):
+        from LookBuilderPipeline.manager.db_manager import DBManager
+        return DBManager()
+
+    @classmethod
+    def get_by_id(cls, image_id: int):
+        """Get an image by its ID"""
+        db_manager = DBManager()
+        with db_manager.get_session() as session:
+            image = session.query(cls).get(image_id)
+            if image:
+                session.expunge(image)
+            return image
+
+    def save(self):
+        """Save the image to the database"""
+        db_manager = self.get_db_manager()
+        with db_manager.get_session() as session:
+            session.add(self)
+            session.flush()
+            image_id = self.image_id
+            session.expunge(self)
+            return image_id
+
+    def update(self, **kwargs):
+        """Update image attributes"""
+        db_manager = self.get_db_manager()
+        with db_manager.get_session() as session:
+            session.add(self)
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+            session.flush()
+            session.expunge(self)
 
     def get_image_data(self, session):
         """Get the image data from the large object storage."""
@@ -114,62 +157,104 @@ class Image(Base):
             import tempfile
             from PIL import Image
             import io
+            import torch
+            import logging
+            import numpy as np
+            import os
 
-            # Create a temporary file to save the image data
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
-                temp_path = temp_file.name
-                # Convert image_data to PIL Image and save it
-                image = Image.open(io.BytesIO(image_data))
-                image.save(temp_path)
-                
             try:
-                # Create instance and detect pose
+                logging.info(f"Starting pose detection for image {self.image_id}")
+                
+                # Convert bytes to numpy array using cv2
+                nparr = np.frombuffer(image_data, np.uint8)
+                image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                logging.info(f"Loaded source image with shape: {image.shape}")
+                
+                logging.info(f"Loading DWPose model...")
                 model = DwposeDetector.from_pretrained_default()
-                pose_image, json_data, source = model(image, 
+                logging.info(f"Model loaded successfully")
+                
+                logging.info(f"Running pose detection...")
+                # Pass the numpy array directly to the model
+                pose_image, json_data, source = model(image,
                     include_hand=True,
-                    include_face=True,
+                    include_face=kwargs.get('face', True),
                     include_body=True,
                     image_and_json=True)
-                    
-                # Convert pose_image back to bytes for storage
+                
+                logging.info(f"Pose detection completed. Pose image type: {type(pose_image)}")
+                
+                # Save the pose image to a debug file
+                debug_output_dir = 'debug_poses'
+                os.makedirs(debug_output_dir, exist_ok=True)
+                debug_path = os.path.join(debug_output_dir, f'pose_debug_{self.image_id}.png')
+                
+                # Convert numpy array to PIL Image if necessary
+                if isinstance(pose_image, np.ndarray):
+                    logging.info("Converting numpy array to PIL Image")
+                    # Convert BGR to RGB if necessary
+                    if pose_image.shape[2] == 3:
+                        pose_image = cv2.cvtColor(pose_image, cv2.COLOR_BGR2RGB)
+                
+                # Save debug image
+                pose_image.save(debug_path)
+                logging.info(f"Saved debug pose image to: {debug_path}")
+                
+                # Convert to bytes for database storage
                 img_byte_arr = io.BytesIO()
                 pose_image.save(img_byte_arr, format='PNG')
                 pose_image_bytes = img_byte_arr.getvalue()
                 
-                # Create new variant and store in database
+                # Create and store variant
                 variant = ImageVariant(
                     source_image_id=self.image_id,
                     variant_type='pose',
-                    parameters={'face': kwargs.get('face', True)},
+                    parameters={
+                        'face': kwargs.get('face', True),
+                        'pose_data': json_data  # Store the pose data for later use
+                    },
                     processed=True
                 )
                 session.add(variant)
-                session.flush()  # Get the variant_id
+                session.flush()
                 
-                # Store the image data using create_lobject
-                variant.variant_oid = self.db_manager.create_lobject(session, pose_image_bytes)
+                # Store the image using lobject
+                lob = session.connection().connection.lobject(mode='wb')
+                lob.write(pose_image_bytes)
+                variant.variant_oid = lob.oid
+                lob.close()
                 
+                logging.info(f"Successfully created pose variant for image {self.image_id}")
                 return variant
                 
+            except Exception as e:
+                logging.error(f"Error in pose detection: {str(e)}", exc_info=True)
+                raise
             finally:
-                import os
-                os.unlink(temp_path)  # Clean up the temporary file
+                if 'temp_path' in locals():
+                    import os
+                    try:
+                        os.unlink(temp_path)
+                    except Exception as e:
+                        logging.error(f"Error cleaning up temp file: {str(e)}")
         elif variant_type == 'segment':
             from LookBuilderPipeline.segment import segment_image
             resized_image = segment_image(image_data, inverse=kwargs.get('inverse', False))
         elif variant_type == 'loadpipe':
             if process.parameters.get('pipe') == 'sdxl':
                 from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
-                self.ImageModelSDXL.prepare_model()
-                self.ImageModelSDXL.prepare_image({
+                model = ImageModelSDXL()  # Create instance
+                model.prepare_model()
+                model.prepare_image({
                     'image_path': kwargs.get('image_path'),
                     'pose_path': kwargs.get('pose_path'),
                     'mask_path': kwargs.get('mask_path')
                 })
             elif process.parameters.get('pipe') == 'flux':
                 from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
-                self.ImageModelFlux.prepare_model()
-                self.ImageModelFlux.prepare_image({
+                model = ImageModelFlux()  # Create instance
+                model.prepare_model()
+                model.prepare_image({
                     'image_path': kwargs.get('image_path'),
                     'pose_path': kwargs.get('pose_path'),
                     'mask_path': kwargs.get('mask_path')
@@ -229,7 +314,7 @@ class Image(Base):
         """Load pipe variant."""
         return self.get_variant(session, 'loadpipe', model=model)
     
-    def run_pipe_variant(self, session, model: str):
+    def run_pipe_variant(self, session, model: str, prompt: str):
         """Runpipe variant."""
         return self.get_variant(session, 'runpipe', model=model, prompt=prompt)
 

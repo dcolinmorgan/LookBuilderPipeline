@@ -65,3 +65,5 @@ ENV/
 # Local Config files
 *.env
 *.local
+
+*.DS_Store

@@ -73,33 +73,20 @@ class DBManager:
             'port': os.getenv('DB_PORT', '5432')
         }
     
-    def get_user(self, session, user_id: Optional[int] = None, email: Optional[str] = None) -> Optional[dict]:
+    def get_user(self, session, user_id: Optional[int] = None, email: Optional[str] = None) -> Optional[User]:
         """
         Get a user by ID or email.
-        Returns a dictionary with user data.
+        Returns a User object.
         """
         if user_id is None and email is None:
             raise ValueError("Must provide either user_id or email")
-            
-        print(f"DBMANAGER : Getting user with user_id: {user_id} and email: {email}")
         
         try:
             query = session.query(User)
             if user_id is not None:
-                user = query.get(user_id)
+                return query.get(user_id)
             else:
-                user = query.filter(User.email == email).first()
-                
-            if user:
-                # Create a dictionary of user data while session is still open
-                return {
-                    'id': user.id,
-                    'email': user.email,
-                    'password_hash': user.password_hash,
-                    'created_at': user.created_at,
-                    'updated_at': user.updated_at
-                }
-            return None
+                return query.filter(User.email == email).first()
                 
         except Exception as e:
             logging.error(f"Error getting user: {str(e)}")
