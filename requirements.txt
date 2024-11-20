@@ -16,7 +16,7 @@ cycler==0.12.1
 debugpy==1.8.7
 decorator==5.1.1
 # diffusers @ git+https://github.com/huggingface/diffusers.git@13e8fdecda91e27e40b15fa8a8f456ade773e6eb
-dwpose==1.0.1
+# dwpose==1.0.1
 einops==0.8.0
 executing==2.1.0
 filelock==3.16.1
@@ -92,7 +92,7 @@ safetensors==0.4.5
 scikit-image==0.24.0
 scipy==1.14.1
 # sd_embed @ git+https://github.com/xhinker/sd_embed.git@f2a2c135f398055e0cdbe34b80dd1dd08d59acc6
-sentencepiece==0.2.0
+# sentencepiece==0.2.0
 setuptools==75.3.0
 six==1.16.0
 sounddevice==0.5.1
