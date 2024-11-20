@@ -11,7 +11,7 @@ class RunPipeNotificationManager(NotificationManager):
     
     def __init__(self):
         super().__init__()
-        self.channels = ['gen_image]
+        self.channels = ['gen_image']
         self.required_fields = ['process_id', 'image_id', 'prompt']
         logging.info(f"LoadPipelineNotificationManager listening on channels: {self.channels}")
 
