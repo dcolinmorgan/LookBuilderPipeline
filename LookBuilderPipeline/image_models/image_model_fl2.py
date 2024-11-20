@@ -7,7 +7,7 @@ from diffusers.utils import load_image
 from transformers import pipeline 
 import torch.nn as nn
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
-from LookBuilderPipeline.resize import resize_images
+from LookBuilderPipeline.utils.resize import resize_images
 from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
 
 # Import required components from diffusers

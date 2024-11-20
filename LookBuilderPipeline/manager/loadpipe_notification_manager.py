@@ -1,138 +1,70 @@
+from datetime import datetime
 import logging
 from LookBuilderPipeline.manager.notification_manager import NotificationManager
 from LookBuilderPipeline.models.process_queue import ProcessQueue
-
-from PIL import Image
-from io import BytesIO
-from LookBuilderPipeline.models.image_variant import ImageVariant
 from LookBuilderPipeline.models.image import Image
-import select
+from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
+from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux 
 
 class LoadPipeNotificationManager(NotificationManager):
+    """Handles image load pipeline operations."""
+    
     def __init__(self):
         super().__init__()
-        logging.info("Initializing LoadPipeNotificationManager")
-        self.channels = ['loadpipe']
-        logging.info(f"LoadPipeNotificationManager listening on channels: {self.channels}")
-        self.required_fields = ['process_id', 'image_id', 'pipe']
+        self.channels = ['load_pipeline']
+        self.required_fields = ['process_id', 'image_id', 'model_type']
+        logging.info(f"LoadPipelineNotificationManager listening on channels: {self.channels}")
+
+    def process_item(self, load_request):
+        """Process a single load request."""
+        return self.process_load({
+            'process_id': load_request.process_id,
+            'image_id': load_request.image_id,
+            'model_type': load_request.parameters.get('model_type', 'sdxl')
+        })
+
+    def process_load(self, load_data):
+        """Process a load request through its stages."""
+        logging.info(f"Processing load request: {load_data}")
+        
+        try:
+            validated_data = self.validate_process_data(load_data)
+            process_id = validated_data['process_id']
+            
+            def execute_load_process(session):
+                # Get the image from database
+                image = session.query(Image).get(validated_data['image_id'])
+                if not image:
+                    raise ValueError(f"Image {validated_data['image_id']} not found")
+
+                # Initialize appropriate model
+                model_type = validated_data['model_type'].lower()
+                if model_type == 'sdxl':
+                    self.model = ImageModelSDXL.prepare_model()
+                elif model_type == 'flux':
+                    self.model = ImageModelFlux.prepare_model()
+                else:
+                    raise ValueError(f"Unsupported model type: {model_type}")
+                
+                self.model.prepare_image(self.image.id, self.pose_variant.id, self.segment_variant.id)
+                
+                if not self.model:
+                    raise ValueError("Failed to create loadpipe variant")
+                    
+                return variant.id
+            
+            return self.process_with_error_handling(process_id, execute_load_process)
+            
+        except Exception as e:
+            logging.error(f"Error processing loadpipe: {str(e)}", exc_info=True)
+            raise
 
     def handle_notification(self, channel, data):
         """Handle loadpipe notifications."""
-        logging.info(f"LoadPipeNotificationManager received: channel={channel}, data={data}")
-        if channel == 'loadpipe':
-            # Get the full process data from ProcessQueue
-            with self.get_managed_session() as session:
-                process = session.query(ProcessQueue).get(data['process_id'])
-                if process and process.parameters:
-                    # Merge the notification data with process parameters
-                    full_data = {
-                        'process_id': data['process_id'],
-                        'image_id': data['image_id'],
-                        'pipe': process.parameters.get('pipe'),
-                    }
-                    logging.info(f"Processing loadpipe with parameters: {full_data}")
-                    # if process.parameters.get('pipe') == 'sdxl':
-                    #     from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
-                    #     self.ImageModelSDXL.prepare_model()
-                    #     self.ImageModelSDXL.prepare_image(full_data.keys(['image_path','pose_path','mask_path']))
-                    # elif process.parameters.get('pipe') == 'flux':
-                    #     from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
-                    #     self.ImageModelFlux.prepare_model()
-                    #     self.ImageModelFlux.prepare_image(full_data.keys(['image_path','pose_path','mask_path']))
-                    
-                else:
-                    logging.error(f"Process {data['process_id']} not found or has no parameters")
-            return None
-        logging.warning(f"LoadPipeNotificationManager received unexpected channel: {channel}")
+        logging.info(f"LoadPipelineNotificationManager received: channel={channel}, data={data}")
+        
+        if channel == 'load_pipe':
+            return self.process_load(data)
+            
+        logging.warning(f"Unexpected channel: {channel}")
         return None
-
-    def process_item(self, loadpipe):
-        """Process a single loadpipe notification."""
-        return self.process_loadpipe({
-            'process_id': loadpipe.process_id,
-            'image_id': loadpipe.image_id,
-            'pipe': loadpipe.parameters.get('pipe'),
-        })
-
-    def process_loadpipe(self, loadpipe_data):
-        """Process a loadpipe notification through its stages."""
-        validated_data = self.validate_process_data(loadpipe_data)
-        process_id = validated_data['process_id']
-        
-        def execute_loadpipe_process(session):
-            # Get the image
-            image = session.query(Image).get(validated_data['image_id'])
-            if not image:
-                error_msg = (
-                    f"Image {validated_data['image_id']} not found in database. "
-                    f"Please ensure the image was properly uploaded and exists in the database."
-                )
-                logging.error(error_msg)
-                self.mark_process_error(session, process_id, error_msg)
-                return None
-
-            # Check if image has data
-            image_data = image.get_image_data(session)
-            if not image_data:
-                error_msg = (
-                    f"Image {validated_data['image_id']} exists but has no data. "
-                    f"This could be due to an incomplete upload or data corruption. "
-                    f"Try re-uploading the image."
-                )
-                logging.error(error_msg)
-                self.mark_process_error(session, process_id, error_msg)
-                return None
-
-            try:
-                variant = image.load_pipe_variant(
-                    session,
-                    model=validated_data['pipe']
-                )
-                
-                if not variant:
-                    error_msg = (
-                        f"Failed to create loadpipe variant for image {validated_data['image_id']}. "
-                        f"The loadpipe operation completed but returned no variant. "
-                        f"This might indicate an issue with the image processing."
-                    )
-                    logging.error(error_msg)
-                    self.mark_process_error(session, process_id, error_msg)
-                    return None
-                    
-                return variant.id
-                
-            except Exception as e:
-                error_msg = (
-                    f"Error creating loadpipe variant: {str(e)}. "
-                    f"This could be due to invalid image data or insufficient system resources."
-                )
-                logging.error(error_msg)
-                self.mark_process_error(session, process_id, error_msg)
-                return None
-        
-        return self.process_with_error_handling(process_id, execute_loadpipe_process)
-
-    def mark_process_error(self, session, process_id, error_message):
-        """Mark a process as error with an error message."""
-        process = session.query(ProcessQueue).get(process_id)
-        if process:
-            process.status = 'error'
-            process.error_message = error_message
-            session.commit()
-
-    def _listen_for_notifications(self):
-        """Override parent method to add more logging"""
-        logging.info("Starting loadpipe notification listener thread")
-        
-        while self.should_listen:
-            try:
-                if select.select([self.conn], [], [], 1.0)[0]:
-                    self.conn.poll()
-                    while self.conn.notifies:
-                        notify = self.conn.notifies.pop()
-                        logging.info(f"loadpipe raw notification received: {notify}")
-                        self.notification_queue.put((notify.channel, notify.payload))
-                        logging.info(f"loadpipe notification added to queue: {notify.channel}")
-            except Exception as e:
-                logging.error(f"Error in loadpipe notification listener: {str(e)}")
-                self._handle_connection_error()

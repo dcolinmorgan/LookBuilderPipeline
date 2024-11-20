@@ -1,106 +1,69 @@
+from datetime import datetime
 import logging
 from LookBuilderPipeline.manager.notification_manager import NotificationManager
 from LookBuilderPipeline.models.process_queue import ProcessQueue
-from LookBuilderPipeline.pose import detect_pose as image_pose
-from PIL import Image
-from io import BytesIO
-from LookBuilderPipeline.models.image_variant import ImageVariant
 from LookBuilderPipeline.models.image import Image
-import select
+from LookBuilderPipeline.pose import detect_pose
 
 class PoseNotificationManager(NotificationManager):
+    """Handles image pose operations."""
+    
     def __init__(self):
         super().__init__()
-        logging.info("Initializing PoseNotificationManager")
-        self.channels = ['image_pose']
+        self.channels = ['pose_image']
+        self.required_fields = ['process_id', 'image_id', 'target_size']
         logging.info(f"PoseNotificationManager listening on channels: {self.channels}")
-        self.required_fields = ['process_id', 'image_id', 'face']
 
-    def handle_notification(self, channel, data):
-        """Handle pose notifications."""
-        logging.info(f"PoseNotificationManager received: channel={channel}, data={data}")
-        if channel == 'image_pose':
-            try:
-                with self.get_managed_session() as session:
-                    try:
-                        process = session.query(ProcessQueue).get(data['process_id'])
-                        if process and process.parameters:
-                            full_data = {
-                                'process_id': data['process_id'],
-                                'image_id': data['image_id'],
-                                'face': process.parameters.get('face')
-                            }
-                            logging.info(f"Processing pose with parameters: {full_data}")
-                            return self.process_pose(full_data, session)
-                        else:
-                            logging.error(f"Process {data['process_id']} not found or has no parameters")
-                            session.rollback()  # Explicitly rollback on error
-                    except Exception as e:
-                        logging.error(f"Database error in handle_notification: {str(e)}")
-                        session.rollback()  # Explicitly rollback on error
-                        raise
-            except Exception as e:
-                logging.error(f"Session error in handle_notification: {str(e)}")
-                return None
-        return None
-
-    def process_item(self, pose):
-        """Process a single pose notification."""
+    def process_item(self, pose_request):
+        """Process a single pose request."""
         return self.process_pose({
-            'process_id': pose.process_id,
-            'image_id': pose.image_id,
-            'face': pose.parameters.get('face')
+            'process_id': pose_request.process_id,
+            'image_id': pose_request.image_id,
+            'face': pose_request.parameters.get('face', True)
         })
 
-    def process_pose(self, pose_data, session):
-        """Process pose with explicit session management."""
+    def process_pose(self, pose_data):
+        """Process a pose request through its stages."""
+        logging.info(f"Processing pose request: {pose_data}")
+        
         try:
             validated_data = self.validate_process_data(pose_data)
             process_id = validated_data['process_id']
             
-            image = session.query(Image).get(validated_data['image_id'])
-            if not image:
-                self.mark_process_error(session, process_id, "Image not found")
-                return None
+            def execute_pose_process(session):
+                # Get the image from database
+                image = session.query(Image).get(validated_data['image_id'])
+                if not image:
+                    raise ValueError(f"Image {validated_data['image_id']} not found")
 
-            variant = image.get_or_create_pose_variant(
-                session, 
-                face=validated_data['face']
-            )
-            
-            if variant:
-                return variant.id
-            else:
-                self.mark_process_error(session, process_id, "Failed to create variant")
-                return None
+                # Get image data
+                image_data = image.get_image_data(session)
+                if not image_data:
+                    raise ValueError("No image data found")
+
+                # Process the pose using detect_pose function
+                self.pose_variant = detect_pose(
+                    image_data,
+                    face=validated_data.get('face', True)
+                )
                 
+                if not self.pose_variant:
+                    raise ValueError("Failed to create pose variant")
+                    
+                return self.pose_variant.id
+            
+            return self.process_with_error_handling(process_id, execute_pose_process)
+            
         except Exception as e:
-            logging.error(f"Error in process_pose: {str(e)}")
-            if 'process_id' in locals():
-                self.mark_process_error(session, process_id, str(e))
+            logging.error(f"Error processing pose: {str(e)}", exc_info=True)
             raise
 
-    def mark_process_error(self, session, process_id, error_message):
-        """Mark a process as error with an error message."""
-        process = session.query(ProcessQueue).get(process_id)
-        if process:
-            process.status = 'error'
-            process.error_message = error_message
-            session.commit()
-
-    def _listen_for_notifications(self):
-        """Override parent method to add more logging"""
-        logging.info("Starting pose notification listener thread")
+    def handle_notification(self, channel, data):
+        """Handle pose notifications."""
+        logging.info(f"PoseNotificationManager received: channel={channel}, data={data}")
         
-        while self.should_listen:
-            try:
-                if select.select([self.conn], [], [], 1.0)[0]:
-                    self.conn.poll()
-                    while self.conn.notifies:
-                        notify = self.conn.notifies.pop()
-                        logging.info(f"pose raw notification received: {notify}")
-                        self.notification_queue.put((notify.channel, notify.payload))
-                        logging.info(f"pose notification added to queue: {notify.channel}")
-            except Exception as e:
-                logging.error(f"Error in pose notification listener: {str(e)}")
-                self._handle_connection_error()
+        if channel == 'pose_image':
+            return self.process_pose(data)
+            
+        logging.warning(f"Unexpected channel: {channel}")
+        return None
