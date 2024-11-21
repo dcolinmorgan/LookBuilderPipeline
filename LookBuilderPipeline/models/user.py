@@ -104,32 +104,37 @@ class User(Base, UserMixin):
     def create_test_user(cls, db_session):
         """Create a test user if it doesn't exist and we're in dev environment."""
         print(f"Creating test user in {os.environ.get('FLASK_ENV')} environment")
-        if not os.environ.get('FLASK_ENV') == 'development':
-            return None
-        logging.info("Creating test user")    
-        test_email = 'test@test.com'
-        test_password = 'test123'
-        
-        try:
-            # Check if test user already exists
-            existing_user = cls.get_by_email(test_email)
-            if existing_user:
-                logging.info(f"Test user {test_email} already exists")
-                return existing_user
+        # Check if we're in a development or alpha environment
+        env = os.environ.get('FLASK_ENV', 'development')
+        if env in ['development', 'alpha']:
+            # Development/testing logic here
+            logging.info("Creating test user")    
+            test_email = 'test@test.com'
+            test_password = 'test123'
+            
+            try:
+                # Check if test user already exists
+                existing_user = cls.get_by_email(test_email)
+                if existing_user:
+                    logging.info(f"Test user {test_email} already exists")
+                    return existing_user
+                    
+                # Create new test user
+                logging.info(f"Creating new test user: {test_email}")
+                new_user = cls()
+                new_user.email = test_email
+                new_user.set_password(test_password)
                 
-            # Create new test user
-            logging.info(f"Creating new test user: {test_email}")
-            new_user = cls()
-            new_user.email = test_email
-            new_user.set_password(test_password)
-            
-            db_session.add(new_user)
-            db_session.commit()
-            
-            logging.info(f"Created test user: {test_email}")
-            return new_user
-            
-        except Exception as e:
-            db_session.rollback()
-            logging.error(f"Error creating test user: {str(e)}")
+                db_session.add(new_user)
+                db_session.commit()
+                
+                logging.info(f"Created test user: {test_email}")
+                return new_user
+                
+            except Exception as e:
+                db_session.rollback()
+                logging.error(f"Error creating test user: {str(e)}")
+                return None
+        else:
+            # Production logic here
             return None
