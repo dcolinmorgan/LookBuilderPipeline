@@ -11,7 +11,7 @@ class RunPipeNotificationManager(NotificationManager):
     
     def __init__(self):
         super().__init__()
-        self.channels = ['gen_image']
+        self.channels = ['runpipe']
         self.required_fields = ['process_id', 'image_id', 'prompt']
         logging.info(f"LoadPipelineNotificationManager listening on channels: {self.channels}")
 
@@ -55,7 +55,7 @@ class RunPipeNotificationManager(NotificationManager):
         """Handle loadpipe notifications."""
         logging.info(f"LoadPipelineNotificationManager received: channel={channel}, data={data}")
         
-        if channel == 'gen_image':
+        if channel == 'runpipe':
             return self.process_run(data)
             
         logging.warning(f"Unexpected channel: {channel}")

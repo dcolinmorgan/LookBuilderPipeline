@@ -11,7 +11,7 @@ class LoadPipeNotificationManager(NotificationManager):
     
     def __init__(self):
         super().__init__()
-        self.channels = ['load_pipeline']
+        self.channels = ['loadpipe']
         self.required_fields = ['process_id', 'image_id', 'model_type']
         logging.info(f"LoadPipelineNotificationManager listening on channels: {self.channels}")
 
@@ -63,7 +63,7 @@ class LoadPipeNotificationManager(NotificationManager):
         """Handle loadpipe notifications."""
         logging.info(f"LoadPipelineNotificationManager received: channel={channel}, data={data}")
         
-        if channel == 'load_pipe':
+        if channel == 'loadpipe':
             return self.process_load(data)
             
         logging.warning(f"Unexpected channel: {channel}")

@@ -4,11 +4,24 @@
 
 ```bash
 export GH_PAT= ## from doppler secrets
-git clone -b sdxl https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
+git clone -b web_friendly_etc https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
 # may need this next step on some INTEL machines
 # apt-get update && apt-get install -y libgl1 ## should run automatically in install step
 pip install -e LookBuilderPipeline/.
 ```
+
+## Environment:
+- development points locally 
+- alpha to the render box 
+ 
+- Both development and alpha are treated as non-production environments
+- We maintain the same behavior for both local development and alpha testing
+
+```bash
+export FLASK_ENV=alpha # or 'development' for the dev environment
+```
+ 
+
 ## parameters & their affect on generation:
 
   - `control_mode=4`,  this dictates `openpose` 

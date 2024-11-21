@@ -132,7 +132,7 @@ python-dotenv
 tokenizers #==0.19
 protobuf
 compel
-psycopg2
+# psycopg2
 dwpose @ git+https://github.com/Modegen/DWPose.git
 torchao
 sd_embed @ git+https://github.com/xhinker/sd_embed.git
