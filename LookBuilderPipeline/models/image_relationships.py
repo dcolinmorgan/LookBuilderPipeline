@@ -16,7 +16,7 @@ look_images = Table(
 def setup_relationships():
     from .image import Image
     from .image_variant import ImageVariant
-    from .user import User
+    from .users import User
     from .look import Look
     
     # Existing relationships

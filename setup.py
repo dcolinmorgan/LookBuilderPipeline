@@ -38,6 +38,6 @@ setup(
         'tokenizers',
         'protobuf',
         'controlnet_aux',
-        'opencv-contrib-python>=4.5.0',
+        'opencv-python',
     ],
 )

@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
 import logging
 from typing import Optional
-from ..models.user import User
+from ..models.users import User
 from ..config import get_config
 
 class DBManager:

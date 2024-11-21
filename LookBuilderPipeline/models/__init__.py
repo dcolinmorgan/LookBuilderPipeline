@@ -1,4 +1,4 @@
-from .user import User
+from .users import User
 from .image import Image
 from .image_variant import ImageVariant
 from .look import Look
