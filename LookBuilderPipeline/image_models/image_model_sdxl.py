@@ -12,7 +12,8 @@ from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
 from LookBuilderPipeline.utils.resize import resize_images
 from LookBuilderPipeline.annotate import annotate_images, image_blip, image_llava
 from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
-
+from PIL import Image
+import io
 # Import required components from diffusers
 from diffusers import StableDiffusionXLControlNetInpaintPipeline, ControlNetModel, DDIMScheduler
 
@@ -114,25 +115,38 @@ class ImageModelSDXL(BaseImageModel):
         Generate a new image using the diffusion model based on the pose, mask and prompt.
         """
 
-        image_model.prepare_model()
+        # image_model.prepare_model()
         start_time = time.time()
         ## try bluring mask for better outpaint 
-        self.sm_mask.save('testcv2.png')
-        self.sm_mask=cv2.imread('testcv2.png')
-        self.sm_mask = cv2.cvtColor(self.sm_mask, cv2.COLOR_BGR2GRAY)
-        self.sm_mask = cv2.GaussianBlur(self.sm_mask, (self.blur, self.blur), 0)
-        self.sm_mask = Image.fromarray(self.sm_mask)
+        # self.sm_mask.save('testcv2.png')
+        # self.sm_mask=cv2.imread('testcv2.png')
+        # self.sm_mask = cv2.cvtColor(self.sm_mask, cv2.COLOR_BGR2GRAY)
+        # self.sm_mask = cv2.GaussianBlur(self.sm_mask, (self.blur, self.blur), 0)
+        # self.sm_mask = Image.fromarray(self.sm_mask)
+        # Ensure self.image, self.mask, and self.pose are bytes-like objects
+        try:        
+            self.image = Image.open(io.BytesIO(self.image))
+        except:
+            pass
+        try:        
+            self.mask = Image.open(io.BytesIO(self.mask))
+        except:
+            pass
+        try:        
+            self.pose = Image.open(io.BytesIO(self.pose))
+        except:
+            pass
         
         # Generate the image using the pipeline
         image_res = self.pipe(
             # prompt=self.prompt,
             prompt_embeds=self.conditioning,
             pooled_prompt_embeds=self.pooled,
-            image=self.sm_image,
+            image=self.image,
             padding_mask_crop=8,
             original_size=(self.res,self.res),
-            mask_image=self.sm_mask,
-            control_image=self.sm_pose_image,
+            mask_image=self.mask,
+            control_image=self.pose,
             negative_prompt=self.negative_prompt,
             generator=self.generator,
             num_inference_steps=self.num_inference_steps,
@@ -142,7 +156,7 @@ class ImageModelSDXL(BaseImageModel):
         ).images[0]
         end_time = time.time()
         self.time = end_time - start_time
-        self.i=os.path.basename(self.input_image).split('.')[0]
+        # self.i=os.path.basename(self.input_image).split('.')[0]
         # del self.pipe
         # torch.cuda.empty_cache()
         
@@ -172,26 +186,29 @@ class ImageModelSDXL(BaseImageModel):
         # torch.cuda.empty_cache()
         
         # Save the generated image
-        save_pathA=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,self.loraout)
-        save_pathC=os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images",self.model,self.loraout)
+        # save_pathA=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,self.loraout)
+        # save_pathC=os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images",self.model,self.loraout)
 
-        os.makedirs(save_pathA, exist_ok=True)
-        os.makedirs(save_pathC, exist_ok=True)
+        # os.makedirs(save_pathA, exist_ok=True)
+        # os.makedirs(save_pathC, exist_ok=True)
         
-        # bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
-        bench_filename = 'img'+str(self.i)+str(self.blur)+'.png'
+        # # bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
+        # bench_filename = 'img'+str(self.i)+str(self.blur)+'.png'
 
-        save_path1 = os.path.join(save_pathA, bench_filename)
-        save_path2 = os.path.join(save_pathC, bench_filename)
-        image_res.save(save_path1)
+        # save_path1 = os.path.join(save_pathA, bench_filename)
+        # save_path2 = os.path.join(save_pathC, bench_filename)
+        # image_res.save(save_path1)
 
-        # self.annot='llava:'+image_llava(self,image_res)+'. blip2:'+image_blip(self,image_res)+'. desc:'+annotate_images(image_res)
-        self.annot='llava: not yet. blip2:not yet either. desc:'+annotate_images(image_res)
+        # # self.annot='llava:'+image_llava(self,image_res)+'. blip2:'+image_blip(self,image_res)+'. desc:'+annotate_images(image_res)
+        # self.annot='llava: not yet. blip2:not yet either. desc:'+annotate_images(image_res)
 
         
-        ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res,image_res2], output_path=save_path2)
-
-        return image_res, save_path1
+        # ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res,image_res2], output_path=save_path2)
+        try:        
+            image_res = Image.open(io.BytesIO(image_res))
+        except:
+            pass
+        return image_res #, save_path1
     
     def generate_bench(self,image_path,pose_path,mask_path):
         self.res=1280

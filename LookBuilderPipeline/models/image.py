@@ -14,6 +14,7 @@ import os
 import cv2
 from typing import Dict, Any, List
 from abc import ABC, abstractmethod
+from psycopg2.extensions import register_adapter, AsIs
 
 class VariantHandler(ABC):
     """Base class for handling different variant types."""
@@ -40,6 +41,8 @@ class VariantHandler(ABC):
 class ResizeHandler(VariantHandler):
     def get_filter_conditions(self, params):
         return [
+            ImageVariant.variant_type == 'resize',
+            ImageVariant.source_image_id == self.image.image_id,
             ImageVariant.parameters['size'].astext.cast(Integer) == params['size'],
             ImageVariant.parameters['aspect_ratio'].astext.cast(Float) == params.get('aspect_ratio', 1.0),
             ImageVariant.parameters['square'].astext.cast(Boolean) == params.get('square', False)
@@ -49,9 +52,7 @@ class ResizeHandler(VariantHandler):
         from LookBuilderPipeline.utils.resize import resize_images
         return resize_images(
             image_data,
-            params['size'],
-            params.get('aspect_ratio', 1.0),
-            params.get('square', False)
+            self.get_parameters(params)
         )
         
     def get_parameters(self, params):
@@ -71,7 +72,10 @@ class PoseHandler(VariantHandler):
         
     def process_image(self, image_data, params):
         from LookBuilderPipeline.pose import detect_pose
-        return detect_pose(self=None, image_path=image_data, face=params.get('face', True))
+        return detect_pose(self=None,
+            image_path=image_data,
+            **self.get_parameters(params)
+        )
         
     def get_parameters(self, params):
         return {'face': params.get('face', True)}
@@ -79,38 +83,46 @@ class PoseHandler(VariantHandler):
 class SegmentHandler(VariantHandler):
     def get_filter_conditions(self, params):
         return [
-            ImageVariant.parameters['inverse'].astext.cast(Boolean) == params.get('inverse', False)
+            ImageVariant.variant_type == 'segment',
+            ImageVariant.source_image_id == self.image.image_id,
+            ImageVariant.parameters['inverse'].astext.cast(Boolean) == params.get('inverse', True)
         ]
         
     def process_image(self, image_data, params):
         from LookBuilderPipeline.segment import segment_image
-        return segment_image(self=None,image_path=image_data, inverse=params.get('inverse', False))
+        return segment_image(self=None,
+            image_path=image_data, 
+            **self.get_parameters(params)
+        )
         
     def get_parameters(self, params):
-        return {'inverse': params.get('inverse', False)}
+        return {'inverse': params.get('inverse', True)}
 
 class SDXLHandler(VariantHandler):
+   
     def get_filter_conditions(self, params):
         return [
+            ImageVariant.variant_type == 'sdxl',
+            ImageVariant.source_image_id == self.image.image_id,
             ImageVariant.parameters['prompt'].astext.cast(String) == params['prompt'],
-            ImageVariant.parameters['neg_prompt'].astext.cast(String) == params.get('neg_prompt', '')
+            ImageVariant.parameters['neg_prompt'].astext.cast(String) == params.get('neg_prompt', ''),
+            # ImageVariant.parameters['image_pose_id'].astext.cast(Integer) == params['image_pose_id'],
+            # ImageVariant.parameters['image_segment_id'].astext.cast(Integer) == params['image_segment_id']
         ]
         
     def process_image(self, image_data, params):
         from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
-        model = ImageModelSDXL()
+        model = ImageModelSDXL(image=image_data, **self.get_parameters(params))
         model.prepare_model()
-        model.prepare_image({
-            'image_path': image_data.image,
-            'pose_path': image_data.pose_image,
-            'mask_path': image_data.mask_image
-        })
-        return model.generate_image(params['prompt'], params.get('neg_prompt', ''))
+        # model.prepare_image()
+        return model.generate_image()
         
     def get_parameters(self, params):
         return {
+            'pose': params['image_pose_id'],
+            'mask': params['image_segment_id'],
             'prompt': params['prompt'],
-            'neg_prompt': params.get('neg_prompt', '')
+            # 'neg_prompt': params.get('neg_prompt', '')
         }
 
 class Image(Base):
@@ -220,6 +232,35 @@ class Image(Base):
         
         return self.variants.filter(*filter_conditions).first()
 
+    def get_variant_image(self, variant: 'ImageVariant', session) -> Optional[bytes]:
+        """Get the actual image data from a variant.
+        
+        Args:
+            variant: ImageVariant instance to get image from
+            session: Database session
+            
+        Returns:
+            bytes: Image data if found, None otherwise
+        """
+        if not variant:
+            logging.error("No variant provided to get_variant_image")
+            return None
+            
+        try:
+            logging.info(f"Getting image data for variant {variant.id}")
+            connection = session.connection().connection
+            
+            lob = connection.lobject(oid=variant.variant_oid, mode='rb')
+            data = lob.read()
+            lob.close()
+            
+            logging.info(f"Successfully read {len(data)} bytes from variant {variant.id}")
+            return data
+            
+        except Exception as e:
+            logging.error(f"Error reading variant image data: {str(e)}", exc_info=True)
+            return None
+
     def create_variant(self, variant_type: str, session, **kwargs) -> 'ImageVariant':
         """Create a new variant of the specified type."""
         handler = self._get_handler(variant_type, session)
@@ -278,8 +319,17 @@ class Image(Base):
     def get_or_create_segment_variant(self, session, inverse: bool = False):
         return self.get_or_create_variant('segment', session, inverse=inverse)
 
-    def run_sdxl_variant(self, session, prompt: str, neg_prompt: str = ''):
-        return self.get_or_create_variant('sdxl', session, prompt=prompt, neg_prompt=neg_prompt)
+    def get_or_create_sdxl_variant(self, session, prompt: str, negative_prompt: str = ''):
+        segment_variant = self.get_variant('segment', session)
+        segment_variant = self.get_variant_image(segment_variant, session)
+        # segment_variant = np.frombuffer(segment_variant, np.int16)
+        
+        pose_variant = self.get_variant('pose', session)
+        pose_variant = self.get_variant_image(pose_variant, session)
+        # pose_variant = np.frombuffer(pose_variant, np.int16)
+        
+        # logging.info(f"Segment variant: {segment_variant.id}, Pose variant: {pose_variant.id}")
+        return self.get_or_create_variant('sdxl', session, image_segment_id=segment_variant, image_pose_id=pose_variant, prompt=prompt, neg_prompt=negative_prompt)
 
     def __repr__(self):
         return f"<Image(image_id={self.image_id}, oid={self.image_oid})>"

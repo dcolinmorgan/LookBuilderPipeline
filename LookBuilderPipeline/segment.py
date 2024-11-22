@@ -16,7 +16,7 @@ else:
 # Initialize the segmentation model using a pre-trained model from Hugging Face
 segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes", device=device)
 
-def segment_image(self,image_path, additional_option=None, inverse=False):
+def segment_image(self,image_path, additional_option=None, inverse=True):
     """
     Function for segmenting an image and returning the outfit with optional additions.
     
@@ -39,7 +39,7 @@ def segment_image(self,image_path, additional_option=None, inverse=False):
         image=image_path
     
     # Use the segmenter to get segments from the image
-    segments = segmenter(seg_img)
+    segments = segmenter(image)
 
     # Define the labels for the segments we want to include
     segment_include = ["Upper-clothes", "Skirt", "Pants", "Dress", "Belt", "Bag", "Scarf","Left-shoe", "Right-shoe"]
@@ -71,10 +71,10 @@ def segment_image(self,image_path, additional_option=None, inverse=False):
     final_mask = Image.fromarray(final_mask)
     
     # Add the mask as an alpha channel to the original image
-    seg_img.putalpha(final_mask)
+    image.putalpha(final_mask)
     
     # Return the segmented outfit image, the mask, and the final mask array
-    return seg_img, final_mask, final_array
+    return final_mask #, image, final_array
 
 def full_mask(self,original_image,flux_image):
     seg_img = load_image(original_image)
