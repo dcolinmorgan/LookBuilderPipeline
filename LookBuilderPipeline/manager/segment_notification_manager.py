@@ -1,10 +1,6 @@
 import logging
 from LookBuilderPipeline.manager.notification_manager import NotificationManager
 from LookBuilderPipeline.models.process_queue import ProcessQueue
-from LookBuilderPipeline.segment import segment_image
-from PIL import Image
-from io import BytesIO
-from LookBuilderPipeline.models.image_variant import ImageVariant
 from LookBuilderPipeline.models.image import Image
 import select
 
@@ -12,14 +8,14 @@ class SegmentNotificationManager(NotificationManager):
     def __init__(self):
         super().__init__()
         logging.info("Initializing SegmentNotificationManager")
-        self.channels = ['segment_image']
+        self.channels = ['image_segment']
         logging.info(f"SegmentNotificationManager listening on channels: {self.channels}")
         self.required_fields = ['process_id', 'image_id', 'inverse']
 
     def handle_notification(self, channel, data):
         """Handle segment notifications."""
         logging.info(f"SegmentNotificationManager received: channel={channel}, data={data}")
-        if channel == 'segment_image':
+        if channel == 'image_segment':
             # Get the full process data from ProcessQueue
             with self.get_managed_session() as session:
                 process = session.query(ProcessQueue).get(data['process_id'])
@@ -76,8 +72,9 @@ class SegmentNotificationManager(NotificationManager):
                 return None
 
             try:
+                self.session = session
                 variant = image.get_or_create_segment_variant(
-                    session,
+                    session=self.session,
                     inverse=validated_data['inverse']
                 )
                 
@@ -91,7 +88,7 @@ class SegmentNotificationManager(NotificationManager):
                     self.mark_process_error(session, process_id, error_msg)
                     return None
                     
-                return variant.id
+                return variant
                 
             except Exception as e:
                 error_msg = (

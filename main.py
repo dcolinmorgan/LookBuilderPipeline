@@ -7,6 +7,7 @@ from LookBuilderPipeline.manager.segment_notification_manager import SegmentNoti
 from LookBuilderPipeline.manager.pose_notification_manager import PoseNotificationManager
 from LookBuilderPipeline.manager.loadpipe_notification_manager import LoadPipeNotificationManager
 from LookBuilderPipeline.manager.runpipe_notification_manager import RunPipeNotificationManager
+from LookBuilderPipeline.manager.sdxl_notification_manager import SDXLNotificationManager
 logging.basicConfig(level=logging.INFO)
 
 def run_listener(mode):
@@ -24,6 +25,8 @@ def run_listener(mode):
         nm = LoadPipeNotificationManager()
     elif mode == 'runpipe':
         nm = RunPipeNotificationManager()
+    elif mode == 'sdxl':
+        nm = SDXLNotificationManager()
     nm.setup()
     
     try:
@@ -39,7 +42,7 @@ def run_listener(mode):
 
 def main():
     parser = argparse.ArgumentParser(description='LookBuilder Pipeline')
-    parser.add_argument('--mode', choices=['ping', 'resize','segment','pose','loadpipe','runpipe'], required=True,
+    parser.add_argument('--mode', choices=['ping', 'resize','segment','pose','loadpipe','runpipe','sdxl'], required=True,
                       help='Mode to run the application in')
 
     args = parser.parse_args()
@@ -56,6 +59,8 @@ def main():
         run_listener('loadpipe')
     elif args.mode == 'runpipe':
         run_listener('runpipe')
+    elif args.mode == 'sdxl':
+        run_listener('sdxl')
 
 if __name__ == '__main__':
     main()

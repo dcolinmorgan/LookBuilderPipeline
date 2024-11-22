@@ -1,9 +1,10 @@
 # Import necessary libraries for pose detection
 # from controlnet_aux import OpenposeDetector  # For pose detection using OpenPose
 from diffusers.utils import load_image  # For loading images
-from .utils.resize import resize_images
 import os,sys
 import torch
+from PIL import Image
+import io
 # # Initialize the OpenPose detector using a pre-trained model from Hugging Face
 # openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
 # from controlnet_aux.processor import Processor
@@ -18,42 +19,43 @@ def blockPrint():
     sys.stdout = open(os.devnull, 'w')
 blockPrint()
 
-def detect_pose(self,image_path, resize=False, size=(512, 512)):
+def detect_pose(self,image_path, face=True):
     """
     Function for detecting the pose in an image.
     
     Args:
         image_path (str): Path to the input image.
-        resize (bool): Whether to resize the output image. Default is False.
-        size (tuple): The target size for resizing the output image. Default is (512, 512).
-        
+        face (bool): Whether to include the face in the pose detection.
     Returns:
         PIL.Image: An image indicating the detected pose.
     """
     # Load the image from the specified path and convert it to RGB format
     if isinstance(image_path,str):
         image = load_image(image_path).convert("RGB")
+    elif isinstance(image_path,bytes):
+        image = Image.open(io.BytesIO(image_path)).convert("RGB")
     else:
         image=image_path
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Determine the device to use: CUDA, MPS, or CPU
+    if torch.backends.mps.is_available():
+        device = torch.device('mps')  # Use MPS if available
+    elif torch.cuda.is_available():
+        device = torch.device('cuda')  # Use CUDA if available
+    else:
+        device = torch.device('cpu')
     # Use the OpenPose detector to detect the pose in the image
     # pose_img = openpose(image) #,include_hand=True,include_face=False)
     pose_img,j,source = model(image,
         include_hand=True,
-        include_face=True,
+        include_face=face,
         include_body=True,
         include_foot=True,
         image_and_json=True,
         detect_resolution=512,
-        device=self.device)
+        device=device)
     
     # pose_image = openpose(image, hand_and_face=False, output_type='cv2')
-    
-    # Resize the pose image if the resize flag is set to True
-    if resize:
-        pose_img = resize_images(pose_img,size)
-        # pose_image = resize_images(pose_image,size)
-    
+
     # Return the image with the detected pose
     return pose_img

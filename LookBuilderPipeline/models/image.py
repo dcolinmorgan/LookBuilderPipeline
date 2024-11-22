@@ -12,6 +12,106 @@ import logging
 import numpy as np
 import os
 import cv2
+from typing import Dict, Any, List
+from abc import ABC, abstractmethod
+
+class VariantHandler(ABC):
+    """Base class for handling different variant types."""
+    
+    def __init__(self, image, session):
+        self.image = image
+        self.session = session
+        
+    @abstractmethod
+    def get_filter_conditions(self, params: Dict[str, Any]) -> List:
+        """Get filter conditions for finding existing variants."""
+        pass
+        
+    @abstractmethod
+    def process_image(self, image_data: bytes, params: Dict[str, Any]) -> bytes:
+        """Process the image data."""
+        pass
+        
+    @abstractmethod
+    def get_parameters(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get parameters to store with variant."""
+        pass
+
+class ResizeHandler(VariantHandler):
+    def get_filter_conditions(self, params):
+        return [
+            ImageVariant.parameters['size'].astext.cast(Integer) == params['size'],
+            ImageVariant.parameters['aspect_ratio'].astext.cast(Float) == params.get('aspect_ratio', 1.0),
+            ImageVariant.parameters['square'].astext.cast(Boolean) == params.get('square', False)
+        ]
+        
+    def process_image(self, image_data, params):
+        from LookBuilderPipeline.utils.resize import resize_images
+        return resize_images(
+            image_data,
+            params['size'],
+            params.get('aspect_ratio', 1.0),
+            params.get('square', False)
+        )
+        
+    def get_parameters(self, params):
+        return {
+            'size': params['size'],
+            'aspect_ratio': params.get('aspect_ratio', 1.0),
+            'square': params.get('square', False)
+        }
+
+class PoseHandler(VariantHandler):
+    def get_filter_conditions(self, params):
+        return [
+            ImageVariant.variant_type == 'pose',
+            ImageVariant.source_image_id == self.image.image_id,
+            ImageVariant.parameters['face'].astext.cast(Boolean) == params.get('face', True)
+        ]
+        
+    def process_image(self, image_data, params):
+        from LookBuilderPipeline.pose import detect_pose
+        return detect_pose(self=None, image_path=image_data, face=params.get('face', True))
+        
+    def get_parameters(self, params):
+        return {'face': params.get('face', True)}
+
+class SegmentHandler(VariantHandler):
+    def get_filter_conditions(self, params):
+        return [
+            ImageVariant.parameters['inverse'].astext.cast(Boolean) == params.get('inverse', False)
+        ]
+        
+    def process_image(self, image_data, params):
+        from LookBuilderPipeline.segment import segment_image
+        return segment_image(self=None,image_path=image_data, inverse=params.get('inverse', False))
+        
+    def get_parameters(self, params):
+        return {'inverse': params.get('inverse', False)}
+
+class SDXLHandler(VariantHandler):
+    def get_filter_conditions(self, params):
+        return [
+            ImageVariant.parameters['prompt'].astext.cast(String) == params['prompt'],
+            ImageVariant.parameters['neg_prompt'].astext.cast(String) == params.get('neg_prompt', '')
+        ]
+        
+    def process_image(self, image_data, params):
+        from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
+        model = ImageModelSDXL()
+        model.prepare_model()
+        model.prepare_image({
+            'image_path': image_data.image,
+            'pose_path': image_data.pose_image,
+            'mask_path': image_data.mask_image
+        })
+        return model.generate_image(params['prompt'], params.get('neg_prompt', ''))
+        
+    def get_parameters(self, params):
+        return {
+            'prompt': params['prompt'],
+            'neg_prompt': params.get('neg_prompt', '')
+        }
 
 class Image(Base):
     __tablename__ = 'images'
@@ -90,200 +190,63 @@ class Image(Base):
             logging.error(f"Error reading image data for image {self.image_id}: {str(e)}", exc_info=True)
             return None
 
-    def get_variant(self, session, variant_type: str, **kwargs):
-        """Get an existing variant or create a new one if it doesn't exist."""
-        # Import here to avoid circular imports
-        from .image_variant import ImageVariant
+    def _get_handler(self, variant_type: str, session) -> VariantHandler:
+        """Get the appropriate handler for a variant type.
         
-        # Determine the filter parameters based on variant type
-        if variant_type == 'resize':
-            size = kwargs.get('size')
-            aspect_ratio = kwargs.get('aspect_ratio', 1.0)
-            square = kwargs.get('square', False)
-            filter_conditions = [
-                ImageVariant.parameters['size'].astext.cast(Integer) == size,
-                ImageVariant.parameters['aspect_ratio'].astext.cast(Float) == aspect_ratio,
-                ImageVariant.parameters['square'].astext.cast(Boolean) == square
-            ]
-        elif variant_type == 'pose':
-            face = kwargs.get('face', True)
-            filter_conditions = [
-                ImageVariant.variant_type == 'pose',
-                ImageVariant.source_image_id == self.image_id,
-                ImageVariant.parameters['face'].astext.cast(Boolean) == face
-            ]
-        elif variant_type == 'segment':
-            inverse = kwargs.get('inverse', True)
-            filter_conditions = [
-                ImageVariant.parameters['inverse'].astext.cast(Boolean) == inverse,
-            ]
-        elif variant_type == 'loadpipe':
-            pipe = kwargs.get('pipe')
-            filter_conditions = [
-                ImageVariant.parameters['pipe'].astext.cast(String) == pipe,
-            ]
-        elif variant_type == 'runpipe':
-            pipe = kwargs.get('pipe')
-            prompt = kwargs.get('prompt')
-            filter_conditions = [
-                ImageVariant.parameters['pipe'].astext.cast(String) == pipe,
-                ImageVariant.parameters['prompt'].astext.cast(String) == prompt,
-            ]
-        else:
-            raise ValueError("Unsupported variant type")
-
-        # First try to get an existing variant
-        variant = self.variants.filter(*filter_conditions).first()
-        if variant:
-            return variant
+        Args:
+            variant_type: Type of variant to handle
+            session: Database session
             
-        # If no variant exists, create a new one
+        Returns:
+            VariantHandler: Handler instance for the variant type
+        """
+        handlers = {
+            'resize': ResizeHandler,
+            'pose': PoseHandler,
+            'segment': SegmentHandler,
+            'sdxl': SDXLHandler
+        }
+        
+        handler_class = handlers.get(variant_type)
+        if not handler_class:
+            raise ValueError(f"Unsupported variant type: {variant_type}")
+            
+        return handler_class(self, session)
+
+    def get_variant(self, variant_type: str, session, **kwargs) -> Optional['ImageVariant']:
+        """Get an existing variant if it exists."""
+        handler = self._get_handler(variant_type, session)
+        filter_conditions = handler.get_filter_conditions(kwargs)
+        
+        return self.variants.filter(*filter_conditions).first()
+
+    def create_variant(self, variant_type: str, session, **kwargs) -> 'ImageVariant':
+        """Create a new variant of the specified type."""
+        handler = self._get_handler(variant_type, session)
+        
+        # Get image data
         image_data = self.get_image_data(session)
         if not image_data:
             raise ValueError(f"Image {self.image_id} has no data")
+            
+        # Process the image
+        processed_image = handler.process_image(image_data, kwargs)
         
-        # Fix the process query - check if process_id exists first
-        process_id = kwargs.get('process_id')
-        process = None
-        if process_id is not None:
-            process = session.query(ProcessQueue).filter(ProcessQueue.process_id == process_id).first()
-
-        # Import the appropriate function based on variant type
-        if variant_type == 'resize':
-            from LookBuilderPipeline.resize import resize_images
-            resized_image = resize_images(image_data, kwargs['size'], aspect_ratio, square)
-        elif variant_type == 'pose':
-            from dwpose import DwposeDetector
-            import tempfile
-            from PIL import Image
-            import io
-            import torch
-            import logging
-            import numpy as np
-            import os
-
-            try:
-                logging.info(f"Starting pose detection for image {self.image_id}")
-                
-                # Convert bytes to numpy array using cv2
-                nparr = np.frombuffer(image_data, np.uint8)
-                image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                logging.info(f"Loaded source image with shape: {image.shape}")
-                
-                logging.info(f"Loading DWPose model...")
-                model = DwposeDetector.from_pretrained_default()
-                logging.info(f"Model loaded successfully")
-                
-                logging.info(f"Running pose detection...")
-                # Pass the numpy array directly to the model
-                pose_image, json_data, source = model(image,
-                    include_hand=True,
-                    include_face=kwargs.get('face', True),
-                    include_body=True,
-                    image_and_json=True)
-                
-                logging.info(f"Pose detection completed. Pose image type: {type(pose_image)}")
-                
-                # Save the pose image to a debug file
-                debug_output_dir = 'debug_poses'
-                os.makedirs(debug_output_dir, exist_ok=True)
-                debug_path = os.path.join(debug_output_dir, f'pose_debug_{self.image_id}.png')
-                
-                # Convert numpy array to PIL Image if necessary
-                if isinstance(pose_image, np.ndarray):
-                    logging.info("Converting numpy array to PIL Image")
-                    # Convert BGR to RGB if necessary
-                    if pose_image.shape[2] == 3:
-                        pose_image = cv2.cvtColor(pose_image, cv2.COLOR_BGR2RGB)
-                
-                # Save debug image
-                pose_image.save(debug_path)
-                logging.info(f"Saved debug pose image to: {debug_path}")
-                
-                # Convert to bytes for database storage
-                img_byte_arr = io.BytesIO()
-                pose_image.save(img_byte_arr, format='PNG')
-                pose_image_bytes = img_byte_arr.getvalue()
-                
-                # Create and store variant
-                variant = ImageVariant(
-                    source_image_id=self.image_id,
-                    variant_type='pose',
-                    parameters={
-                        'face': kwargs.get('face', True),
-                        'pose_data': json_data  # Store the pose data for later use
-                    },
-                    processed=True
-                )
-                session.add(variant)
-                session.flush()
-                
-                # Store the image using lobject
-                lob = session.connection().connection.lobject(mode='wb')
-                lob.write(pose_image_bytes)
-                variant.variant_oid = lob.oid
-                lob.close()
-                
-                logging.info(f"Successfully created pose variant for image {self.image_id}")
-                return variant
-                
-            except Exception as e:
-                logging.error(f"Error in pose detection: {str(e)}", exc_info=True)
-                raise
-            finally:
-                if 'temp_path' in locals():
-                    import os
-                    try:
-                        os.unlink(temp_path)
-                    except Exception as e:
-                        logging.error(f"Error cleaning up temp file: {str(e)}")
-        elif variant_type == 'segment':
-            from LookBuilderPipeline.segment import segment_image
-            resized_image = segment_image(image_data, inverse=kwargs.get('inverse', False))
-        elif variant_type == 'loadpipe':
-            if process.parameters.get('pipe') == 'sdxl':
-                from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
-                model = ImageModelSDXL()  # Create instance
-                model.prepare_model()
-                model.prepare_image({
-                    'image_path': kwargs.get('image_path'),
-                    'pose_path': kwargs.get('pose_path'),
-                    'mask_path': kwargs.get('mask_path')
-                })
-            elif process.parameters.get('pipe') == 'flux':
-                from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
-                model = ImageModelFlux()  # Create instance
-                model.prepare_model()
-                model.prepare_image({
-                    'image_path': kwargs.get('image_path'),
-                    'pose_path': kwargs.get('pose_path'),
-                    'mask_path': kwargs.get('mask_path')
-                })
-        elif variant_type == 'runpipe':
-            if process.parameters.get('pipe') == 'sdxl':
-                from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
-                self.ImageModelSDXL.generate_image()
-            elif process.parameters.get('pipe') == 'flux':
-                from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
-                self.ImageModelFlux.generate_image()
-               
-
-        
-        # Convert the resized image to bytes if it isn't already
-        if not isinstance(resized_image, bytes):
+        # Convert to bytes if needed
+        if not isinstance(processed_image, bytes):
             from io import BytesIO
             img_byte_arr = BytesIO()
-            resized_image.save(img_byte_arr, format='PNG')  # or 'JPEG' depending on your needs
-            resized_image = img_byte_arr.getvalue()
-        
-        # Store the resized image as a large object
+            processed_image.save(img_byte_arr, format='PNG')
+            processed_image = img_byte_arr.getvalue()
+            
+        # Store as large object
         lob = session.connection().connection.lobject(mode='wb')
-        lob.write(resized_image)
-        oid = lob.oid  # Get the OID before closing
+        lob.write(processed_image)
+        oid = lob.oid
         lob.close()
         
-        # Create the variant with parameters in JSONB
-        parameters = kwargs if variant_type == 'resize' else {'face': kwargs['face']}
+        # Create variant
+        parameters = handler.get_parameters(kwargs)
         variant = ImageVariant(
             source_image_id=self.image_id,
             variant_oid=oid,
@@ -292,31 +255,31 @@ class Image(Base):
             processed=True
         )
         
-        # Add and flush to get the variant_id
         session.add(variant)
         session.flush()
         
         return variant
 
+    def get_or_create_variant(self, variant_type: str, session, **kwargs) -> 'ImageVariant':
+        """Get an existing variant or create a new one."""
+        variant = self.get_variant(variant_type, session, **kwargs)
+        if variant:
+            return variant
+            
+        return self.create_variant(variant_type, session, **kwargs)
+
+    # Convenience methods
     def get_or_create_resize_variant(self, session, size: int, aspect_ratio: float = 1.0, square: bool = False):
-        """Get or create a resize variant."""
-        return self.get_variant(session, 'resize', size=size, aspect_ratio=aspect_ratio, square=square)
+        return self.get_or_create_variant('resize', session, size=size, aspect_ratio=aspect_ratio, square=square)
 
-    def get_or_create_pose_variant(self, session, face=True):
-        """Get or create a pose variant for the image."""
-        return self.get_variant(session, 'pose', face=face)
+    def get_or_create_pose_variant(self, session, face: bool = True):
+        return self.get_or_create_variant('pose', session, face=face)
 
-    def get_or_create_segment_variant(self, session, inverse: bool):
-        """Get or create a segment variant."""
-        return self.get_variant(session, 'segment', inverse=inverse)
-    
-    def load_pipe_variant(self, session, model: str):
-        """Load pipe variant."""
-        return self.get_variant(session, 'loadpipe', model=model)
-    
-    def run_pipe_variant(self, session, model: str, prompt: str):
-        """Runpipe variant."""
-        return self.get_variant(session, 'runpipe', model=model, prompt=prompt)
+    def get_or_create_segment_variant(self, session, inverse: bool = False):
+        return self.get_or_create_variant('segment', session, inverse=inverse)
+
+    def run_sdxl_variant(self, session, prompt: str, neg_prompt: str = ''):
+        return self.get_or_create_variant('sdxl', session, prompt=prompt, neg_prompt=neg_prompt)
 
     def __repr__(self):
         return f"<Image(image_id={self.image_id}, oid={self.image_oid})>"
