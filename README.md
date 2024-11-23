@@ -4,7 +4,7 @@
 
 ```bash
 export GH_PAT= ## from doppler secrets
-git clone -b sdxl https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
+git clone -b feature/alpha_plus_sdxl https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
 # may need this next step on some INTEL machines
 # apt-get update && apt-get install -y libgl1 ## should run automatically in install step
 pip install -e LookBuilderPipeline/.
@@ -112,6 +112,8 @@ python3 base_image_model_api.py
 ## comms with DB
 
 ```bash
+source ./env
+export FLASK_ENV='alpha
 history|grep psql
 psql ${DB_NAME}
 select * from process_queue where id = 1

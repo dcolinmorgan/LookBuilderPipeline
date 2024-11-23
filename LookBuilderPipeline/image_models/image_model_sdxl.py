@@ -21,7 +21,12 @@ class ImageModelSDXL(BaseImageModel):
     def __init__(self, image, pose, mask, prompt, *args, **kwargs):
         # Initialize the SDXL image model
         super().__init__(image, pose, mask, prompt)
-        
+        if torch.backends.mps.is_available():
+            device = torch.device('mps')  # Use MPS if available
+        elif torch.cuda.is_available():
+            device = torch.device('cuda')  # Use CUDA if available
+        else:
+            device = torch.device('cpu')
         # Set default values
         self.num_inference_steps = kwargs.get('num_inference_steps', 50)
         self.guidance_scale = kwargs.get('guidance_scale', 7.5)
@@ -40,7 +45,7 @@ class ImageModelSDXL(BaseImageModel):
         self.control_guidance_start=0.0
         self.control_guidance_end=1.0
         self.lora_weight=kwargs.get('lora_weight', 1.0)
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device
     
 
     def prepare_model(self):
