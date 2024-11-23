@@ -1,6 +1,8 @@
 import logging
 import argparse
 import time
+import signal
+import os
 from LookBuilderPipeline.manager.ping_notification_manager import PingNotificationManager
 from LookBuilderPipeline.manager.resize_notification_manager import ResizeNotificationManager
 from LookBuilderPipeline.manager.segment_notification_manager import SegmentNotificationManager
@@ -8,25 +10,32 @@ from LookBuilderPipeline.manager.pose_notification_manager import PoseNotificati
 from LookBuilderPipeline.manager.loadpipe_notification_manager import LoadPipeNotificationManager
 from LookBuilderPipeline.manager.runpipe_notification_manager import RunPipeNotificationManager
 from LookBuilderPipeline.manager.sdxl_notification_manager import SDXLNotificationManager
+
 logging.basicConfig(level=logging.INFO)
 
+def handle_sigtstp(signum, frame):
+    """Handle Ctrl+Z (SIGTSTP) by killing the process."""
+    logging.info("Received SIGTSTP (Ctrl+Z). Killing process...")
+    os._exit(0)
+
 def run_listener(mode):
-    """Run the ping notification listener."""
-    logging.info("Starting ping listener...")
-    if mode == 'ping':
-        nm = PingNotificationManager()
-    elif mode == 'resize':
-        nm = ResizeNotificationManager()
-    elif mode == 'segment':
-        nm = SegmentNotificationManager()
-    elif mode == 'pose':
-        nm = PoseNotificationManager()
-    elif mode == 'loadpipe':
-        nm = LoadPipeNotificationManager()
-    elif mode == 'runpipe':
-        nm = RunPipeNotificationManager()
-    elif mode == 'sdxl':
-        nm = SDXLNotificationManager()
+    """Run the notification listener with SIGTSTP handling."""
+    logging.info(f"Starting {mode} listener...")
+    
+    # Register SIGTSTP handler
+    signal.signal(signal.SIGTSTP, handle_sigtstp)
+    
+    managers = {
+        'ping': PingNotificationManager,
+        'resize': ResizeNotificationManager,
+        'segment': SegmentNotificationManager,
+        'pose': PoseNotificationManager,
+        'loadpipe': LoadPipeNotificationManager,
+        'runpipe': RunPipeNotificationManager,
+        'sdxl': SDXLNotificationManager
+    }
+    
+    nm = managers[mode]()
     nm.setup()
     
     try:
@@ -35,32 +44,19 @@ def run_listener(mode):
     except KeyboardInterrupt:
         logging.info("Shutting down...")
         nm.stop()
-    except Exception as e:
-        logging.error(f"Error in ping listener: {str(e)}")
-        nm.stop()
-        raise
+        os._exit(0)
 
 def main():
     parser = argparse.ArgumentParser(description='LookBuilder Pipeline')
-    parser.add_argument('--mode', choices=['ping', 'resize','segment','pose','loadpipe','runpipe','sdxl'], required=True,
-                      help='Mode to run the application in')
+    parser.add_argument(
+        '--mode', 
+        choices=['ping', 'resize', 'segment', 'pose', 'loadpipe', 'runpipe', 'sdxl'],
+        required=True,
+        help='Mode to run the application in'
+    )
 
     args = parser.parse_args()
-
-    if args.mode == 'ping':
-        run_listener('ping')
-    elif args.mode == 'resize':
-        run_listener('resize')
-    elif args.mode == 'segment':
-        run_listener('segment')
-    elif args.mode == 'pose':
-        run_listener('pose')
-    elif args.mode == 'loadpipe':
-        run_listener('loadpipe')
-    elif args.mode == 'runpipe':
-        run_listener('runpipe')
-    elif args.mode == 'sdxl':
-        run_listener('sdxl')
+    run_listener(args.mode)
 
 if __name__ == '__main__':
     main()

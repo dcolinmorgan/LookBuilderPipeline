@@ -136,7 +136,8 @@ class ImageModelSDXL(BaseImageModel):
             self.pose = Image.open(io.BytesIO(self.pose))
         except:
             pass
-        
+        from LookBuilderPipeline.utils.resize import resize_images
+        self.image, self.mask, self.pose = resize_images(images=[self.image, self.mask, self.pose], target_size=1024)
         # Generate the image using the pipeline
         image_res = self.pipe(
             # prompt=self.prompt,

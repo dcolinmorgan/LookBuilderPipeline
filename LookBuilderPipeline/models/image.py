@@ -273,12 +273,40 @@ class Image(Base):
         # Process the image
         processed_image = handler.process_image(image_data, kwargs)
         
+        # # Convert to bytes if needed
+        # if not isinstance(processed_image, bytes):
+        #     from io import BytesIO
+        #     img_byte_arr = BytesIO()
+        #     processed_image.save(img_byte_arr, format='PNG')
+        #     processed_image = img_byte_arr.getvalue(
+        
         # Convert to bytes if needed
-        if not isinstance(processed_image, bytes):
-            from io import BytesIO
-            img_byte_arr = BytesIO()
-            processed_image.save(img_byte_arr, format='PNG')
-            processed_image = img_byte_arr.getvalue()
+        if isinstance(processed_image, bytes):
+            # If processed_image is already bytes, convert to Base64
+            base64_image = base64.b64encode(processed_image).decode('utf-8')
+        else:
+            try:
+                from io import BytesIO
+                import json
+                import base64
+                img_byte_arr = BytesIO()
+                processed_image.save(img_byte_arr, format='PNG')  # Save the image to the buffer
+                processed_image = img_byte_arr.getvalue()  # Get the bytes from the buffer
+                base64_image = base64.b64encode(processed_image).decode('utf-8')  # Convert to Base64
+            except Exception as e:
+                raise ValueError(f"Error processing image: {str(e)}")
+
+        # Prepare the data to be stored in the database
+        data_to_store = {
+            'image_data': base64_image,  # Use the Base64 string instead of the Image object
+            # Add other fields as necessary
+        }
+        
+        # Serialize to JSON
+        processed_image = json.dumps(data_to_store)
+
+        # Now you can store json_data in your database or return it
+        return processed_image  # Or however you want to handle it
             
         # Store as large object
         lob = session.connection().connection.lobject(mode='wb')

@@ -68,6 +68,6 @@ def resize_images(images: Union[str, bytes, Image.Image, List[Union[str, bytes, 
     if isinstance(images, (str, bytes, Image.Image)):
         return resize_single_image(images, target_size, aspect_ratio, square)
     elif isinstance(images, list):
-        return [resize_single_image(img) for img in images]
+        return [resize_single_image(img, target_size, aspect_ratio, square) for img in images]
     else:
         raise ValueError(f"Unsupported input type: {type(images)}")
