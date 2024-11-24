@@ -304,9 +304,6 @@ class Image(Base):
         
         # Serialize to JSON
         processed_image = json.dumps(data_to_store)
-
-        # Now you can store json_data in your database or return it
-        return processed_image  # Or however you want to handle it
             
         # Store as large object
         lob = session.connection().connection.lobject(mode='wb')
