@@ -280,10 +280,10 @@ class Image(Base):
             processed_image = img_byte_arr.getvalue()
         
         # Create variant
-        parameters = handler.get_parameters(kwargs)
+        parameters = {key: value for key, value in kwargs.items() if key not in ['pose', 'segment']}
         variant = ImageVariant(
             source_image_id=self.image_id,
-            variant_oid=self.image_oid,
+            parameters=parameters,
             variant_type=variant_type,
             processed=True
         )
@@ -294,7 +294,7 @@ class Image(Base):
         # Store as large object
         lob = session.connection().connection.lobject(mode='wb')
         lob.write(processed_image)
-        oid = lob.oid
+        variant.variant_oid = lob.oid
         lob.close()
         
         return variant
