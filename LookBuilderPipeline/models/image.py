@@ -15,6 +15,7 @@ import cv2
 from typing import Dict, Any, List
 from abc import ABC, abstractmethod
 from psycopg2.extensions import register_adapter, AsIs
+from .image_relationships import look_images
 
 class VariantHandler(ABC):
     """Base class for handling different variant types."""
@@ -142,14 +143,15 @@ class Image(Base):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def get_db_manager(self):
+    @classmethod
+    def get_db_manager(cls):
         from LookBuilderPipeline.manager.db_manager import DBManager
         return DBManager()
 
     @classmethod
     def get_by_id(cls, image_id: int):
         """Get an image by its ID"""
-        db_manager = DBManager()
+        db_manager = cls.get_db_manager()
         with db_manager.get_session() as session:
             image = session.query(cls).get(image_id)
             if image:
@@ -325,6 +327,22 @@ class Image(Base):
         pose_variant = self.get_variant_image(pose_variant, session)
         
         return self.get_or_create_variant('sdxl', session, image_segment_id=segment_variant, image_pose_id=pose_variant, prompt=prompt, neg_prompt=negative_prompt)
+
+    @classmethod
+    def get_unassigned_images(cls, user_id: int = None):
+        """Get all images that aren't associated with any look"""
+        db_manager = cls.get_db_manager()
+        with db_manager.get_session() as session:
+            query = session.query(cls).outerjoin(look_images).filter(look_images.c.look_id == None)
+            
+            # If user_id is provided, filter by user
+            if user_id is not None:
+                query = query.filter(cls.user_id == user_id)
+                
+            images = query.all()
+            for image in images:
+                session.expunge(image)
+            return images
 
     def __repr__(self):
         return f"<Image(image_id={self.image_id}, oid={self.image_oid})>"
