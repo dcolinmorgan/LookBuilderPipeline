@@ -99,30 +99,29 @@ class SegmentHandler(VariantHandler):
         return {'inverse': params.get('inverse', True)}
 
 class SDXLHandler(VariantHandler):
-   
     def get_filter_conditions(self, params):
         return [
             ImageVariant.variant_type == 'sdxl',
             ImageVariant.source_image_id == self.image.image_id,
-            ImageVariant.parameters['prompt'].astext.cast(String) == params['prompt'],
-            ImageVariant.parameters['neg_prompt'].astext.cast(String) == params.get('neg_prompt', ''),
-            # ImageVariant.parameters['image_pose_id'].astext.cast(Integer) == params['image_pose_id'],
-            # ImageVariant.parameters['image_segment_id'].astext.cast(Integer) == params['image_segment_id']
+            ImageVariant.parameters['prompt'].astext.cast(String) == params.get('prompt', ''),
+            ImageVariant.parameters['neg_prompt'].astext.cast(String) == params.get('negative_prompt', 'ugly, deformed')
         ]
         
     def process_image(self, image_data, params):
         from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
-        model = ImageModelSDXL(image=image_data, **self.get_parameters(params))
+        model = ImageModelSDXL(
+            image=image_data, 
+            **self.get_parameters(params)
+        )
         model.prepare_model()
-        # model.prepare_image()
         return model.generate_image()
         
     def get_parameters(self, params):
         return {
             'pose': params['image_pose_id'],
             'mask': params['image_segment_id'],
-            'prompt': params['prompt'],
-            # 'neg_prompt': params.get('neg_prompt', '')
+            'prompt': params.get('prompt', ''),
+            'neg_prompt': params.get('negative_prompt', 'ugly, deformed')
         }
 
 class Image(Base):
