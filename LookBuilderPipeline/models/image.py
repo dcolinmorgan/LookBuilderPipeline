@@ -273,56 +273,30 @@ class Image(Base):
         # Process the image
         processed_image = handler.process_image(image_data, kwargs)
         
-        # # Convert to bytes if needed
-        # if not isinstance(processed_image, bytes):
-        #     from io import BytesIO
-        #     img_byte_arr = BytesIO()
-        #     processed_image.save(img_byte_arr, format='PNG')
-        #     processed_image = img_byte_arr.getvalue(
-        
         # Convert to bytes if needed
-        if isinstance(processed_image, bytes):
-            # If processed_image is already bytes, convert to Base64
-            base64_image = base64.b64encode(processed_image).decode('utf-8')
-        else:
-            try:
-                from io import BytesIO
-                import json
-                import base64
-                img_byte_arr = BytesIO()
-                processed_image.save(img_byte_arr, format='PNG')  # Save the image to the buffer
-                processed_image = img_byte_arr.getvalue()  # Get the bytes from the buffer
-                base64_image = base64.b64encode(processed_image).decode('utf-8')  # Convert to Base64
-            except Exception as e:
-                raise ValueError(f"Error processing image: {str(e)}")
-
-        # Prepare the data to be stored in the database
-        data_to_store = {
-            'image_data': base64_image,  # Use the Base64 string instead of the Image object
-            # Add other fields as necessary
-        }
-        
-        # Serialize to JSON
-        processed_image = json.dumps(data_to_store)
-            
-        # Store as large object
-        lob = session.connection().connection.lobject(mode='wb')
-        lob.write(processed_image)
-        oid = lob.oid
-        lob.close()
+        if not isinstance(processed_image, bytes):
+            from io import BytesIO
+            img_byte_arr = BytesIO()
+            processed_image.save(img_byte_arr, format='PNG')
+            processed_image = img_byte_arr.getvalue()
         
         # Create variant
         parameters = handler.get_parameters(kwargs)
         variant = ImageVariant(
             source_image_id=self.image_id,
-            variant_oid=oid,
+            variant_oid=self.image_oid,
             variant_type=variant_type,
-            parameters=parameters,
             processed=True
         )
         
         session.add(variant)
         session.flush()
+        
+        # Store as large object
+        lob = session.connection().connection.lobject(mode='wb')
+        lob.write(processed_image)
+        oid = lob.oid
+        lob.close()
         
         return variant
 
@@ -344,16 +318,13 @@ class Image(Base):
     def get_or_create_segment_variant(self, session, inverse: bool = False):
         return self.get_or_create_variant('segment', session, inverse=inverse)
 
-    def get_or_create_sdxl_variant(self, session, prompt: str, negative_prompt: str = ''):
+    def get_or_create_sdxl_variant(self, session, prompt: str, negative_prompt: str = 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'):
         segment_variant = self.get_variant('segment', session)
         segment_variant = self.get_variant_image(segment_variant, session)
-        # segment_variant = np.frombuffer(segment_variant, np.int16)
         
         pose_variant = self.get_variant('pose', session)
         pose_variant = self.get_variant_image(pose_variant, session)
-        # pose_variant = np.frombuffer(pose_variant, np.int16)
         
-        # logging.info(f"Segment variant: {segment_variant.id}, Pose variant: {pose_variant.id}")
         return self.get_or_create_variant('sdxl', session, image_segment_id=segment_variant, image_pose_id=pose_variant, prompt=prompt, neg_prompt=negative_prompt)
 
     def __repr__(self):
