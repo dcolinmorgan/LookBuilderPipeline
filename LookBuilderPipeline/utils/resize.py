@@ -28,46 +28,46 @@ def resize_images(images: Union[str, bytes, Image.Image, List[Union[str, bytes, 
         else:
             raise ValueError(f"Unsupported image type: {type(img)}")
 
-        # Rest of the resize logic remains the same
+        # Get original dimensions
         original_width, original_height = img.size
-        if aspect_ratio is None:            
-            aspect_ratio = original_width / original_height
-        if isinstance(target_size, int):
-            try:
-                new_width = target_size
-                new_height = int(new_width / aspect_ratio)
-            except:
-                new_height = target_size
-                new_width = int(new_height / aspect_ratio)
-        elif original_width >= original_height:
-            new_width = target_size[0]
-            new_height = int(new_width / aspect_ratio)
+        
+        # Convert target_size to int if it's not already
+        if isinstance(target_size, (int, float)):
+            target_size = int(target_size)
+        
+        # Calculate resize dimensions maintaining aspect ratio
+        if original_width >= original_height:
+            resize_height = int((original_height / original_width) * target_size)
+            resize_width = target_size
         else:
-            new_height = target_size[1]
-            new_width = int(new_height * aspect_ratio)
+            resize_width = int((original_width / original_height) * target_size)
+            resize_height = target_size
 
-        # Ensure dimensions are divisible by 8
-        new_width = (new_width // 8) * 8
-        new_height = (new_height // 8) * 8
+        # Resize first
+        img = img.resize((resize_width, resize_height), resample=resample)
 
-        img = img.resize((new_width, new_height), resample=resample)
+        print(f"Debug - Square param: {square}")
+        print(f"Debug - Original size: {img.size}")
+        print(f"Debug - Resized to: {resize_width}x{resize_height}")
+        print(f"Debug - Target size: {target_size}")
 
+        # Add padding to make square if requested
         if square:
-            # Calculate padding to make the image square
-            max_dim = max(new_width, new_height)
+            # Calculate padding to reach target size
             padding = (
-                (max_dim - new_width) // 2,
-                (max_dim - new_height) // 2,
-                (max_dim - new_width + 1) // 2,
-                (max_dim - new_height + 1) // 2
+                (target_size - resize_width) // 2,
+                (target_size - resize_height) // 2,
+                (target_size - resize_width + 1) // 2,
+                (target_size - resize_height + 1) // 2
             )
             img = ImageOps.expand(img, padding, fill=(0, 0, 0))
+            print(f"Debug - Final size with padding: {img.size}")
 
         return img
-
     if isinstance(images, (str, bytes, Image.Image)):
         return resize_single_image(images, target_size, aspect_ratio, square)
     elif isinstance(images, list):
         return [resize_single_image(img, target_size, aspect_ratio, square) for img in images]
     else:
         raise ValueError(f"Unsupported input type: {type(images)}")
+

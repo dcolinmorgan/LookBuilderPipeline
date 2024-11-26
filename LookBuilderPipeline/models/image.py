@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Boolean, cast, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Boolean, cast, Text, or_
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import Float, Boolean
 from datetime import datetime
@@ -16,6 +16,7 @@ from typing import Dict, Any, List
 from abc import ABC, abstractmethod
 from psycopg2.extensions import register_adapter, AsIs
 from .image_relationships import look_images
+from sqlalchemy.sql import or_
 
 class VariantHandler(ABC):
     """Base class for handling different variant types."""
@@ -41,10 +42,13 @@ class VariantHandler(ABC):
 
 class ResizeHandler(VariantHandler):
     def get_filter_conditions(self, params):
+        size = params['size']
+        size_value = f'[{size}, {size}]'
+        
         return [
             ImageVariant.variant_type == 'resize',
             ImageVariant.source_image_id == self.image.image_id,
-            ImageVariant.parameters['size'].astext.cast(Integer) == params['size'],
+            ImageVariant.parameters['size'].astext == size_value,
             ImageVariant.parameters['aspect_ratio'].astext.cast(Float) == params.get('aspect_ratio', 1.0),
             ImageVariant.parameters['square'].astext.cast(Boolean) == params.get('square', False)
         ]
@@ -53,12 +57,15 @@ class ResizeHandler(VariantHandler):
         from LookBuilderPipeline.utils.resize import resize_images
         return resize_images(
             image_data,
-            self.get_parameters(params)
+            target_size=params['size'],
+            aspect_ratio=params.get('aspect_ratio', 1.0),
+            square=params.get('square', False)
         )
         
     def get_parameters(self, params):
+        size = params['size']
         return {
-            'size': params['size'],
+            'size': [size, size],
             'aspect_ratio': params.get('aspect_ratio', 1.0),
             'square': params.get('square', False)
         }
@@ -226,12 +233,42 @@ class Image(Base):
             
         return handler_class(self, session)
 
-    def get_variant(self, variant_type: str, session, **kwargs) -> Optional['ImageVariant']:
-        """Get an existing variant if it exists."""
-        handler = self._get_handler(variant_type, session)
-        filter_conditions = handler.get_filter_conditions(kwargs)
+    def get_variant(self, variant_type: str, session, **kwargs):
+        """Get a variant with specific parameters"""
+        # Merge the image with the current session
+        session.add(self)
         
-        return self.variants.filter(*filter_conditions).first()
+        filter_conditions = [
+            ImageVariant.source_image_id == self.image_id,
+            ImageVariant.variant_type == variant_type
+        ]
+        
+        for key, value in kwargs.items():
+            if key == 'size':
+                # Handle size as single integer
+                filter_conditions.append(
+                    cast(ImageVariant.parameters['size'].astext, Integer) == value
+                )
+            else:
+                # Handle other parameters normally
+                if isinstance(value, bool):
+                    filter_conditions.append(
+                        cast(ImageVariant.parameters[key].astext, Boolean) == value
+                    )
+                elif isinstance(value, float):
+                    filter_conditions.append(
+                        cast(ImageVariant.parameters[key].astext, Float) == value
+                    )
+                else:
+                    filter_conditions.append(
+                        cast(ImageVariant.parameters[key].astext, String) == str(value)
+                    )
+        
+        try:
+            return self.variants.filter(*filter_conditions).first()
+        finally:
+            # Clean up by expunging the image from session
+            session.expunge(self)
 
     def get_variant_image(self, variant: 'ImageVariant', session) -> Optional[bytes]:
         """Get the actual image data from a variant.
@@ -346,3 +383,36 @@ class Image(Base):
 
     def __repr__(self):
         return f"<Image(image_id={self.image_id}, oid={self.image_oid})>"
+
+    @classmethod
+    def delete_image(cls, session, image_id: int) -> bool:
+        """
+        Safely delete an image and its associated data
+        
+        Args:
+            session: Database session
+            image_id: ID of the image to delete
+            
+        Returns:
+            bool: True if deletion was successful, False if image not found
+            
+        Raises:
+            Exception: If deletion fails
+        """
+        try:
+            image = session.query(cls).filter_by(image_id=image_id).first()
+            if not image:
+                return False
+                
+            # Remove any look associations first
+            image.looks = []
+            
+            # Delete the image itself
+            session.delete(image)
+            session.flush()
+            return True
+            
+        except Exception as e:
+            logging.error(f"Error deleting image {image_id}: {str(e)}")
+            session.rollback()
+            raise
