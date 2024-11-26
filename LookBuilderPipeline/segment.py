@@ -74,7 +74,7 @@ def segment_image(self,image_path, additional_option=None, inverse=True):
     image.putalpha(final_mask)
     
     # Return the segmented outfit image, the mask, and the final mask array
-    return final_mask #, image, final_array
+    return image, final_mask# final_array
 
 def full_mask(self,original_image,flux_image):
     seg_img = load_image(original_image)

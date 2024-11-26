@@ -41,7 +41,7 @@ class ImageModelSDXL(BaseImageModel):
         self.benchmark = kwargs.get('benchmark', False)
         self.control_guidance_start=0
         self.control_guidance_end=1
-        self.res = kwargs.get('res', 1280)
+        self.res = kwargs.get('res', 1024)
         self.control_guidance_start=0.0
         self.control_guidance_end=1.0
         self.lora_weight=kwargs.get('lora_weight', 1.0)
@@ -143,6 +143,12 @@ class ImageModelSDXL(BaseImageModel):
             pass
         from LookBuilderPipeline.utils.resize import resize_images
         self.image, self.mask, self.pose = resize_images(images=[self.image, self.mask, self.pose], target_size=self.res)
+
+        from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
+        self.image = BaseImageModel.resize_with_padding(self=None,img=self.image, expected_size=[self.res, self.res])
+        self.pose = BaseImageModel.resize_with_padding(self=None,img=self.pose, expected_size=[self.res, self.res])
+        self.mask = BaseImageModel.resize_with_padding(self=None,img=self.mask, expected_size=[self.res, self.res], color=(255, 255, 255))
+        
         # Generate the image using the pipeline
         image_res = self.pipe(
             # prompt=self.prompt,
@@ -153,7 +159,7 @@ class ImageModelSDXL(BaseImageModel):
             original_size=(self.res,self.res),
             mask_image=self.mask,
             control_image=self.pose,
-            negative_prompt=self.negative_prompt,
+            negative_prompt='ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, stockings, pants, sleeves', ## not coming thru web so just hardcode for now
             generator=self.generator,
             num_inference_steps=self.num_inference_steps,
             guidance_scale=self.guidance_scale,
@@ -262,7 +268,7 @@ if __name__ == "__main__":
     parser.add_argument("--strength", type=float, default=1.0, help="Strength of the transformation")
     parser.add_argument("--LoRA", type=bool, default=False, help="use LoRA or not")
     parser.add_argument("--benchmark", type=bool, default=False, help="run benchmark with ranges pulled from user inputs +/-0.1")   
-    parser.add_argument("--res", type=int, default=1280, help="Resolution of the image")
+    parser.add_argument("--res", type=int, default=1024, help="Resolution of the image")
     parser.add_argument("--lora_weight", type=str, default=1.0, help="weight of the LoRA")
 
 

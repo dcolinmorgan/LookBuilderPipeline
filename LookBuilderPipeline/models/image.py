@@ -98,11 +98,12 @@ class SegmentHandler(VariantHandler):
         
     def process_image(self, image_data, params):
         from LookBuilderPipeline.segment import segment_image
-        return segment_image(self=None,
+        outfit, background =segment_image(self=None,
             image_path=image_data, 
             **self.get_parameters(params)
         )
-        
+        return outfit, background
+    
     def get_parameters(self, params):
         return {'inverse': params.get('inverse', True)}
 
@@ -226,6 +227,7 @@ class Image(Base):
             'resize': ResizeHandler,
             'pose': PoseHandler,
             'segment': SegmentHandler,
+            'outfit': SegmentHandler,
             'sdxl': SDXLHandler
         }
         
@@ -356,7 +358,12 @@ class Image(Base):
         return self.get_or_create_variant('pose', session, face=face)
 
     def get_or_create_segment_variant(self, session, inverse: bool = True):
-        return self.get_or_create_variant('segment', session, inverse=inverse)
+        _, background = self.get_or_create_variant('segment', session, inverse=inverse)
+        return background
+
+    def get_or_create_outfit_variant(self, session, inverse: bool = False):
+        outfit, _ = self.get_or_create_variant('outfit', session, inverse=inverse)
+        return outfit
 
     def get_or_create_sdxl_variant(self, session, prompt: str, negative_prompt: str = 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', seed: int = 420042):
         segment_variant = self.get_variant('segment', session)
