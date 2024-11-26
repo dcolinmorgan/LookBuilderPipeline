@@ -51,10 +51,10 @@ def segment_image(self,image_path, additional_option=None, inverse=True):
         segment_include.extend(["Bag"])
 
     # Create a list of masks for the included segments
-    if inverse:
-        mask_list = [np.array(s['mask']) for s in segments if s['label'] not in segment_include]
-    else:
-        mask_list = [np.array(s['mask']) for s in segments if s['label'] in segment_include]
+    # if inverse:
+    mask_list = [np.array(s['mask']) for s in segments if s['label'] not in segment_include]
+    # else:
+        # mask_list = [np.array(s['mask']) for s in segments if s['label'] in segment_include]
 
     # Initialize the final mask with the first mask in the list
     final_mask = np.array(mask_list[0])

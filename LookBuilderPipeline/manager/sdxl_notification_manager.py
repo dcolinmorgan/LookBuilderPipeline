@@ -24,7 +24,7 @@ class SDXLNotificationManager(NotificationManager):
                         'process_id': data['process_id'],
                         'image_id': data['image_id'],
                         'prompt': process.parameters.get('prompt'),
-                        'negative_prompt': process.parameters.get('negative_prompt', 'ugly, deformed')
+                        'negative_prompt': process.parameters.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves')
                     }
                     logging.info(f"Processing SDXL with parameters: {full_data}")
                     return self.process_sdxl(full_data)
@@ -41,7 +41,7 @@ class SDXLNotificationManager(NotificationManager):
             'process_id': sdxl_request.process_id,
             'image_id': sdxl_request.image_id,
             'prompt': sdxl_request.parameters.get('prompt'),
-            'negative_prompt': sdxl_request.parameters.get('negative_prompt', 'ugly, deformed')
+            'negative_prompt': sdxl_request.parameters.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves')
         })
 
     def process_sdxl(self, sdxl_data):
