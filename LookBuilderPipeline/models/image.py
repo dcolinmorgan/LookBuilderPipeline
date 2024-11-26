@@ -321,7 +321,7 @@ class Image(Base):
             processed_image = img_byte_arr.getvalue()
         
         # Create variant
-        parameters = {key: value for key, value in kwargs.items() if key not in ['pose', 'segment']}
+        parameters = {key: value for key, value in kwargs.items() if key not in ['image_pose_id','image_segment_id','pose', 'segment']}
         variant = ImageVariant(
             source_image_id=self.image_id,
             parameters=parameters,
@@ -355,7 +355,7 @@ class Image(Base):
     def get_or_create_pose_variant(self, session, face: bool = True):
         return self.get_or_create_variant('pose', session, face=face)
 
-    def get_or_create_segment_variant(self, session, inverse: bool = False):
+    def get_or_create_segment_variant(self, session, inverse: bool = True):
         return self.get_or_create_variant('segment', session, inverse=inverse)
 
     def get_or_create_sdxl_variant(self, session, prompt: str, negative_prompt: str = 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', seed: int = 420042):
