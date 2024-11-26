@@ -88,7 +88,7 @@ class SegmentNotificationManager(NotificationManager):
                     self.mark_process_error(session, process_id, error_msg)
                     return None
                     
-                return variant
+                return variant.id
                 
             except Exception as e:
                 error_msg = (

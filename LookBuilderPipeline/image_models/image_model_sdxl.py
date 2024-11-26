@@ -142,7 +142,7 @@ class ImageModelSDXL(BaseImageModel):
         except:
             pass
         from LookBuilderPipeline.utils.resize import resize_images
-        self.image, self.mask, self.pose = resize_images(images=[self.image, self.mask, self.pose], target_size=1024)
+        self.image, self.mask, self.pose = resize_images(images=[self.image, self.mask, self.pose], target_size=self.res)
         # Generate the image using the pipeline
         image_res = self.pipe(
             # prompt=self.prompt,
@@ -162,6 +162,7 @@ class ImageModelSDXL(BaseImageModel):
         ).images[0]
         end_time = time.time()
         self.time = end_time - start_time
+        self.clear_mem()
         # self.i=os.path.basename(self.input_image).split('.')[0]
         # del self.pipe
         # torch.cuda.empty_cache()
@@ -240,7 +241,7 @@ class ImageModelSDXL(BaseImageModel):
             # self.pipe.unload_lora_weights()
         
 
-    def clearn_mem(self):
+    def clear_mem(self):
         # Clear CUDA memory
         torch.cuda.empty_cache()
 
@@ -293,4 +294,4 @@ if __name__ == "__main__":
     else:
         image_model.generate_bench(args.image_path, args.pose_path,args.mask_path)
     
-    image_model.clearn_mem()
+    image_model.clear_mem()
