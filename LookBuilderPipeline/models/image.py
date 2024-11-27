@@ -151,7 +151,9 @@ class SDXLHandler(VariantHandler):
             'mask': params['image_segment_id'],
             'prompt': params.get('prompt', ''),
             'negative_prompt': params.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
-            'seed': params.get('seed', '420042')
+            'seed': params.get('seed', '420042'),
+            'strength': params.get('strength', 0.9),
+            'guidance_scale': params.get('guidance_scale', 6)
         }
 
 class Image(Base):
@@ -390,7 +392,7 @@ class Image(Base):
         pose_variant = self.get_variant('pose', session)
         pose_variant = self.get_variant_image(pose_variant, session)
         
-        return self.get_or_create_variant('sdxl', session, image_segment_id=segment_variant, image_pose_id=pose_variant, prompt=prompt, negative_prompt=negative_prompt, seed=seed)
+        return self.get_or_create_variant('sdxl', session, image_segment_id=segment_variant, image_pose_id=pose_variant, prompt=prompt, negative_prompt=negative_prompt, seed=seed, strength=strength, guidance_scale=guidance_scale)
 
     @classmethod
     def get_unassigned_images(cls, user_id: int = None):
