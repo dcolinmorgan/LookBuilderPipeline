@@ -1,4 +1,4 @@
-import sys, os, shutil, glob
+import sys, os, shutil, glob, gc
 import uuid
 import time
 import torch
@@ -188,6 +188,7 @@ class ImageModelFlux(BaseImageModel):
             ).images[0]
         end_time = time.time()
         self.time = end_time - start_time
+        self.clear_mem()
         self.negative_prompt=None
         self.i=os.path.basename(self.input_image).split('.')[0]
 
@@ -222,8 +223,9 @@ class ImageModelFlux(BaseImageModel):
                         image_res, save_path = self.generate_image()
                     # image_res = self.upscale_image(image_res)
                     
-    def clearn_mem(self):
-        # Clear CUDA memory
+    def clear_mem(self):
+        del self.pipe
+        gc.collect()
         torch.cuda.empty_cache()
 
 if __name__ == "__main__":
@@ -287,4 +289,4 @@ if __name__ == "__main__":
     else:
         image_model.generate_bench(args.image_path, args.pose_path,args.mask_path)
     
-    image_model.clearn_mem()
+    image_model.clear_mem()

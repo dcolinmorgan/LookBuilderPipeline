@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, gc
 import uuid
 import time
 import torch
@@ -248,7 +248,8 @@ class ImageModelSDXL(BaseImageModel):
         
 
     def clear_mem(self):
-        # Clear CUDA memory
+        del self.pipe
+        gc.collect()
         torch.cuda.empty_cache()
 
 

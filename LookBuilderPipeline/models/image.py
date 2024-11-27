@@ -113,7 +113,7 @@ class SDXLHandler(VariantHandler):
             ImageVariant.variant_type == 'sdxl',
             ImageVariant.source_image_id == self.image.image_id,
             ImageVariant.parameters['prompt'].astext.cast(String) == params.get('prompt', ''),
-            ImageVariant.parameters['neg_prompt'].astext.cast(String) == params.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
+            ImageVariant.parameters['negative_prompt'].astext.cast(String) == params.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
             ImageVariant.parameters['seed'].astext.cast(Integer) == params.get('seed', '420042')
         ]
         
@@ -131,7 +131,7 @@ class SDXLHandler(VariantHandler):
             'pose': params['image_pose_id'],
             'mask': params['image_segment_id'],
             'prompt': params.get('prompt', ''),
-            'neg_prompt': params.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
+            'negative_prompt': params.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
             'seed': params.get('seed', '420042')
         }
 
@@ -372,7 +372,7 @@ class Image(Base):
         pose_variant = self.get_variant('pose', session)
         pose_variant = self.get_variant_image(pose_variant, session)
         
-        return self.get_or_create_variant('sdxl', session, image_segment_id=segment_variant, image_pose_id=pose_variant, prompt=prompt, neg_prompt=negative_prompt, seed=seed)
+        return self.get_or_create_variant('sdxl', session, image_segment_id=segment_variant, image_pose_id=pose_variant, prompt=prompt, negative_prompt=negative_prompt, seed=seed)
 
     @classmethod
     def get_unassigned_images(cls, user_id: int = None):
