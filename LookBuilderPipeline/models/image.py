@@ -102,10 +102,29 @@ class SegmentHandler(VariantHandler):
             image_path=image_data, 
             **self.get_parameters(params)
         )
-        return outfit, background
+        return background
     
     def get_parameters(self, params):
         return {'inverse': params.get('inverse', True)}
+    
+class OutfitHandler(VariantHandler):
+    def get_filter_conditions(self, params):
+        return [
+            ImageVariant.variant_type == 'outfit',
+            ImageVariant.source_image_id == self.image.image_id,
+            ImageVariant.parameters['inverse'].astext.cast(Boolean) == params.get('inverse', False)
+        ]
+        
+    def process_image(self, image_data, params):
+        from LookBuilderPipeline.segment import segment_image
+        outfit, background =segment_image(self=None,
+            image_path=image_data, 
+            **self.get_parameters(params)
+        )
+        return outfit
+    
+    def get_parameters(self, params):
+        return {'inverse': params.get('inverse', False)}
 
 class SDXLHandler(VariantHandler):
     def get_filter_conditions(self, params):
@@ -227,7 +246,7 @@ class Image(Base):
             'resize': ResizeHandler,
             'pose': PoseHandler,
             'segment': SegmentHandler,
-            'outfit': SegmentHandler,
+            'outfit': OutfitHandler,
             'sdxl': SDXLHandler
         }
         
@@ -313,6 +332,7 @@ class Image(Base):
             raise ValueError(f"Image {self.image_id} has no data")
             
         # Process the image
+
         processed_image = handler.process_image(image_data, kwargs)
         
         # Convert to bytes if needed
@@ -358,11 +378,11 @@ class Image(Base):
         return self.get_or_create_variant('pose', session, face=face)
 
     def get_or_create_segment_variant(self, session, inverse: bool = True):
-        _, background = self.get_or_create_variant('segment', session, inverse=inverse)
+        background = self.get_or_create_variant('segment', session, inverse=inverse)
         return background
 
     def get_or_create_outfit_variant(self, session, inverse: bool = False):
-        outfit, _ = self.get_or_create_variant('outfit', session, inverse=inverse)
+        outfit = self.get_or_create_variant('outfit', session, inverse=inverse)
         return outfit
 
     def get_or_create_sdxl_variant(self, session, prompt: str, negative_prompt: str = 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', seed: int = 420042):

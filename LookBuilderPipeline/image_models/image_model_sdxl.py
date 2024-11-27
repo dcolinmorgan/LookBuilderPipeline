@@ -29,13 +29,13 @@ class ImageModelSDXL(BaseImageModel):
             device = torch.device('cpu')
         # Set default values
         self.num_inference_steps = kwargs.get('num_inference_steps', 50)
-        self.guidance_scale = kwargs.get('guidance_scale', 7.5)
+        self.guidance_scale = kwargs.get('guidance_scale', 6)
         self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1.0)
         self.seed = kwargs.get('seed', 420042)
         self.prompt = kwargs.get('prompt', prompt)
         self.image = kwargs.get('image', image)
         self.negative_prompt = kwargs.get('negative_prompt', "dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
-        self.strength = kwargs.get('strength', 1.0)
+        self.strength = kwargs.get('strength', 0.9)
         self.LoRA = kwargs.get('LoRA', False)
         self.model = 'sdxl_blur'
         self.benchmark = kwargs.get('benchmark', False)
@@ -143,11 +143,14 @@ class ImageModelSDXL(BaseImageModel):
             pass
         from LookBuilderPipeline.utils.resize import resize_images
         self.image, self.mask, self.pose = resize_images(images=[self.image, self.mask, self.pose], target_size=self.res)
-
+        # self.image=resize_images(self.image,self.image.size,aspect_ratio=None)
+        # self.pose=resize_images(self.pose,self.image.size,aspect_ratio=None)#,aspect_ratio=self.image.size[0]/self.image.size[1])
+        # self.mask=resize_images(self.mask,self.image.size,aspect_ratio=None)#,aspect_ratio=self.image.size[0]/self.image.size[1])
+        
         from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
         self.image = BaseImageModel.resize_with_padding(self=None,img=self.image, expected_size=[self.res, self.res])
         self.pose = BaseImageModel.resize_with_padding(self=None,img=self.pose, expected_size=[self.res, self.res])
-        self.mask = BaseImageModel.resize_with_padding(self=None,img=self.mask, expected_size=[self.res, self.res], color=(255, 255, 255))
+        self.mask = BaseImageModel.resize_with_padding(self=None,img=self.mask, expected_size=[self.res, self.res], color=255)
         
         # Generate the image using the pipeline
         image_res = self.pipe(
@@ -159,7 +162,7 @@ class ImageModelSDXL(BaseImageModel):
             original_size=(self.res,self.res),
             mask_image=self.mask,
             control_image=self.pose,
-            negative_prompt='ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, stockings, pants, sleeves', ## not coming thru web so just hardcode for now
+            negative_prompt=self.negative_prompt,
             generator=self.generator,
             num_inference_steps=self.num_inference_steps,
             guidance_scale=self.guidance_scale,
@@ -250,8 +253,7 @@ class ImageModelSDXL(BaseImageModel):
     def clear_mem(self):
         del self.pipe
         gc.collect()
-        torch.cuda.empty_cache()
-
+        torch.cuda.empty_cache() 
 
 if __name__ == "__main__":
     import argparse
@@ -262,11 +264,11 @@ if __name__ == "__main__":
     parser.add_argument("--mask_path", default=None, help="Path to the mask image")
     parser.add_argument("--prompt", required=True, help="Text prompt for image generation")
     parser.add_argument("--num_inference_steps", type=int, default=50, help="Number of inference steps")
-    parser.add_argument("--guidance_scale", type=float, default=7.7, help="Guidance scale")
+    parser.add_argument("--guidance_scale", type=float, default=6, help="Guidance scale")
     parser.add_argument("--controlnet_conditioning_scale", type=float, default=1.0, help="ControlNet conditioning scale")
     parser.add_argument("--seed", type=int, default=420042, help="Random seed")
     parser.add_argument("--negative_prompt", default="dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
-    parser.add_argument("--strength", type=float, default=1.0, help="Strength of the transformation")
+    parser.add_argument("--strength", type=float, default=0.9, help="Strength of the transformation")
     parser.add_argument("--LoRA", type=bool, default=False, help="use LoRA or not")
     parser.add_argument("--benchmark", type=bool, default=False, help="run benchmark with ranges pulled from user inputs +/-0.1")   
     parser.add_argument("--res", type=int, default=1024, help="Resolution of the image")
