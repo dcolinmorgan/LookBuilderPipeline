@@ -24,7 +24,10 @@ class SDXLNotificationManager(NotificationManager):
                         'process_id': data['process_id'],
                         'image_id': data['image_id'],
                         'prompt': process.parameters.get('prompt'),
-                        'negative_prompt': process.parameters.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves')
+                        'negative_prompt': process.parameters.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
+                        'seed': process.parameters.get('seed', None),  # Optional seed
+                        'strength': process.parameters.get('strength', 1.0),  # Default to 1.0
+                        'guidance_scale': process.parameters.get('guidance_scale', 7.5)  # Default to 7.5
                     }
                     logging.info(f"Processing SDXL with parameters: {full_data}")
                     return self.process_sdxl(full_data)
@@ -41,7 +44,10 @@ class SDXLNotificationManager(NotificationManager):
             'process_id': sdxl_request.process_id,
             'image_id': sdxl_request.image_id,
             'prompt': sdxl_request.parameters.get('prompt'),
-            'negative_prompt': sdxl_request.parameters.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves')
+            'negative_prompt': sdxl_request.parameters.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
+            'seed': sdxl_request.parameters.get('seed', None),
+            'strength': sdxl_request.parameters.get('strength', 1.0),
+            'guidance_scale': sdxl_request.parameters.get('guidance_scale', 7.5)
         })
 
     def process_sdxl(self, sdxl_data):
@@ -59,7 +65,10 @@ class SDXLNotificationManager(NotificationManager):
             variant = image.get_or_create_sdxl_variant(
                 session,
                 prompt=validated_data['prompt'],
-                negative_prompt=validated_data['negative_prompt']
+                negative_prompt=validated_data['negative_prompt'],
+                seed=validated_data['seed'],
+                strength=validated_data['strength'],
+                guidance_scale=validated_data['guidance_scale']
             )
             
             if not variant:
