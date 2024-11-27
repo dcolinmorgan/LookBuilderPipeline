@@ -378,12 +378,10 @@ class Image(Base):
         return self.get_or_create_variant('pose', session, face=face)
 
     def get_or_create_segment_variant(self, session, inverse: bool = True):
-        background = self.get_or_create_variant('segment', session, inverse=inverse)
-        return background
+        return self.get_or_create_variant('segment', session, inverse=inverse)
 
     def get_or_create_outfit_variant(self, session, inverse: bool = False):
-        outfit = self.get_or_create_variant('outfit', session, inverse=inverse)
-        return outfit
+        return self.get_or_create_variant('outfit', session, inverse=inverse)
 
     def get_or_create_sdxl_variant(self, session, prompt: str, negative_prompt: str = 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', seed: int = 420042):
         segment_variant = self.get_variant('segment', session)
