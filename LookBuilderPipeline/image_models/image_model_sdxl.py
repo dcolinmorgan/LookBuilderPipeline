@@ -79,25 +79,19 @@ class ImageModelSDXL(BaseImageModel):
         self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
 
 
-        # if self.LoRA:
-        # from diffusers import EulerAncestralDiscreteScheduler
-        # from diffusers import DDIMScheduler
-
-
         # Load the LoRA
-        if self.LoRA==0 or self.LoRA==False:
+        if self.LoRA==None or self.LoRA==False:
             self.loraout="noLora"
-        elif self.LoRA==1:
-            self.loraout="Cinematic"
-            self.pipe.load_lora_weights('lora-A', weight_name='JuggernautCinematicXLLoRA.safetensors',adapter_name=self.loraout)
-        elif self.LoRA==2:
-            self.loraout="Analog"
-            self.pipe.load_lora_weights('lora-A', weight_name='AnalogRedmondV2.safetensors',adapter_name=self.loraout)
-        elif self.LoRA==3:
-            self.loraout="highdetail"
-            self.pipe.load_lora_weights('lora-A', weight_name='SDXLHighDetailv5.safetensors',adapter_name=self.loraout)
+        elif self.LoRA=='supermodel face:
+            !wget -O  /LookBuilderPipeline/LookBuilderPipeline/image_models/supermodel.safetensors https://civitai.com/api/download/models/231666
+            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='supermodel.safetensors',adapter_name='supermodel face')
+        elif self.LoRA=='female face':
+            self.loraout="female face"
+            !wget -O /LookBuilderPipeline/LookBuilderPipeline/image_models/female_face.safetensors https://civitai.com/api/download/models/273591
+            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='female_face.safetensors',adapter_name='famale face)
 
-        if self.LoRA!=0:
+
+        if self.LoRA!=None:
             # self.pipe.fuse_lora()
             # Activate the LoRA
             self.pipe.set_adapters(self.loraout, adapter_weights=[self.lora_weight])

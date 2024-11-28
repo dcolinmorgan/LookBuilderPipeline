@@ -128,13 +128,19 @@ class OutfitHandler(VariantHandler):
 
 class SDXLHandler(VariantHandler):
     def get_filter_conditions(self, params):
-        return [
+        conditions = [
             ImageVariant.variant_type == 'sdxl',
             ImageVariant.source_image_id == self.image.image_id,
             ImageVariant.parameters['prompt'].astext.cast(String) == params.get('prompt', ''),
-            ImageVariant.parameters['negative_prompt'].astext.cast(String) == params.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
+            ImageVariant.parameters['negative_prompt'].astext.cast(String) == params.get('negative_prompt', 'extra clothes, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
             ImageVariant.parameters['seed'].astext.cast(Integer) == params.get('seed', '420042')
         ]
+        
+        # Add LoRA name to filter conditions if provided
+        if params.get('LoRA'):
+            conditions.append(ImageVariant.parameters['LoRA'].astext.cast(String) == params['LoRA'])
+            
+        return conditions
         
     def process_image(self, image_data, params):
         from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
@@ -146,15 +152,21 @@ class SDXLHandler(VariantHandler):
         return model.generate_image()
         
     def get_parameters(self, params):
-        return {
+        parameters = {
             'pose': params['image_pose_id'],
             'mask': params['image_segment_id'],
             'prompt': params.get('prompt', ''),
-            'negative_prompt': params.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
+            'negative_prompt': params.get('negative_prompt', 'extra clothes, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
             'seed': params.get('seed', '420042'),
             'strength': params.get('strength', 0.9),
             'guidance_scale': params.get('guidance_scale', 6)
         }
+        
+        # Add LoRA parameters if name is provided
+        if params.get('LoRA'):
+            parameters['LoRA'] = params['LoRA']
+            
+        return parameters
 
 class Image(Base):
     __tablename__ = 'images'
@@ -385,14 +397,30 @@ class Image(Base):
     def get_or_create_outfit_variant(self, session, inverse: bool = False):
         return self.get_or_create_variant('outfit', session, inverse=inverse)
 
-    def get_or_create_sdxl_variant(self, session, prompt: str, negative_prompt: str = 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', seed: int = 420042, strength: float = 0.95, guidance_scale: float = 6):
+    def get_or_create_sdxl_variant(self, session, prompt: str, negative_prompt: str = 'extra clothes,ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', 
+                                  seed: int = 420042, strength: float = 0.95, guidance_scale: float = 6, 
+                                  LoRA: str = None):
         segment_variant = self.get_variant('segment', session)
         segment_variant = self.get_variant_image(segment_variant, session)
-        
+        self.get_or_create_variant('outfit', session, inverse=False)
+
         pose_variant = self.get_variant('pose', session)
         pose_variant = self.get_variant_image(pose_variant, session)
         
-        return self.get_or_create_variant('sdxl', session, image_segment_id=segment_variant, image_pose_id=pose_variant, prompt=prompt, negative_prompt=negative_prompt, seed=seed, strength=strength, guidance_scale=guidance_scale)
+        params = {
+            'image_segment_id': segment_variant,
+            'image_pose_id': pose_variant,
+            'prompt': prompt,
+            'negative_prompt': negative_prompt,
+            'seed': seed,
+            'strength': strength,
+            'guidance_scale': guidance_scale
+        }
+        
+        if LoRA:
+            params['LoRA'] = LoRA
+            
+        return self.get_or_create_variant('sdxl', session, **params)
 
     @classmethod
     def get_unassigned_images(cls, user_id: int = None):
