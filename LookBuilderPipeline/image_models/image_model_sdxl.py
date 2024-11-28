@@ -1,4 +1,4 @@
-import sys, os, gc
+import sys, os, gc, requests
 import uuid
 import time
 import torch
@@ -78,33 +78,42 @@ class ImageModelSDXL(BaseImageModel):
         
         self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
 
-
+        supermodel_face=231666
+        female_face=273591
+        better_face=301988
+        diana=293406
+        def download_lora(lora_id):
+            url=f'https://civitai.com/api/download/models/{lora_id}'
+            r = requests.get(url)
+            fname=f'/LookBuilderPipeline/LookBuilderPipeline/image_models/{self.LoRA}.safetensors'
+            open(fname , 'wb').write(r.content)
         # Load the LoRA
-        if self.LoRA==None or self.LoRA==False:
-            self.loraout="noLora"
-        elif self.LoRA=='supermodel face:
-            !wget -O  /LookBuilderPipeline/LookBuilderPipeline/image_models/supermodel.safetensors https://civitai.com/api/download/models/231666
-            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='supermodel.safetensors',adapter_name='supermodel face')
-        elif self.LoRA=='female face':
-            self.loraout="female face"
-            !wget -O /LookBuilderPipeline/LookBuilderPipeline/image_models/female_face.safetensors https://civitai.com/api/download/models/273591
-            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='female_face.safetensors',adapter_name='famale face)
-
-
+        if self.LoRA=='supermodel_face':
+            download_lora(supermodel_face)
+            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='supermodel_face.safetensors',adapter_name=self.LoRA)
+        elif self.LoRA=='female_face':
+            download_lora(female_face)
+            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='female_face.safetensors',adapter_name=self.LoRA)
+        elif self.LoRA=='better_face':
+            download_lora(better_face)
+            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='better_face.safetensors',adapter_name=self.LoRA)
+        elif self.LoRA=='diana':
+            download_lora(diana)
+            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='diana.safetensors',adapter_name=self.LoRA)
+        
         if self.LoRA!=None:
             # self.pipe.fuse_lora()
             # Activate the LoRA
-            self.pipe.set_adapters(self.loraout, adapter_weights=[self.lora_weight])
+            self.pipe.set_adapters(self.LoRA, adapter_weights=[self.lora_weight])
             # self.pipe.scheduler = DDIMScheduler.from_config(self.pipe.scheduler.config, timestep_spacing="trailing")
 
         # Activate compel for long prompts
         compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])
-        if self.LoRA==False:
-            self.loraout="nolora"
+        if self.LoRA==None:
             ## compel for prompt embedding allowing >77 tokens
             self.conditioning, self.pooled = compel(self.prompt)
-        if self.LoRA!=0:
-            self.conditioning, self.pooled = compel(self.prompt+self.loraout)
+        else:
+            self.conditioning, self.pooled = compel(self.prompt+self.LoRA)
 
             
 
@@ -166,83 +175,13 @@ class ImageModelSDXL(BaseImageModel):
         end_time = time.time()
         self.time = end_time - start_time
         self.clear_mem()
-        # self.i=os.path.basename(self.input_image).split('.')[0]
-        # del self.pipe
-        # torch.cuda.empty_cache()
         
-        # self.quantize=True
-        # ImageModelFlux.prepare_img2img_model(self)
-        # image_res2=self.flux_pipe(image=image_res,
-        #                prompt="keep the original image but upscale it to 1920x1080",
-        #                strength=self.strength,
-        #                generator=self.generator,
-        #                num_inference_steps=self.num_inference_steps,
-        #                guidance_scale=self.guidance_scale,
-        #                ).images[0]
-        
-        # ImageModelFlux.prepare_upscale_image(self)
-        # w,h=image_res.size
-        # image_res = image_res.resize((w * 4, h * 4))
-        # image_res2 = self.flux_pipe(
-        #     prompt="", 
-        #     control_image=image_res,
-        #     controlnet_conditioning_scale=1.0,
-        #     num_inference_steps=4, 
-        #     guidance_scale=7.5,
-        #     height=image_res.size[1],
-        #     width=image_res.size[0]
-        # ).images[0]
-        # del self.flux_pipe
-        # torch.cuda.empty_cache()
-        
-        # Save the generated image
-        # save_pathA=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,self.loraout)
-        # save_pathC=os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images",self.model,self.loraout)
-
-        # os.makedirs(save_pathA, exist_ok=True)
-        # os.makedirs(save_pathC, exist_ok=True)
-        
-        # # bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
-        # bench_filename = 'img'+str(self.i)+str(self.blur)+'.png'
-
-        # save_path1 = os.path.join(save_pathA, bench_filename)
-        # save_path2 = os.path.join(save_pathC, bench_filename)
-        # image_res.save(save_path1)
-
-        # # self.annot='llava:'+image_llava(self,image_res)+'. blip2:'+image_blip(self,image_res)+'. desc:'+annotate_images(image_res)
-        # self.annot='llava: not yet. blip2:not yet either. desc:'+annotate_images(image_res)
-
-        
-        # ImageModelSDXL.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res,image_res2], output_path=save_path2)
         try:        
             image_res = Image.open(io.BytesIO(image_res))
         except:
             pass
         return image_res #, save_path1
     
-    def generate_bench(self,image_path,pose_path,mask_path):
-        self.res=1280
-        guidance_scale=self.guidance_scale
-        strength=self.strength
-        blur=[51,101,151]
-        # LoRA=[0],2,3,4,5,6,7,8]
-        # lora_weights=[0.5,1.0,1.5,2]
-
-        # for self.LoRA in LoRA:
-        for self.blur in blur:
-            # for self.lora_weight in lora_weights:
-            image_model.prepare_model()
-            for self.input_image in glob.glob(self.image):
-                # for self.controlnet_conditioning_scale in [self.controlnet_conditioning_scale-0.2,self.controlnet_conditioning_scale,self.controlnet_conditioning_scale+0.2]:
-                for self.guidance_scale in [guidance_scale]:
-                    for self.strength in [strength]:
-                        # for self.res in [768,1024,1280]:
-                                # for self.control_guidance_end in [self.control_guidance_end,self.control_guidance_end+0.1]:
-                        self.prepare_image(self.input_image,pose_path,mask_path)
-                        image_res, save_path = self.generate_image()
-                        # image_res = self.upscale_image(image_res)
-            # self.pipe.unload_lora_weights()
-        
 
     def clear_mem(self):
         del self.pipe
