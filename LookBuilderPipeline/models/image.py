@@ -402,7 +402,7 @@ class Image(Base):
                                   LoRA: str = None):
         segment_variant = self.get_variant('segment', session)
         segment_variant = self.get_variant_image(segment_variant, session)
-        self.get_or_create_variant('outfit', session, inverse=False)
+        self.get_or_create_variant('outfit', session, inverse=True)
 
         pose_variant = self.get_variant('pose', session)
         pose_variant = self.get_variant_image(pose_variant, session)
