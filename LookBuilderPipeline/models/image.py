@@ -402,11 +402,11 @@ class Image(Base):
     def get_or_create_sdxl_variant(self, session, prompt: str, negative_prompt: str = 'extra clothes,ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', 
                                   seed: int = 420042, strength: float = 0.95, guidance_scale: float = 6, 
                                   LoRA: str = None):
-        segment_variant = self.get_or_create_segment_variant('segment', session, inverse = True)
+        segment_variant = self.get_or_create_segment_variant(session, inverse = True)
         segment_variant = self.get_variant_image(segment_variant, session)
         self.get_or_create_outfit_variant('outfit', session, inverse=False)
 
-        pose_variant = self.get_or_create_pose_variant('pose', session, face = True)
+        pose_variant = self.get_or_create_pose_variant(session, face = True)
         pose_variant = self.get_variant_image(pose_variant, session)
         
         params = {
