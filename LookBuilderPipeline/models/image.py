@@ -133,7 +133,9 @@ class SDXLHandler(VariantHandler):
             ImageVariant.source_image_id == self.image.image_id,
             ImageVariant.parameters['prompt'].astext.cast(String) == params.get('prompt', ''),
             ImageVariant.parameters['negative_prompt'].astext.cast(String) == params.get('negative_prompt', 'extra clothes, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
-            ImageVariant.parameters['seed'].astext.cast(Integer) == params.get('seed', '420042')
+            ImageVariant.parameters['seed'].astext.cast(Integer) == params.get('seed', '420042'),
+            ImageVariant.parameters['strength'].astext.cast(Float) == params.get('strength', 0.95),
+            ImageVariant.parameters['guidance_scale'].astext.cast(Float) == params.get('guidance_scale', 6)
         ]
         
         # Add LoRA name to filter conditions if provided
@@ -158,7 +160,7 @@ class SDXLHandler(VariantHandler):
             'prompt': params.get('prompt', ''),
             'negative_prompt': params.get('negative_prompt', 'extra clothes, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
             'seed': params.get('seed', '420042'),
-            'strength': params.get('strength', 0.9),
+            'strength': params.get('strength', 0.95),
             'guidance_scale': params.get('guidance_scale', 6)
         }
         
@@ -402,7 +404,7 @@ class Image(Base):
                                   LoRA: str = None):
         segment_variant = self.get_variant('segment', session)
         segment_variant = self.get_variant_image(segment_variant, session)
-        self.get_or_create_variant('outfit', session, inverse=True)
+        self.get_or_create_variant('outfit', session, inverse=False)
 
         pose_variant = self.get_variant('pose', session)
         pose_variant = self.get_variant_image(pose_variant, session)
