@@ -36,7 +36,7 @@ class ImageModelSDXL(BaseImageModel):
         self.image = kwargs.get('image', image)
         self.negative_prompt = kwargs.get('negative_prompt', "dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
         self.strength = kwargs.get('strength', 0.9)
-        self.LoRA = kwargs.get('LoRA', False)
+        self.LoRA = kwargs.get('LoRA', None)
         self.model = 'sdxl_blur'
         self.benchmark = kwargs.get('benchmark', False)
         self.control_guidance_start=0
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=420042, help="Random seed")
     parser.add_argument("--negative_prompt", default="dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
     parser.add_argument("--strength", type=float, default=0.9, help="Strength of the transformation")
-    parser.add_argument("--LoRA", type=bool, default=False, help="use LoRA or not")
+    parser.add_argument("--LoRA", type=str, default=None, help="use LoRA or not")
     parser.add_argument("--benchmark", type=bool, default=False, help="run benchmark with ranges pulled from user inputs +/-0.1")   
     parser.add_argument("--res", type=int, default=1024, help="Resolution of the image")
     parser.add_argument("--lora_weight", type=str, default=1.0, help="weight of the LoRA")
