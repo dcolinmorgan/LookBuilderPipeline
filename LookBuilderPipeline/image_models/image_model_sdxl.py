@@ -100,6 +100,8 @@ class ImageModelSDXL(BaseImageModel):
         elif self.LoRA=='diana':
             download_lora(diana)
             self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='diana.safetensors',adapter_name=self.LoRA)
+        elif self.LoRA=='mg1c':
+            self.pipe.load_lora_weights("Dcolinmorgan/style-mg1c",token=os.getenv("HF_SD3_FLUX"))
         
         if self.LoRA!=None:
             # self.pipe.fuse_lora()
