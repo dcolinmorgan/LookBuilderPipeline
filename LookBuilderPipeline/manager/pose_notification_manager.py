@@ -73,8 +73,9 @@ class PoseNotificationManager(NotificationManager):
 
             try:
                 self.session = session
-                variant = image.get_or_create_pose_variant(
+                variant = image.get_or_create_variant(
                     session=self.session,
+                    variant_type='pose',
                     face=validated_data['face']
                 )
                 

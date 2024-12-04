@@ -1,0 +1,261 @@
+*   0c8f687a017f34911ac7039a15768846ee1e1772 (refs/stash) On main: !!GitHub_Desktop<refactor/image_variant>
+|\  
+| * 69b37949a56bb4c6decdce3c0706ae6d2a042842 index on refactor/image_variant: db31ae5 just about working end-to-end
+|/  
+* db31ae5c03fd35dd3a0bb1c82a710e5f1ecf966c (origin/refactor/image_variant, refactor/image_variant) just about working end-to-end
+* 2c765fd6a3bd7a5145f9d145c0c969f777f7aa87 (HEAD -> feature/lora) add mg1c lora
+* 68b404c8a5a0f4d36b16561df2e8a7d949b668d6 (origin/feature/lora) lint x2
+* 38ac496e534dfa798bea809a641552ae4d6727ac lint
+* 5e7c5e322d73e46b9529226ad8ddfb91500dee56 get or create seg and pose for sdxl exec
+* fb591fe1f86ee161c98adef24102092f365b4642 fix outfit
+* d81d130bd953826c9e61957522b3ed514fcbe7e2 tweak to outfit
+* ed0a965b4b313e804c83b982da5e8607e3673f79 lora bool to str, false to none
+* beadabaed5e03e7adcbb6c6fbe1734d830404262 tweaks to loadings and selecting loras
+* a0315dbe3de4378b62d3fff75b00cf9273a94377 send LoRA into web
+* 27202269635a3d884bce8409dfe35647758da076 (bug-fix/gpu-mem) add strength + guidance to create_sdxl_variant
+* eac6acddd91601305ffa521020c4ca36bf2a7b49 accept seed + strength + guidance
+* ce37f476543bf9f86764ac40b70b4e687da68a8e passthru seed + strength + guidance via -web
+* 9b5025a92600530a6f43b8a6cc877bf3d143ea10 update outfit
+* 2df4cdbd88903781c41c5def152d578b88f253d4 add OutfitHandler
+* f3d5e2eb0f946a488aa39a27e765c5aaf669fc40 (bug-fix/resize) remove abbreviations
+* 5f71d9523f14e6dbdc9502289f2ed8a892752f70 add outfit to variant
+* cbd0fe51eeeaebdc3be670661039f57fa48d914e revert
+* 694568b41efebbcd64dd62c16e79fd7e2262ac55 small inverse segment fix
+* d8e464473c3a56229197c5efc82e8d41e2f9edfe small fixes, add seed
+* af4e89a92e917b4e98e4a98c0e0a8c354a3a22db Fix image resize and padding
+* 93acf9d5f801e5de9ddb76b6cde2fbcc250f3698 (origin/feature/alpha_plus_sdxl, feature/alpha_plus_sdxl) feat: Add method to fetch unassigned images
+* 614accc844bd389acbd9d6574489e0ab2a1634f6 end-to-end
+* 30a3d496cc5e718f6707767508a2d14d242e0a69 simplify
+* fa668587ba3a3dd38e94445d66804b2f1e6cfa78 generated image stored now
+* bc2a99f43c28a13387622e2eef6efe039d68e0de shit
+* c60e8eed5f30d9b0b3848026dd3af894580399c7 small bug squash in image.id for seg and pose
+* 93899c6ddbc1534e553a7a63157f00b59c8d9461 add flexibility to image for gen_image storage bytes > json
+* a9a099ba2e359c97aefd9879a209382dd83684af small tweaks and refactor of image to run SDXL
+* f73c57532df01ac2e4a09b82e14e6830df3b1a7e (feature/alpha_plus) small pre-sdxl refactor
+* 078408ed6afbc498a24643c30b8d011164bfa9db (origin/feature/alpha, feature/alpha) Changes to make pipeline work on Intel Hardware
+* 30f79c83d4797ecdd8700120fd0877de2ca510f9 added alpha config
+| * 7cd6f34b50a02a929d8b6218c189db3cb76ef658 (origin/web_friendly_etc, web_friendly_etc) small tweaks
+| * 6e39ab3296841be64c4ef718518f1924f6d238f7 Update python-tests.yml
+| * e6d29f63aa42ed868c83803110ea7176e7e53250 Update requirements.txt
+| * c4867f4024c1cfb66483494c1a6894fcdecb90df fix reqs
+| * a08ce87637ae40622d54e8414805aaa489d24058 fix managers, rm schema, working on image
+|/  
+* 22c4f9b3451f75a5b777d1a88703b55d8a0b9ced (origin/Merged-Web-Friendly-Managers+Model, Merged-Web-Friendly-Managers+Model) geting pose to work with web
+* 54b2148ffd2c97e2565919d017a1e56c2f4e8a73 (oop-web-friendly) Getting the code to work with webfront end
+* e5ce09b6605d5d1382b85337f817ac4f92fae47b Very rough merge. Will need to tidy it up later
+*   fccfa14b251f6e384ffc87e0e5456c299fcc1260 Very rough merge. Will need to tidy it up later
+|\  
+| * 72e432c47699cc82d27c14ba58778fd365a25e32 (origin/managers+models, managers+models) Create image_model_sd3.py
+| * 710718a4ada21751f78422bca6d926683213fbd7 move back manager and models to pipeline
+| * b6f4d8da601ba4258d18d5c3e6ac0be32abf6297 (origin/sdxl, sdxl) update setup
+| * 8d95c7113ab3bd5f3f42c8b9f7a41d740b4df16f update setup
+| * c6effdf0ee57b8da75713c6da2049969d86191fc update setup
+| * 855aed4ff79242439c68a9a0e5ffc7bf6a59db29 small tweaks to dwpose install/lora process
+| * f04a35af24ab32dbf6de88c56029e43a030bb89c lint
+| * 9236787b5c72044abb81cf3f43e0228dbb5b5995 mod workflow to clone dwpose too
+| * c8ef670e429febb252e43326985ad4f5175943de bench try bluring mask
+| * 650bb95c6f0f5a8c79b3bb22a6ce466453f32a4f add DWPose clone to setup, image+bench tweaks
+| * 8a672770d23dfffdeaba55c21f8039d8ddb91847 lints
+| * 8421930175338245a040f1609fc7641922a6c6eb add feet
+| * 20037dcc70e9790b028e5c6d955eefc00a0aca71 lint
+| * 9145cb6c85580880ae3e5abd234edcf815d012b3 lint
+| * 8d8660a1f9f325d35a5fca1dc9f0cab0f036bac7 tests pass, add flux img2img afte sdxl
+| * 503ff2cfb9b18616e337c370d080fa5a41dde462 lint
+| * 9fe9714182754747016de2ef2dceb42bfc90098d updates all around
+* | bedf8ddbb93f80353caae476e19110380d500160 (origin/feature/web-friendly-manager) adding look and look relationship
+* | d331d3051556d6bc47200783e8468ddc69c9f623 Making pipeline work with web
+* | c569fb81c16416781c5f698ed1c811a714b2e812 Added get_user to db_manager
+* | ff3ad3f1e989d31175811c8dc9c13544e0aa7b32 add segment
+* | 3911d20a166e3d2da4d40e91c463a2e59bf635d3 (origin/resize_client_implementation, resize_client_implementation) woking version of resize
+* | 1ebab3494a9cabcc3057f02717fc5cadf056f3fd added User
+* | d14daa7c11a5e47e38362cb3c10464e543661921 added Image Variant
+* | 2b82cb6c4b6a1084197742a42d52e8845949de82 work in progress in adding the resize logic plus adding the image_variant logic
+* | 2ceba8d6cdf471667862627ffe4ed97308513c5f (origin/resize_client_ping_base_class, resize_client_ping_base_class) Refactored to move logic to the base notifcation class
+* | d4e21b35676db1f8b9c8d738c1f33e46b8303104 refactor of code to simplfy and make easier to extend. Also added two cols served_by and requestd_by
+* | 05c9963f64e687098c8c0057c25657e4a5b0b822 (origin/resize_client, resize_client) working tests and code we hope to add ping test
+* | d31ce46be3eacb581e25657edc3d96b2ca0da450 Refactor code into DBManger
+* | 89b471f6291abdad038c57d28a4e1f02d6d8ecf4 added ping and pong tester / checker. You can send NOTIFY ping, 'ping-123'; from psql and it should work
+* | 587e9c7189ccfdb8e2c99a2e09da875e1ddf2e22 added notification boiller plate
+* | e8884911ed1ad54297a61e8b8500c1b7689813bc added intial notification code
+* | be6c1c7ed7bdbb326c71b3fccfb2224b43d55eda added intial notification code
+| | * b7e3d7b55e6ac95f53b508110d81c6e825565cdd (origin/annotate, annotate) lint
+| | * 03db7103e5fa7852e4ca472ce926f76f139155a9 for AI checking generated image
+| |/  
+| * 657ff27dcda3e8ebf4d026669bfffe0305cd11dd gpu pose, poseCN, bench tweaks
+|/  
+* 4bc129c70aaa41fd6560977a6fbc78cb733f4cb3 land only sdxl pipeline
+NOVERMBER ^^
+* c85ae4d5c983492dea36e70e4a14dcb95b35a1cf (flux) big sdxl bench lora add
+* b64a67a2364ddb3a9673f69890fb75dd7d59bf77 add openflux as param to fl2, tweaks to rdme & bench
+* 4c93d75b727ff19726206e0ef4cd467744c83fa2 edits in resize, pose, benchmarks, readme
+* 025e674f5ca3a3e0f7dd76332b4881e2bc0d4604 many fixes throughout
+* 82b6362240eafc5254833d2b7ec7929a24492e36 lint tests
+* 92eced7ee1466f617e8ecdfedc4925e1d08d6d14 lint req
+* 550659dc5ec31970e11961e98b3e4e2002ad4221 lint req
+* 0ffa13fb5cc5f190ddf199e5248a8838c6d596fc schnell > flux, add bench parameter to CLI & for testing
+* bf0e724c8e05d66918f7fd3b322fa446d9562594 lint, add 2nd bench
+* 704e64506ab141deb0d32067649b3c7f9ffb59f5 add CN srt/stp pts to openflux, small code refactor btwn models
+OCTOBER ^^
+* c47a6311526205a2792e51330d0ac92249902a46 lint
+* 946dae8ef34434fae928c2b522a0dba11f363523 lint
+* 2fd12303a88a2c5b2d4f704cd5717cb836eaa97e rm py39
+* 8e1263336543b23e64dc0d370259f17e1f947845 rm py38
+* bda2c312f75021b27673ce98ecaa17ccd46e796f flux >77 token prompt + quant update
+* f3a55b303c4c3ab17c74a32d98db59851e4f5280 req fix
+* 231e59896d9d113e23646b21d5f33f5058d1dfc9 lint
+* f28daeffbcd816cb3e3b4c58fd5a7b2ce9a8bf93 >77 token prompt, prep for lora
+* 3669a8595274c656a22d0f903fef113da97a14aa add benchmarks, dl files from vast and add to proper dir
+* de74aa85b0f3a8432d52faa1205393cf2eefd4c7 update parameter descrionptions on readme
+* 6dbf8c233daa3fa9c7a5e97a523a96ac8a80bdf7 fixes+updates
+* 5d7796c7f578e0a5a8f62359d25306e2854c4002 tweaks, transfers perf from benchmark
+* 92ace1a00c9d868897b5b5cb97f46f16cf086c8c tweak
+* 5dfa9624ed65a5d6499a5850bdc720d8d01cf7e8 fl2 + openfl2
+* bbede90d504828e332c94ab750d638e0bc546ff9 tweaks
+* 8508f306e402f97c0205708c06d0e5243ce07d2d lint reqs
+* 6ad4e598afc2072db1fb452ba60ef718b0d3e9b6 install fixes
+* 27804cda6912fc91a77893594b40fdee0578e7ee ready for big benchmark
+* 89beac5291e8acbd4a792e3c7934855986052a54 towards clean (open)flux
+*   ad35db7a82d2b5154239127d527f24b5f8167896 Merge branch 'sdxl' into openflux
+|\  
+| * 55bdcd3d26a2b84cee389344c8ac89f2124ef268 small tweaks, inverse mask by default
+| * 7d7dbc464e26b7634b66013fab88be56abeeb577 lint reqs
+| * de2983becc64d630ffe1ff5b05519284370de917 almost clean and loving it
+| * d1d4aeece3ea5c0551336acd9279de5009476956 blur mask option for outpainting
+| * 46f93457feef910798ca09806ff6948b763447d4 quick benchmarking print stmt
+| * 93b4d069441d0f118f6a63bd9698f289f73586d2 install lint
+* | 051b8de0bb09b0609bf274049d13ae15168ccb57 update if quant>load or not
+* | 2d9a942c374bf1d8ceae83243bc5eba0b4732107 quantized openflux model
+* | b83f139b96e77729e74cf9fb5abc40558a325318 basic harness, pipeline in works
+* | 7073e1ce8f523dcb19aca9aba6631c2b153d4ba1 cleanup, update
+* | 993f19f9204ae90418ac20622b76f42e42c09267 lint
+* | c20a683ecf1ba27920ce0cdeaa49886fc4a69fbb lint install
+* | fcab00efbd9782178c5981be050394aab65585ba Merge branch 'sdxl' into openflux
+|\| 
+| * 6690346574c18a60c10536ba8fde885cc22765e7 rm sdxl test w/o gpu runner
+| * 348cfd70823486885fa607f3c56c2db2c203fe59 lint
+| * dd7a0acd08dc97c64dbe6d0cb9a0cb721463a215 big update, tests, sdxl block workflow
+| * 53dda1953576f739607d3ef43e467eb005f41da6 cleaned-up and update tests
+| * b7deb2ccb9d3644b96c95bfc26ec5aa37b2101d6 clean, add cuda check
+| *   79946307dd60d1f9002c175d50fb6d75ab9940ef Merge branch 'main' into sdxl
+| |\  
+| | * eb1d53a9796695a03c450c272d039f47c4e5002c (origin/main, origin/HEAD, main) aspect ratio input tweak
+| | * 7ff70770302aebaa72cdf1e0ce29ecb1b864dd28 more import folder changes
+| | * e78e62877ef01ddedd0eae91a3da8c03e4bf6563 mv sm functions for simpler importing
+| | * 9fa67f431fdb7594bf5555cc79360eb7de23a6ed Update issue templates
+| | * e5fe7412fadd98fb97e2293b2b51373b7d20bde9 Revert "Merge pull request #18 from Modegen/model_api"
+| | *   969b216cc793e654fff93d362015e79fb82e7073 Merge pull request #18 from Modegen/model_api
+| | |\  
+| | | * cd7710e66b74d533fdada62af5cbeb0d8f90bf2f update
+| | | * ebb71351d9f91f660637ec09a389f07afa0a287d init api for all models
+| * | | 499124d7ea6853f92abcee39c54b79395394198a Merge branch 'main' into sdxl
+| |\| | 
+| * | | dcd1d09cbcf2fb745cfb0c61fe3ba1445375cd83 flexible tests for both models
+| * | | 2aed397787e7de8216cc34643bbdd47e538c6984 merge + update pipe
+| * | | 339aa732864730bdabf43f9cb580633f0eb38c11 tests closer, need more magicmock-ing
+| * | | e55d89e849016a888c02f934f0b9c0f0500f85f2 add tests
+| * | | 738859c2608c56262df3a9d1cf66ce969f9e3ce6 revert double pose output
+| * | | 3f6c03dd84f877336eeffe6906abaf0ab13bcd6e rm repeat diffusers req
+| * | | 0638ca508e42334b838abc68472debf7795d2cda init pad function
+| * | | d38c7a834058b89d702743ea35b3ef31f248e283 init sdxl + masks
+| | |/  
+| |/|   
+* | | 62166d8884fc2841f3b63fc5394aebbbd54656de initial push
+* | | 883d9fd5342ae7e96350706c22d231051d285b7a run schnell w/ devCN via no guidance_embeds, f16
+* | | 8ef5e6dde5fe03e2860a927fd0fffefdf8c3df8e update readme, harness, debug plot
+* | | c60dca242b56982cf1bab159ab238b48b709a70d small path changes, +harness
+* | | e718f708ffa54f6488deb0e0a611998ee01911d5 append neg-prompt, mv functions
+* | | fda22cf74115603f0b1495733caf238f936e51bc neg prompt hack for now
+* | | e1a24f799026925b4e2935af456b431ac2cd67ed small fixes, rm files
+* | | 75a8d1f13bc073aa91d08325028464ef1522a6ee small notebook + test-harness working
+* | | 3c0e2bafb7f11a48bf4fd689ce0e3973c7ddfccb flexible tests for both models
+* | | 30fe5ec487e75464ad4d4b68786d8fda2b9673f1 loosen non-spec vrs
+* | | dd92113dcea953d3cbabfdb6f5d75edd8029610c fix req, setup
+* | | 4e3158cd33f06ac533bd7c837ecdf68dd72e7a8e fix req, setup
+* | | fca3077463fbea3e6065a619cbb11e011afcf94c merge + working REST for batch testing
+* | |   b3d05e5e8ce601684ea46d988dec53bda0daa535 Merge branch 'main' into flux
+|\ \ \  
+| | |/  
+| |/|   
+| * |   f3591db449a4211c95e1f6c4ea794e4c8784767b Merge pull request #20 from Modegen/resize
+| |\ \  
+| | * | 092a66906294fd5d6f88d5675b5c39bad26676e9 tests pass, input=width
+| | * | 1a98f079d2837350f1345d9028a20ec9f7b100f8 add non-square sizes to tests
+| | * | 65462c1832ee4049c0a8daffaa675770648307d4 add square padding parameter
+| | * | 280bf8e1eb2aeeb1df44cf20c3059c1a56eef989 resize ratio + div by 8 for flux
+| * | | ead3a4f70a94650af3d04e8e18434b2eeaf2ca80 rm rest ?
+| * | |   5d9f9966ffe02faf53925cef3360e0f621e95a2c Merge branch 'main' of https://github.com/Modegen/LookBuilderPipeline
+| |\ \ \  
+| | * \ \   f618a87532a8ad96eb80a8f899966e6c0cf2e4ef Merge pull request #15 from Modegen/padding
+| | |\ \ \  
+| | | |_|/  
+| | |/| |   
+| | | * | ea7d86fc4198e17e563a0c45427127ffada3da3f tests passing
+| | | * | 3b98ee81f92664b412883fac8902c4489adc0223 add padd tests
+| | | * | 860f88974593f50dfb9792ea9b25b8f5995d11d2 rm repeat diffusers req
+| | | * | 80090a04b2dec6ecf63922cd6a3859e5abfa942b diffusers version
+| | |/ /  
+| * / / ea766ea4c849c1129d650b53bf17c4f13d12ab9f readme and plotter
+| |/ /  
+* | | 2787ae0ba33e59f4c811550da9c95e7aae4bfec4 small CN tweaks
+* | | b1452bca0b84db8ddc68d71b0b800d1127622dbf updated
+SEPTEMBER ^^
+* | | 9aa0b87bac7cc95b9bad9c88f6c5b52d1f8306ac lint
+* | | 378566f703b6e931db0ffa433499b5734308aa6a quick api for testing
+* | | 43150e00f478a690a21f2a748d3e9f62d55d2beb comments
+* | | 04958bb093d7cfc13b4338cc21483e9b5556b22e add kids_function and baseimage tests
+* | | d310b20b414b2449adf7dbb46908ddea39b45efc pro union pose
+* | | 9e3270176d7ca42e709618d0b22ea4bf673a1734 Merge branch 'main' into flux
+|\| | 
+| * | 256781a633e15f640251d0593f5ed2f74660119f Merge pull request #7 from Modegen/resize
+| |\| 
+| | * d93744c3625441204992108e52fd3b9dcbab220c add resize helper
+| |/  
+* | 4c89f75594eef957a6d7dff2da256607bf99835a working but not right just yet
+* | eb962d2e1573eb940bfcbf671d9b6b00d0b3f0ce let CNIP handle du
+* | 478f09c8297a8e65efe158ee130cf884021a62fe not dev diffusers
+* | 2d9efda716186bf8062d19016ef2239ae89b5ff4 chg diffuser version
+* | 5b51f259f03bf1f0ed1c2bfd1953bceab46eb7b0 Merge branch 'main' into flux
+|\| 
+| *   e1c412be20a3c2691dfb30d75b3a4750a0fac621 Merge pull request #5 from Modegen/pose
+| |\  
+| | *   d73ab6232ba987f71ce8b41df4a096c1e7684fdc Merge branch 'main' into pose
+| | |\  
+| | |/  
+| |/|   
+| | * 4fe6635464ce09ebcae842a6fab8e91d1de47e7f add comments and versions
+| | * 98ad7a37c159dc7fdffc3dbd1003700ac6ce1de4 fix dirs, lint, fix tests
+| | * 45ebc1f36b24314001bb66c11d3be02aafd217b0 lint req
+| | * b1e1bda2caad038aaebbd6bfaff0a5aff45410f4 pose detection tested + pose tests
+* | | 49fd3ff896a1ca80890ea21c5997694a6c0466b6 update
+* | | f3ef1ae5dc91013cd3008dd0f596fc55288ba782 (slow) working flux multiCN-inpainting
+* | | 4264841904e0f52df9f21156ee77c9bf2dce3a29 Merge branch 'main' into flux
+|\| | 
+| * |   5018cfc3d11626487f13c1fe33cfe1d786350552 Merge pull request #3 from Modegen/segment
+| |\ \  
+| | |/  
+| |/|   
+| | * 30d8fe065e40f071e22f5d13c5d364cf3f10a4fc comments, add versions
+| | * 74b5eaf3f0fbef54480229b450f857986eb8b238 type fix
+| | * efb33335c827838c5f41f56cf43bf59a350f6711 type fix
+| | * 3a193d66da23dc423fdd62758fb31aff85c18706 type fix
+| | * e8629db161d174a2507978868465cff5a7de82c8 add output
+| | * ed4069c778d28b5acd49d0bff4e523417c0b568e lint
+| | * 84498f034566bc49812550fc4b5bac82b607020c fix resize bug
+| | * 8ccbef3eba2a8329ae32d73feaefbf81b3371024 fix resizing
+| | * 1c9493ec98402170b92f62dedc7cac66f2ed525b combine,simple tests
+| | * 4d82102c98c97d33721f0ca2a1622a4e08773576 chg to segment
+| | * 9da85645591985768729efebf76b046b2ba79307 lint
+| | * a65c24ad32f0338e8a40b5be7300cb4b10603839 req pillow
+| | * 8621f43cb7521ffe6f1046522a1e8cff44330e92 add req
+| | * 3b50831bffea26c22aa06ec2a75e8d543ae5a300 add repo structure
+| | * 5c8b4e53973b2b68d04b00bbdf4d0dee5bfbd367 mv dirs
+| | * f457120dad8e3c56a4cb21b927daf6272b748f64 lint
+| | * 9ae01791efda1391e9b822397272b3e9f2dc8735 seg code + tests
+| |/  
+* | 60ed66a144c55e2f9467579a45efbecebaa308a4 add cpu model offload
+* | ba15419a666c9ffac3f7eff94ec8fa9ead359c82 init
+|/  
+*   80c25ada639960b3f617a14fa4b99dd5e43ee4a0 Merge branch 'main' of https://github.com/Modegen/LookBuilderPipeline This is sorting intital commit issues
+|\  
+| * 8dd98405574f740857f0afcdbd4c9666e8bd636f Initial commit
+* 1733e4fcad067e6f4470a941e452e60ea673e254 Intial Commit with base structure

@@ -64,8 +64,9 @@ class SDXLNotificationManager(NotificationManager):
                 raise ValueError(f"Image {validated_data['image_id']} not found")
 
             # Create SDXL variant
-            variant = image.get_or_create_sdxl_variant(
+            variant = image.get_or_create_variant(
                 session,
+                variant_type='sdxl',
                 prompt=validated_data['prompt'],
                 negative_prompt=validated_data['negative_prompt'],
                 seed=validated_data['seed'],

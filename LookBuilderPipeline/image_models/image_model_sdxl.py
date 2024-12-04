@@ -1,5 +1,6 @@
 import sys, os, gc, requests
 import uuid
+import logging
 import time
 import torch
 import numpy as np
@@ -18,35 +19,14 @@ import io
 from diffusers import StableDiffusionXLControlNetInpaintPipeline, ControlNetModel, DDIMScheduler
 
 class ImageModelSDXL(BaseImageModel):
-    def __init__(self, image, pose, mask, prompt, *args, **kwargs):
-        # Initialize the SDXL image model
-        super().__init__(image, pose, mask, prompt)
-        if torch.backends.mps.is_available():
-            device = torch.device('mps')  # Use MPS if available
-        elif torch.cuda.is_available():
-            device = torch.device('cuda')  # Use CUDA if available
-        else:
-            device = torch.device('cpu')
+    def __init__(self, image, **kwargs):
+        # Initialize the SDXL image model if not yet initialized
+        super().__init__(image, **kwargs)
+
         # Set default values
-        self.num_inference_steps = kwargs.get('num_inference_steps', 50)
-        self.guidance_scale = kwargs.get('guidance_scale', 6)
-        self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1.0)
-        self.seed = kwargs.get('seed', 420042)
-        self.prompt = kwargs.get('prompt', prompt)
-        self.image = kwargs.get('image', image)
-        self.negative_prompt = kwargs.get('negative_prompt', "dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
-        self.strength = kwargs.get('strength', 0.9)
-        self.LoRA = kwargs.get('LoRA', None)
-        self.model = 'sdxl_blur'
-        self.benchmark = kwargs.get('benchmark', False)
-        self.control_guidance_start=0
-        self.control_guidance_end=1
-        self.res = kwargs.get('res', 1024)
-        self.control_guidance_start=0.0
-        self.control_guidance_end=1.0
-        self.lora_weight=kwargs.get('lora_weight', 1.0)
-        self.device = device
-    
+
+        self.negative_prompt = kwargs.get('negative_prompt', "extra clothes, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, leggings, tights, sunglasses, stockings, pants, sleeves")
+
 
     def prepare_model(self):
         """
@@ -74,9 +54,9 @@ class ImageModelSDXL(BaseImageModel):
         # Configure pipeline settings
         self.pipe.text_encoder.to(torch.float16)
         self.pipe.controlnet.to(torch.float16)
-        self.pipe.to("cuda")
+        self.pipe.to(self.device)
         
-        self.generator = torch.Generator(device="cpu").manual_seed(self.seed)
+        self.generator = torch.Generator(device=self.device).manual_seed(self.seed)
 
         supermodel_face=231666
         female_face=273591
@@ -101,9 +81,10 @@ class ImageModelSDXL(BaseImageModel):
             download_lora(diana)
             self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='diana.safetensors',adapter_name=self.LoRA)
         elif self.LoRA=='mg1c':
-            self.pipe.load_lora_weights("Dcolinmorgan/style-mg1c",token=os.getenv("HF_SD3_FLUX"))
+            self.pipe.load_lora_weights("Dcolinmorgan/style-mg1c",token=os.getenv("HF_SD3_FLUX"), adapter_name=self.LoRA)
         
-        if self.LoRA!=None:
+        if self.LoRA!=None and self.LoRA!='':
+            logging.info(f"Activating LoRA: {self.LoRA}")
             # self.pipe.fuse_lora()
             # Activate the LoRA
             self.pipe.set_adapters(self.LoRA, adapter_weights=[self.lora_weight])
@@ -146,16 +127,15 @@ class ImageModelSDXL(BaseImageModel):
             self.pose = Image.open(io.BytesIO(self.pose))
         except:
             pass
-        from LookBuilderPipeline.utils.resize import resize_images
-        self.image, self.mask, self.pose = resize_images(images=[self.image, self.mask, self.pose], target_size=self.res)
+        # from LookBuilderPipeline.utils.resize import resize_images
+        # self.image, self.mask, self.pose = resize_images(images=[self.image, self.mask, self.pose], target_size=self.res,square=True)
         # self.image=resize_images(self.image,self.image.size,aspect_ratio=None)
         # self.pose=resize_images(self.pose,self.image.size,aspect_ratio=None)#,aspect_ratio=self.image.size[0]/self.image.size[1])
         # self.mask=resize_images(self.mask,self.image.size,aspect_ratio=None)#,aspect_ratio=self.image.size[0]/self.image.size[1])
         
-        from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
-        self.image = BaseImageModel.resize_with_padding(self=None,img=self.image, expected_size=[self.res, self.res])
-        self.pose = BaseImageModel.resize_with_padding(self=None,img=self.pose, expected_size=[self.res, self.res])
-        self.mask = BaseImageModel.resize_with_padding(self=None,img=self.mask, expected_size=[self.res, self.res], color=255)
+        # self.image = self.resize_with_padding(self=None,img=self.image, expected_size=[self.res, self.res])
+        # self.pose = self.resize_with_padding(self=None,img=self.pose, expected_size=[self.res, self.res])
+        # self.mask = self.resize_with_padding(self=None,img=self.mask, expected_size=[self.res, self.res], color=255)
         
         # Generate the image using the pipeline
         image_res = self.pipe(
@@ -208,6 +188,7 @@ if __name__ == "__main__":
     parser.add_argument("--benchmark", type=bool, default=False, help="run benchmark with ranges pulled from user inputs +/-0.1")   
     parser.add_argument("--res", type=int, default=1024, help="Resolution of the image")
     parser.add_argument("--lora_weight", type=str, default=1.0, help="weight of the LoRA")
+    parser.add_argument("--device", type=str, default="cpu", help="Device to use")
 
 
     args = parser.parse_args()
@@ -225,7 +206,8 @@ if __name__ == "__main__":
         seed=args.seed,
         negative_prompt=args.negative_prompt,
         strength=args.strength,
-        LoRA=args.LoRA
+        LoRA=args.LoRA,
+        device=args.device
     )
 
     

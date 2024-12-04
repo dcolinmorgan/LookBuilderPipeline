@@ -80,8 +80,9 @@ class ResizeNotificationManager(NotificationManager):
                 return None
 
             try:
-                variant = image.get_or_create_resize_variant(
+                variant = image.get_or_create_variant(
                     session,
+                    variant_type='resize',
                     size=validated_data['size'],
                     aspect_ratio=validated_data.get('aspect_ratio', 1.0),
                     square=validated_data.get('square', False)

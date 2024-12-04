@@ -73,8 +73,9 @@ class SegmentNotificationManager(NotificationManager):
 
             try:
                 self.session = session
-                variant = image.get_or_create_segment_variant(
+                variant = image.get_or_create_variant(
                     session=self.session,
+                    variant_type='segment',
                     inverse=validated_data['inverse']
                 )
                 
