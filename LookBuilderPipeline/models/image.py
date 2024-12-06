@@ -210,7 +210,7 @@ class Image(Base):
         image_data = self.get_image_data(session)
         logging.info(f"kwargs: {kwargs}")
         
-        image_model = ImageModelSDXL(image= image_data, **kwargs)
+        image_model = BaseImageModel(image= image_data, **kwargs)
         logging.info(f"Image model device: {image_model.device}")
         
         if variant_type == 'segment':
@@ -220,9 +220,13 @@ class Image(Base):
         elif variant_type == 'outfit':
             processed_image = image_model.outfit
         elif variant_type == 'sdxl':
-            
-            image_model.prepare_model()
-            processed_image = image_model.generate_image()
+            sdxl_model = ImageModelSDXL(image_model.image, **kwargs) 
+            sdxl_model.prepare_model()
+            processed_image = sdxl_model.generate_image()
+        elif variant_type == 'flux':
+            flux_model = ImageModelFlux(image_model.image, **kwargs)
+            flux_model.prepare_model()
+            processed_image = flux_model.generate_image()
         else:
             raise ValueError(f"Invalid variant type: {variant_type}")
         
