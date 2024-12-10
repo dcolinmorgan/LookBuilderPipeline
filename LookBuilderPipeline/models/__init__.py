@@ -3,7 +3,7 @@ from .image import Image
 from .image_variant import ImageVariant
 from .pose_variant import PoseVariant
 from .sdxl_variant import SDXLVariant
-from .flux_variant import FLUXVariant
+from .flux_variant import FluxVariant
 from .segment_variant import SegmentVariant
 from .outfit_variant import OutfitVariant
 from .resize_variant import ResizeVariant

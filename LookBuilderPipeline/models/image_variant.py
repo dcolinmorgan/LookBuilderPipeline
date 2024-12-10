@@ -22,6 +22,15 @@ class ImageVariant(Base):
     # Composition - reference to source image
     source_image = relationship("Image", back_populates="variants")
 
+    # Define variant class mappings
+    variant_classes = {
+        'pose': ('LookBuilderPipeline.models.pose_variant', 'PoseVariant'),
+        'segment': ('LookBuilderPipeline.models.segment_variant', 'SegmentVariant'),
+        'outfit': ('LookBuilderPipeline.models.outfit_variant', 'OutfitVariant'),
+        'sdxl': ('LookBuilderPipeline.models.sdxl_variant', 'SDXLVariant'),
+        'flux': ('LookBuilderPipeline.models.flux_variant', 'FluxVariant')
+    }
+
     def get_image_data(self, session):
         """Get variant image data using its own oid"""
         if not self.variant_oid:
@@ -82,19 +91,98 @@ class ImageVariant(Base):
         )
 
         if existing_variant:
+            logging.info(f"Found existing variant of type {variant_type} with ID: {existing_variant.variant_id}")
             return existing_variant
 
         # Create new variant if none exists
-        logging.info(f"Creating new variant of type {variant_type}")
-        variant = self.create_variant(
-            variant_type,
-            session,
-            **kwargs
-        )
-        logging.info(f"Variant created of type {variant_type}")
-
+        variant = self._create_variant_instance(session, variant_type, **kwargs)
+        logging.info(f"Created new variant of type {variant_type} with ID: {variant.variant_id}")
         return variant
 
+    def _create_variant_instance(self, session, variant_type: str, **kwargs) -> 'ImageVariant':
+        """Internal method to create a new variant instance."""
+        try:
+            if variant_type not in self.variant_classes:
+                raise ValueError(f"Invalid variant type: {variant_type}")
+
+            module_path, class_name = self.variant_classes[variant_type]
+            logging.info(f"Importing {class_name} from {module_path}")
+            
+            # Use importlib for more reliable imports
+            import importlib
+            module = importlib.import_module(module_path)
+            variant_class = getattr(module, class_name)
+            logging.info(f"Imported {variant_class}")
+            
+            # Create variant instance with source_image_id first
+            variant = variant_class(
+                source_image_id=self.source_image_id,
+                variant_type=variant_type,
+                parameters=kwargs
+            )
+            session.add(variant)
+            session.flush()  # This will set up the relationships
+            
+            # Now process the image
+            variant.process_image(session)
+            
+            return variant
+            
+        except Exception as e:
+            logging.error(f"Failed to create variant instance: {str(e)}")
+            raise
+
+    def create_variant(self, variant_type: str, session, **kwargs) -> 'ImageVariant':
+        """Create a new variant of the specified type."""
+        try:
+            logging.info(f"Creating variant of type {variant_type}")
+            
+            # Verify source image and get its data
+            source_image = session.merge(self.source_image)
+            if not source_image:
+                raise ValueError(f"No source image found for variant")
+            
+            image_data = source_image.get_image_data(session)
+            if not image_data:
+                raise ValueError(f"No image data found for source image")
+
+            # Create variant instance
+            variant = self._create_variant_instance(session, variant_type, **kwargs)
+            
+            # Get processed image using variant's specific method
+            process_method = f'get_{variant_type}_image'
+            if not hasattr(variant, process_method):
+                raise ValueError(f"Variant type {variant_type} has no processing method")
+            
+            processed_image = getattr(variant, process_method)(session)
+            if processed_image is None:
+                raise ValueError(f"Failed to process {variant_type} variant")
+            
+            # Convert to bytes if needed
+            if not isinstance(processed_image, bytes):
+                img_byte_arr = io.BytesIO()
+                processed_image.save(img_byte_arr, format='PNG')
+                processed_image = img_byte_arr.getvalue()
+            
+            # Store the processed image
+            lob = session.connection().connection.lobject(mode='wb')
+            lob.write(processed_image)
+            variant.variant_oid = lob.oid
+            lob.close()
+            
+            # Make sure variant is properly saved and has an ID
+            session.flush()
+            logging.info(f"Created variant with ID: {variant.variant_id}, type: {variant_type}")
+            
+            # Ensure variant is attached to session but detached from parent
+            session.expunge(self)
+            session.refresh(variant)
+            
+            return variant
+            
+        except Exception as e:
+            logging.error(f"Error in create_variant: {str(e)}")
+            raise
 
     def get_variant(self, variant_type: str, session, **kwargs):
         """Get a variant with specific parameters"""
@@ -162,64 +250,3 @@ class ImageVariant(Base):
         except Exception as e:
             logging.error(f"Error reading variant image data: {str(e)}", exc_info=True)
             return None
-
-    def create_variant(self, variant_type: str, session, **kwargs) -> 'ImageVariant':
-        """Create a new variant of the specified type."""
-        try:
-            logging.info(f"Creating variant of type {variant_type}")
-            
-            # Get source image data from the source_image relationship
-            source_image = session.merge(self.source_image)  # Use source_image relationship
-            if not source_image:
-                raise ValueError(f"No source image found for variant (source_image_id={self.source_image_id})")
-            
-            image_data = source_image.get_image_data(session)
-            if not image_data:
-                raise ValueError(f"No image data found for source image {source_image.image_id}")
-
-            # Import the appropriate variant class
-            if variant_type == 'pose':
-                from .pose_variant import PoseVariant
-                variant_class = PoseVariant
-            elif variant_type == 'segment':
-                from .segment_variant import SegmentVariant
-                variant_class = SegmentVariant
-            else:
-                raise ValueError(f"Invalid variant type: {variant_type}")
-
-            # Create and process the variant
-            variant = variant_class(
-                source_image_id=source_image.image_id,
-                variant_type=variant_type,
-                parameters=kwargs
-            )
-            session.add(variant)  # Add to session before processing
-            session.flush()  # Ensure variant has an ID
-            
-            # Get processed image using the appropriate method
-            if variant_type == 'pose':
-                processed_image = variant.get_pose_image(session)
-            elif variant_type == 'segment':
-                processed_image = variant.get_segment_image(session)
-            
-            if processed_image is None:
-                raise ValueError(f"Failed to process {variant_type} variant")
-            
-            # Convert to bytes if needed
-            if not isinstance(processed_image, bytes):
-                img_byte_arr = io.BytesIO()
-                processed_image.save(img_byte_arr, format='PNG')
-                processed_image = img_byte_arr.getvalue()
-            
-            # Store the processed image
-            lob = session.connection().connection.lobject(mode='wb')
-            lob.write(processed_image)
-            variant.variant_oid = lob.oid
-            lob.close()
-            
-            session.flush()
-            return variant
-            
-        except Exception as e:
-            logging.error(f"Error in create_variant: {str(e)}")
-            raise
