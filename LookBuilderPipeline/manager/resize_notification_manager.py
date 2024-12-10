@@ -80,7 +80,15 @@ class ResizeNotificationManager(NotificationManager):
                 return None
 
             try:
-                variant = image.get_or_create_variant(
+                # Create a temporary ImageVariant instance to use get_or_create_variant
+                base_variant = ImageVariant(
+                    source_image_id=image.image_id,
+                    variant_type='resize'
+                )
+                session.add(base_variant)
+                session.flush()
+                
+                variant = base_variant.get_or_create_variant(
                     session,
                     variant_type='resize',
                     size=validated_data['size'],

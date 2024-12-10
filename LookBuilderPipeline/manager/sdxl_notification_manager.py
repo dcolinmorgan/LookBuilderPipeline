@@ -2,6 +2,8 @@ import logging
 from LookBuilderPipeline.manager.notification_manager import NotificationManager
 from LookBuilderPipeline.models.process_queue import ProcessQueue
 from LookBuilderPipeline.models.image import Image
+from LookBuilderPipeline.models.image_variant import ImageVariant
+
 
 class SDXLNotificationManager(NotificationManager):
     def __init__(self):
@@ -62,10 +64,18 @@ class SDXLNotificationManager(NotificationManager):
             image = session.query(Image).get(validated_data['image_id'])
             if not image:
                 raise ValueError(f"Image {validated_data['image_id']} not found")
-
+            
+            # Create a temporary ImageVariant instance to use get_or_create_variant
+            base_variant = ImageVariant(
+                source_image_id=image.image_id,
+                variant_type='sdxl'
+            )
+            session.add(base_variant)
+            session.flush()
+            
             # Create SDXL variant
-            variant = image.get_or_create_variant(
-                session,
+            variant = base_variant.get_or_create_variant(
+                session=session,
                 variant_type='sdxl',
                 prompt=validated_data['prompt'],
                 negative_prompt=validated_data['negative_prompt'],

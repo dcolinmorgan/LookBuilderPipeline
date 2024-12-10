@@ -8,11 +8,11 @@ import io
 class SDXLVariant(ImageVariant):
     """SDXL-specific variant implementation"""
     __mapper_args__ = {
-        'polymorphic_identity': 'segment'
+        'polymorphic_identity': 'sdxl'
     }
 
     def __init__(self, source_image_id=None, variant_type=None, parameters=None, **kwargs):
-        """Initialize segment variant"""
+        """Initialize sdxl variant"""
         super().__init__(
             source_image_id=source_image_id,
             variant_type=variant_type,
@@ -21,11 +21,11 @@ class SDXLVariant(ImageVariant):
         )
 
     def process_image(self, session):
-        """Process the segment image after initialization"""
-        logging.info("Processing segment variant")
+        """Process the sdxl image after initialization"""
+        logging.info("Processing sdxl variant")
         try:
-            # Process the segment
-            processed_image = self.get_segment_image(session)
+            # Process the sdxl
+            processed_image = self.get_sdxl_image(session)
             if processed_image:
                 # Store the processed image
                 lob = session.connection().connection.lobject(mode='wb')
@@ -33,13 +33,13 @@ class SDXLVariant(ImageVariant):
                 self.variant_oid = lob.oid
                 lob.close()
                 self.processed = True
-                logging.info(f"Successfully processed segment variant {self.variant_id}")
+                logging.info(f"Successfully processed sdxl variant {self.variant_id}")
         except Exception as e:
-            logging.error(f"Failed to process segment variant: {str(e)}")
+            logging.error(f"Failed to process sdxl variant: {str(e)}")
             raise
 
-    def get_segment_image(self, session) -> Optional[bytes]:
-        """Get the segment image for this segment variant."""
+    def get_sdxl_image(self, session) -> Optional[bytes]:
+        """Get the sdxl image for this sdxl variant."""
         try:
             # Get source image data properly through session
             source_image = session.query(Image).get(self.source_image_id)
@@ -50,8 +50,8 @@ class SDXLVariant(ImageVariant):
             if not image_data:
                 raise ValueError("No source image data found")
 
-            # Create image model and get segment
-            image_model = ImageModelSDXL(image=image_data)
+            # Create image model and get sdxl
+            image_model = ImageModelSDXL(image=image_data, prompt=self.parameters['prompt'], negative_prompt=self.parameters['negative_prompt'], seed=self.parameters['seed'], strength=self.parameters['strength'], guidance_scale=self.parameters['guidance_scale'], LoRA=self.parameters['LoRA'])
             image_model.prepare_model()
             gen_image = image_model.generate_image()
             
@@ -64,7 +64,7 @@ class SDXLVariant(ImageVariant):
             return gen_image
             
         except Exception as e:
-            logging.error(f"Error creating segment variant: {str(e)}")
+            logging.error(f"Error creating sdxl variant: {str(e)}")
             raise
     
 

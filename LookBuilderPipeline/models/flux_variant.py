@@ -8,11 +8,11 @@ import io
 class FluxVariant(ImageVariant):
     """Flux-specific variant implementation"""
     __mapper_args__ = {
-        'polymorphic_identity': 'segment'
+        'polymorphic_identity': 'flux'
     }
 
     def __init__(self, source_image_id=None, variant_type=None, parameters=None, **kwargs):
-        """Initialize segment variant"""
+        """Initialize flux variant"""
         super().__init__(
             source_image_id=source_image_id,
             variant_type=variant_type,
@@ -21,11 +21,11 @@ class FluxVariant(ImageVariant):
         )
 
     def process_image(self, session):
-        """Process the segment image after initialization"""
-        logging.info("Processing segment variant")
+        """Process the flux image after initialization"""
+        logging.info("Processing flux variant")
         try:
-            # Process the segment
-            processed_image = self.get_segment_image(session)
+            # Process the flux
+            processed_image = self.get_flux_image(session)
             if processed_image:
                 # Store the processed image
                 lob = session.connection().connection.lobject(mode='wb')
@@ -33,13 +33,13 @@ class FluxVariant(ImageVariant):
                 self.variant_oid = lob.oid
                 lob.close()
                 self.processed = True
-                logging.info(f"Successfully processed segment variant {self.variant_id}")
+                logging.info(f"Successfully processed flux variant {self.variant_id}")
         except Exception as e:
-            logging.error(f"Failed to process segment variant: {str(e)}")
+            logging.error(f"Failed to process flux variant: {str(e)}")
             raise
 
-    def get_segment_image(self, session) -> Optional[bytes]:
-        """Get the segment image for this segment variant."""
+    def get_flux_image(self, session) -> Optional[bytes]:
+        """Get the flux image for this flux variant."""
         try:
             # Get source image data properly through session
             source_image = session.query(Image).get(self.source_image_id)
@@ -50,7 +50,7 @@ class FluxVariant(ImageVariant):
             if not image_data:
                 raise ValueError("No source image data found")
 
-            # Create image model and get segment
+            # Create image model and get flux
             image_model = ImageModelFlux(image=image_data)
             image_model.prepare_model()
             gen_image = image_model.generate_image()
@@ -64,7 +64,7 @@ class FluxVariant(ImageVariant):
             return gen_image
             
         except Exception as e:
-            logging.error(f"Error creating segment variant: {str(e)}")
+            logging.error(f"Error creating flux variant: {str(e)}")
             raise
     
 
