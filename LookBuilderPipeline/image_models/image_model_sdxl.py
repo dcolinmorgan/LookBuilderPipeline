@@ -5,6 +5,7 @@ import time
 import torch
 import numpy as np
 from diffusers.utils import load_image
+from huggingface_hub import hf_hub_download
 from transformers import pipeline 
 import torch.nn as nn
 from compel import Compel, ReturnedEmbeddingsType
@@ -82,6 +83,11 @@ class ImageModelSDXL(BaseImageModel):
             self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='diana.safetensors',adapter_name=self.LoRA)
         elif self.LoRA=='mg1c':
             self.pipe.load_lora_weights("Dcolinmorgan/style-mg1c",token=os.getenv("HF_SD3_FLUX"), adapter_name=self.LoRA)
+        elif self.LoRA=='hyper':
+            self.pipe.load_lora_weights(hf_hub_download("ByteDance/Hyper-SD", "Hyper-SDXL-2steps-lora.safetensors"), adapter_name=self.LoRA)
+            # Ensure ddim scheduler timestep spacing set as trailing !!!
+            self.pipe.scheduler = DDIMScheduler.from_config(self.pipe.scheduler.config, timestep_spacing="trailing")
+            self.pipe.fuse_lora()
         
         if self.LoRA!=None and self.LoRA!='':
             logging.info(f"Activating LoRA: {self.LoRA}")
@@ -110,10 +116,19 @@ class ImageModelSDXL(BaseImageModel):
         start_time = time.time()
         ## try bluring mask for better outpaint 
         # self.sm_mask.save('testcv2.png')
-        # self.sm_mask=cv2.imread('testcv2.png')
+        # self.sm_mask = cv2.imread('testcv2.png')
         # self.sm_mask = cv2.cvtColor(self.sm_mask, cv2.COLOR_BGR2GRAY)
         # self.sm_mask = cv2.GaussianBlur(self.sm_mask, (self.blur, self.blur), 0)
         # self.sm_mask = Image.fromarray(self.sm_mask)
+        import cv2
+        from PIL import ImageFilter
+        mask_image = self.mask.filter(ImageFilter.GaussianBlur(radius=5))  # Adjust the radius
+        mask_array = np.array(mask_image)
+        kernel = np.ones((5, 5), np.uint8)  # Adjust kernel size
+        expanded_mask = cv2.dilate(mask_array, kernel, iterations=1)
+        self.mask = Image.fromarray(expanded_mask)
+        
+        
         # Ensure self.image, self.mask, and self.pose are bytes-like objects
         try:        
             self.image = Image.open(io.BytesIO(self.image))
@@ -143,7 +158,7 @@ class ImageModelSDXL(BaseImageModel):
             prompt_embeds=self.conditioning,
             pooled_prompt_embeds=self.pooled,
             image=self.image,
-            padding_mask_crop=8,
+            padding_mask_crop=1,
             original_size=(self.res,self.res),
             mask_image=self.mask,
             control_image=self.pose,

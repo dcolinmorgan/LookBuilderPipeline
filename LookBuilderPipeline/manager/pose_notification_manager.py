@@ -2,7 +2,9 @@ import logging
 from LookBuilderPipeline.manager.notification_manager import NotificationManager
 from LookBuilderPipeline.models.process_queue import ProcessQueue
 from LookBuilderPipeline.models.image import Image
+from LookBuilderPipeline.models.image_variant import ImageVariant
 import select
+
 
 class PoseNotificationManager(NotificationManager):
     def __init__(self):
@@ -51,51 +53,38 @@ class PoseNotificationManager(NotificationManager):
             # Get the image
             image = session.query(Image).get(validated_data['image_id'])
             if not image:
-                error_msg = (
-                    f"Image {validated_data['image_id']} not found in database. "
-                    f"Please ensure the image was properly uploaded and exists in the database."
-                )
-                logging.error(error_msg)
-                self.mark_process_error(session, process_id, error_msg)
-                return None
-
-            # Check if image has data
-            image_data = image.get_image_data(session)
-            if not image_data:
-                error_msg = (
-                    f"Image {validated_data['image_id']} exists but has no data. "
-                    f"This could be due to an incomplete upload or data corruption. "
-                    f"Try re-uploading the image."
-                )
+                error_msg = f"Image {validated_data['image_id']} not found in database."
                 logging.error(error_msg)
                 self.mark_process_error(session, process_id, error_msg)
                 return None
 
             try:
-                self.session = session
-                variant = image.get_or_create_variant(
-                    session=self.session,
+                # Create a temporary ImageVariant instance to use get_or_create_variant
+                base_variant = ImageVariant(
+                    source_image_id=image.image_id,
+                    variant_type='pose'
+                )
+                session.add(base_variant)
+                session.flush()
+                
+                # Now use the source_image_id instead of image_id
+                variant = base_variant.get_or_create_variant(
+                    session=session,
                     variant_type='pose',
                     face=validated_data['face']
                 )
                 
                 if not variant:
-                    error_msg = (
-                        f"Failed to create pose variant for image {validated_data['image_id']}. "
-                        f"The pose operation completed but returned no variant. "
-                        f"This might indicate an issue with the image processing."
-                    )
+                    error_msg = "Failed to create pose variant"
                     logging.error(error_msg)
                     self.mark_process_error(session, process_id, error_msg)
                     return None
                     
+                session.expunge(base_variant)
                 return variant
                 
             except Exception as e:
-                error_msg = (
-                    f"Error creating pose variant: {str(e)}. "
-                    f"This could be due to invalid image data or insufficient system resources."
-                )
+                error_msg = f"Error creating pose variant: {str(e)}"
                 logging.error(error_msg)
                 self.mark_process_error(session, process_id, error_msg)
                 return None

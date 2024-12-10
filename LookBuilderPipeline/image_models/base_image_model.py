@@ -32,16 +32,16 @@ class BaseImageModel:
         logging.info(f"Device= {device}")
 
         if isinstance(image,str):
-            self.image = load_image(image)
+            self.original_image = load_image(image)
         elif isinstance(image,bytes):
-            self.image = Image.open(io.BytesIO(image))
+            self.original_image = Image.open(io.BytesIO(image))
         else:
-            self.image = image
-        self.pose = detect_pose(image_path=image)
-        _, self.mask = segment_image(image_path=image,inverse=True)
-        self.outfit, _ = segment_image(image_path=image,inverse=False)
+            self.original_image = image
+        self.original_pose = detect_pose(image_path=image)
+        _, self.original_mask = segment_image(image_path=image,inverse=True)
+        self.original_outfit, _ = segment_image(image_path=image,inverse=False)
         self.res = kwargs.get('res', 1024)
-        self.image,self.mask,self.pose,self.outfit=resize_images([self.image,self.mask,self.pose,self.outfit],self.res,square=True)
+        self.image,self.mask,self.pose,self.outfit=resize_images([self.original_image,self.original_mask,self.original_pose,self.original_outfit],self.res,square=True)
         logging.info(f"Base parameters set")
         
         self.num_inference_steps = kwargs.get('num_inference_steps', 50)
