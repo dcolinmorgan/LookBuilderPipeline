@@ -23,7 +23,7 @@ class ImageVariant(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     processed = Column(Boolean, default=False)
-    class_type = Column(String, nullable=False, default='image_variant')
+   class_type  = Column(String, nullable=False, default='image_variant')
 
     __table_args__ = (
         Index('idx_image_variants_source_params', 
