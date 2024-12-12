@@ -19,7 +19,7 @@ def blockPrint():
     sys.stdout = open(os.devnull, 'w')
 blockPrint()
 
-def detect_pose(self,image_path, face=True):
+def detect_pose(image_path, face=True):
     """
     Function for detecting the pose in an image.
     
