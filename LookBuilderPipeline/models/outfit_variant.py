@@ -1,31 +1,18 @@
 from typing import Optional
 from .image_variant import ImageVariant
-from LookBuilderPipeline.pose import detect_pose
-from LookBuilderPipeline.models.image import Image
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
+from LookBuilderPipeline.models.image import Image
 import logging
 import io
 
-class PoseVariant(ImageVariant):
-    """Pose-specific variant implementation"""
+class OutfitVariant(ImageVariant):
+    """Outfit-specific variant implementation"""
     __mapper_args__ = {
-        'polymorphic_identity': 'pose_variant'
+        'polymorphic_identity': 'outfit_variant'
     }
-    @property
-    def pose_parameters(self) -> dict:
-        """Get the pose parameters."""
-        return self.parameters.get('pose', {})
-
-    @classmethod
-    def find_by_pose(cls, session, source_image_id: int, pose_parameters: dict) -> Optional["PoseVariant"]:
-        """Find a pose variant with specific pose parameters for an image."""
-        return (session.query(cls)
-                .filter(cls.source_image_id == source_image_id,
-                       cls.parameters['pose'].astext == pose_parameters)
-                .first()) 
 
     def __init__(self, source_image_id=None, variant_type=None, parameters=None, **kwargs):
-        """Initialize pose variant"""
+        """Initialize outfit variant"""
         super().__init__(
             source_image_id=source_image_id,
             variant_type=variant_type,
@@ -34,11 +21,11 @@ class PoseVariant(ImageVariant):
         )
 
     def process_image(self, session):
-        """Process the pose image after initialization"""
-        logging.info("Processing pose variant")
+        """Process the outfit image after initialization"""
+        logging.info("Processing outfit variant")
         try:
-            # Process the pose
-            processed_image = self.get_pose_image(session)
+            # Process the outfit
+            processed_image = self.get_outfit_image(session)
             if processed_image:
                 # Store the processed image
                 lob = session.connection().connection.lobject(mode='wb')
@@ -46,13 +33,13 @@ class PoseVariant(ImageVariant):
                 self.variant_oid = lob.oid
                 lob.close()
                 self.processed = True
-                logging.info(f"Successfully processed pose variant {self.variant_id}")
+                logging.info(f"Successfully processed outfit variant {self.variant_id}")
         except Exception as e:
-            logging.error(f"Failed to process pose variant: {str(e)}")
+            logging.error(f"Failed to process outfit variant: {str(e)}")
             raise
 
-    def get_pose_image(self, session) -> Optional[bytes]:
-        """Get the pose image for this pose variant."""
+    def get_outfit_image(self, session) -> Optional[bytes]:
+        """Get the outfit image for this outfit variant."""
         try:
             # Get source image data properly through session
             source_image = session.query(Image).get(self.source_image_id)
@@ -63,21 +50,20 @@ class PoseVariant(ImageVariant):
             if not image_data:
                 raise ValueError("No source image data found")
 
-            # Create image model and get pose
-            # pose_image = detect_pose(image_data)
+            # Create image model and get outfit
             image_model = BaseImageModel(image=image_data)
-            pose_image = image_model.original_pose
+            outfit_img = image_model.original_outfit
             
             # Convert to bytes if needed
-            if not isinstance(pose_image, bytes):
+            if not isinstance(outfit_img, bytes):
                 img_byte_arr = io.BytesIO()
-                pose_image.save(img_byte_arr, format='PNG')
+                outfit_img.save(img_byte_arr, format='PNG')
                 return img_byte_arr.getvalue()
             
-            return pose_image
+            return outfit_img
             
         except Exception as e:
-            logging.error(f"Error creating pose variant: {str(e)}")
+            logging.error(f"Error creating outfit variant: {str(e)}")
             raise
     
 

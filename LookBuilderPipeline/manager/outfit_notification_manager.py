@@ -6,18 +6,18 @@ from LookBuilderPipeline.models.image_variant import ImageVariant
 
 import select
 
-class SegmentNotificationManager(NotificationManager):
+class OutfitNotificationManager(NotificationManager):
     def __init__(self):
         super().__init__()
-        logging.info("Initializing SegmentNotificationManager")
-        self.channels = ['image_segment']
-        logging.info(f"SegmentNotificationManager listening on channels: {self.channels}")
+        logging.info("Initializing OutfitNotificationManager")
+        self.channels = ['image_outfit']
+        logging.info(f"OutfitNotificationManager listening on channels: {self.channels}")
         self.required_fields = ['process_id', 'image_id', 'inverse']
 
     def handle_notification(self, channel, data):
-        """Handle segment notifications."""
-        logging.info(f"SegmentNotificationManager received: channel={channel}, data={data}")
-        if channel == 'image_segment':
+        """Handle outfit notifications."""
+        logging.info(f"OutfitNotificationManager received: channel={channel}, data={data}")
+        if channel == 'image_outfit':
             # Get the full process data from ProcessQueue
             with self.get_managed_session() as session:
                 process = session.query(ProcessQueue).get(data['process_id'])
@@ -28,28 +28,28 @@ class SegmentNotificationManager(NotificationManager):
                         'image_id': data['image_id'],
                         'inverse': process.parameters.get('inverse')
                     }
-                    logging.info(f"Processing segment with parameters: {full_data}")
-                    return self.process_segment(full_data)
+                    logging.info(f"Processing outfit with parameters: {full_data}")
+                    return self.process_outfit(full_data)
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None
-        logging.warning(f"SegmentNotificationManager received unexpected channel: {channel}")
+        logging.warning(f"OutfitNotificationManager received unexpected channel: {channel}")
         return None
 
-    def process_item(self, segment):
-        """Process a single segment notification."""
-        return self.process_segment({
-            'process_id': segment.process_id,
-            'image_id': segment.image_id,
-            'inverse': segment.parameters.get('inverse')
+    def process_item(self, outfit):
+        """Process a single outfit notification."""
+        return self.process_outfit({
+            'process_id': outfit.process_id,
+            'image_id': outfit.image_id,
+            'inverse': outfit.parameters.get('inverse')
         })
 
-    def process_segment(self, segment_data):
-        """Process a segment notification through its stages."""
-        validated_data = self.validate_process_data(segment_data)
+    def process_outfit(self, outfit_data):
+        """Process a outfit notification through its stages."""
+        validated_data = self.validate_process_data(outfit_data)
         process_id = validated_data['process_id']
         
-        def execute_segment_process(session):
+        def execute_outfit_process(session):
             # Get the image
             image = session.query(Image).get(validated_data['image_id'])
             if not image:
@@ -77,21 +77,21 @@ class SegmentNotificationManager(NotificationManager):
                 # Create a temporary ImageVariant instance to use get_or_create_variant
                 base_variant = ImageVariant(
                     source_image_id=image.image_id,
-                    variant_type='segment'
+                    variant_type='outfit'
                 )
                 session.add(base_variant)
                 session.flush()
                 
-                _, variant = base_variant.get_or_create_variant(
+                variant, _ = base_variant.get_or_create_variant(
                     session=session,
-                    variant_type='segment',
+                    variant_type='outfit',
                     inverse=validated_data['inverse']
                 )
                 
                 if not variant:
                     error_msg = (
-                        f"Failed to create segment variant for image {validated_data['image_id']}. "
-                        f"The segment operation completed but returned no variant. "
+                        f"Failed to create outfit variant for image {validated_data['image_id']}. "
+                        f"The outfit operation completed but returned no variant. "
                         f"This might indicate an issue with the image processing."
                     )
                     logging.error(error_msg)
@@ -102,11 +102,11 @@ class SegmentNotificationManager(NotificationManager):
                 
             except Exception as e:
                 error_msg = (
-                    f"Error creating segment variant: {str(e)}. "
+                    f"Error creating outfit variant: {str(e)}. "
                     f"This could be due to invalid image data or insufficient system resources."
                 )
                 logging.error(error_msg)
                 self.mark_process_error(session, process_id, error_msg)
                 return None
         
-        return self.process_with_error_handling(process_id, execute_segment_process)
+        return self.process_with_error_handling(process_id, execute_outfit_process)

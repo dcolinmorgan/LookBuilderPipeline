@@ -80,8 +80,17 @@ class ResizeNotificationManager(NotificationManager):
                 return None
 
             try:
-                variant = image.get_or_create_resize_variant(
+                # Create a temporary ImageVariant instance to use get_or_create_variant
+                base_variant = ImageVariant(
+                    source_image_id=image.image_id,
+                    variant_type='resize'
+                )
+                session.add(base_variant)
+                session.flush()
+                
+                variant = base_variant.get_or_create_variant(
                     session,
+                    variant_type='resize',
                     size=validated_data['size'],
                     aspect_ratio=validated_data.get('aspect_ratio', 1.0),
                     square=validated_data.get('square', False)
@@ -109,28 +118,3 @@ class ResizeNotificationManager(NotificationManager):
                 return None
         
         return self.process_with_error_handling(process_id, execute_resize_process)
-
-    def mark_process_error(self, session, process_id, error_message):
-        """Mark a process as error with an error message."""
-        process = session.query(ProcessQueue).get(process_id)
-        if process:
-            process.status = 'error'
-            process.error_message = error_message
-            session.commit()
-
-    def _listen_for_notifications(self):
-        """Override parent method to add more logging"""
-        logging.info("Starting resize notification listener thread")
-        
-        while self.should_listen:
-            try:
-                if select.select([self.conn], [], [], 1.0)[0]:
-                    self.conn.poll()
-                    while self.conn.notifies:
-                        notify = self.conn.notifies.pop()
-                        logging.info(f"Resize raw notification received: {notify}")
-                        self.notification_queue.put((notify.channel, notify.payload))
-                        logging.info(f"Resize notification added to queue: {notify.channel}")
-            except Exception as e:
-                logging.error(f"Error in resize notification listener: {str(e)}")
-                self._handle_connection_error()

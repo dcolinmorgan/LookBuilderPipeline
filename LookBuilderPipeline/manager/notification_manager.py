@@ -77,6 +77,14 @@ class NotificationManager:
         )
         self.processor_thread.daemon = True
         self.processor_thread.start()
+    
+    def mark_process_error(self, session, process_id, error_message):
+        """Mark a process as error with an error message."""
+        process = session.query(ProcessQueue).get(process_id)
+        if process:
+            process.status = 'error'
+            process.error_message = error_message
+            session.commit()
 
     def _listen_for_notifications(self):
         """Background thread to listen for notifications."""
