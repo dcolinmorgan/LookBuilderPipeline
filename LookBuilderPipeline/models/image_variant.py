@@ -18,6 +18,7 @@ class ImageVariant(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     processed = Column(Boolean, default=False)
+    class_type  = Column(String, nullable=False, default='image_variant')
 
     # Composition - reference to source image
     source_image = relationship("Image", back_populates="variants")
@@ -49,6 +50,21 @@ class ImageVariant(Base):
         chain.append(current.source_image)
         return list(reversed(chain))
     
+    @property
+    def size(self) -> Optional[int]:
+        """Get the size parameter for resized variants."""
+        if self.variant_type == 'resized' and self.parameters:
+            return self.parameters.get('size')
+        return None
+
+    @classmethod
+    def find_by_size(cls, session, source_image_id: int, size: int) -> Optional["ImageVariant"]:
+        """Find a resized variant of specific size for an image."""
+        return (session.query(cls)
+                .filter(cls.source_image_id == source_image_id,
+                       cls.variant_type == 'resized',
+                       cls.parameters['size'].astext.cast(Integer) == size)
+                .first())
     @classmethod
     def get_all_variants(cls, session, source_image_id: int, variant_type: Optional[str] = None) -> List["ImageVariant"]:
         """Get all variants for an image, optionally filtered by type."""

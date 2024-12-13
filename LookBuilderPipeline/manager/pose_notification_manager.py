@@ -53,7 +53,22 @@ class PoseNotificationManager(NotificationManager):
             # Get the image
             image = session.query(Image).get(validated_data['image_id'])
             if not image:
-                error_msg = f"Image {validated_data['image_id']} not found in database."
+                error_msg = (
+                    f"Image {validated_data['image_id']} not found in database. "
+                    f"Please ensure the image was properly uploaded and exists in the database."
+                )
+                logging.error(error_msg)
+                self.mark_process_error(session, process_id, error_msg)
+                return None
+
+            # Check if image has data
+            image_data = image.get_image_data(session)
+            if not image_data:
+                error_msg = (
+                    f"Image {validated_data['image_id']} exists but has no data. "
+                    f"This could be due to an incomplete upload or data corruption. "
+                    f"Try re-uploading the image."
+                )
                 logging.error(error_msg)
                 self.mark_process_error(session, process_id, error_msg)
                 return None
@@ -75,7 +90,11 @@ class PoseNotificationManager(NotificationManager):
                 )
                 
                 if not variant:
-                    error_msg = "Failed to create pose variant"
+                    error_msg = (
+                        f"Failed to create pose variant for image {validated_data['image_id']}. "
+                        f"The pose operation completed but returned no variant. "
+                        f"This might indicate an issue with the image processing."
+                    )
                     logging.error(error_msg)
                     self.mark_process_error(session, process_id, error_msg)
                     return None
@@ -84,7 +103,10 @@ class PoseNotificationManager(NotificationManager):
                 return variant
                 
             except Exception as e:
-                error_msg = f"Error creating pose variant: {str(e)}"
+                error_msg = (
+                    f"Error creating pose variant: {str(e)}. "
+                    f"This could be due to invalid image data or insufficient system resources."
+                )
                 logging.error(error_msg)
                 self.mark_process_error(session, process_id, error_msg)
                 return None
