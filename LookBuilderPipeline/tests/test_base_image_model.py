@@ -10,7 +10,7 @@ from controlnet_aux import OpenposeDetector
 class TestBaseImageModel:
     @pytest.fixture
     def mock_image(self):
-        return ("LookBuilderPipeline/img/p09.jpg")
+        return ("tests/img/p09.jpg")
 
     def setup_method(self):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"

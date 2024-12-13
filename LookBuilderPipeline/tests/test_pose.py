@@ -11,14 +11,14 @@ class TestPose:
     def test_detect_pose_returns_image(self):
         result = detect_pose(
             self, 
-            image_path="LookBuilderPipeline/img/p09.jpg"
+            image_path="tests/img/p09.jpg"
         )
         assert isinstance(result, Image.Image)
 
     def test_detect_pose_output_size(self):
         result = detect_pose(
             self,
-            image_path="LookBuilderPipeline/img/p09.jpg",
+            image_path="tests/img/p09.jpg",
             resize=True,
             size=(512)
         )
@@ -41,6 +41,6 @@ class TestPose:
         input_image.save("test_input.jpg")
         result = detect_pose(
             self, 
-            image_path="LookBuilderPipeline/img/p09.jpg"
+            image_path="tests/img/p09.jpg"
         )
         assert result.getdata() != input_image.getdata()

@@ -46,13 +46,18 @@ def detect_pose(image_path, face=True):
         device = torch.device('cpu')
     # Use the OpenPose detector to detect the pose in the image
     # pose_img = openpose(image) #,include_hand=True,include_face=False)
+    
+    if image.size[0]>image.size[1]:
+        resolution=image.size[0]
+    else:
+        resolution=image.size[1]
     pose_img,j,source = model(image,
         include_hand=True,
         include_face=face,
         include_body=True,
         include_foot=True,
         image_and_json=True,
-        detect_resolution=512,
+        detect_resolution=resolution,
         device=device)
     
     # pose_image = openpose(image, hand_and_face=False, output_type='cv2')

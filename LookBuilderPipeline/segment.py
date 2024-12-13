@@ -16,7 +16,7 @@ else:
 # Initialize the segmentation model using a pre-trained model from Hugging Face
 segmenter = pipeline(model="mattmdjaga/segformer_b2_clothes", device=device)
 
-def segment_image(self,image_path, additional_option=None, inverse=True):
+def segment_image(image_path, additional_option=None, inverse=True):
     """
     Function for segmenting an image and returning the outfit with optional additions.
     

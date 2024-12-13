@@ -26,7 +26,7 @@ pip install -e LookBuilderPipeline/.
 ### One can run the pipeline with a single input image and a prompt. Mask and pose are optional they will be generated if not provided.
 ```bash
 python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
---image_path=LookBuilderPipeline/img/p09.jpg \
+--image_path=tests/img/p09.jpg \
 --prompt='a photo realistic image of a fashion model on a beach'
 ```
 # SDXL BENCHMARK
