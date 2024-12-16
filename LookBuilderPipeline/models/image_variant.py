@@ -88,14 +88,14 @@ class ImageVariant(Base):
             from .pose_variant import PoseVariant
             from .segment_variant import SegmentVariant
             # from .outfit_variant import OutfitVariant
-            # from .sdxl_variant import SDXLVariant
+            from .sdxl_variant import SDXLVariant
             # from .flux_variant import FluxVariant
             # Get the variant class from the registry
             variant_classes = {
                 'pose': PoseVariant.variant_class,
                 'segment': SegmentVariant.variant_class,
                 # 'outfit': OutfitVariant.variant_class,
-                # 'sdxl': SDXLVariant.variant_class,
+                'sdxl': SDXLVariant.variant_class,
                 # 'flux': FluxVariant.variant_class,
             }
 
@@ -164,8 +164,3 @@ class ImageVariant(Base):
         except Exception as e:
             logging.error(f"Failed to process {self.variant_type} variant: {str(e)}")
             raise
-
-    def create_variant_image(self, session):
-        """Abstract method to be implemented by subclasses."""
-        raise NotImplementedError("Subclasses must implement create_variant_image")
-

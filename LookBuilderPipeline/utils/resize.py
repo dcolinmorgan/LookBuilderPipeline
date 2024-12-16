@@ -17,7 +17,14 @@ def resize_images(images: Union[str, bytes, Image.Image, List[Union[str, bytes, 
         resample: Resampling filter. Default is PIL.Image.LANCZOS for high-quality downsampling.
         square: If True, pad to square
     """
+    
     def resize_single_image(img, target_size=512, aspect_ratio=1.0, square=False):
+        try:
+            colors = img.convert('RGB').getcolors(maxcolors=256)  # Get colors and their counts
+            most_prevalent_color = max(colors, key=lambda item: item[0])[1][1]  # Get the color with the highest count
+        except:
+            most_prevalent_color=0
+        
         # Convert input to PIL Image
         if isinstance(img, str):
             img = Image.open(img)
@@ -42,15 +49,10 @@ def resize_images(images: Union[str, bytes, Image.Image, List[Union[str, bytes, 
         else:
             resize_width = int((original_width / original_height) * target_size)
             resize_height = target_size
-
+        
         # Resize first
         img = img.resize((resize_width, resize_height), resample=resample)
-
-        print(f"Debug - Square param: {square}")
-        print(f"Debug - Original size: {img.size}")
-        print(f"Debug - Resized to: {resize_width}x{resize_height}")
-        print(f"Debug - Target size: {target_size}")
-
+        
         # Add padding to make square if requested
         if square:
             # Calculate padding to reach target size
@@ -60,7 +62,7 @@ def resize_images(images: Union[str, bytes, Image.Image, List[Union[str, bytes, 
                 (target_size - resize_width + 1) // 2,
                 (target_size - resize_height + 1) // 2
             )
-            img = ImageOps.expand(img, padding, fill=(0, 0, 0))
+            img = ImageOps.expand(img, padding, fill=most_prevalent_color)
             print(f"Debug - Final size with padding: {img.size}")
 
         return img

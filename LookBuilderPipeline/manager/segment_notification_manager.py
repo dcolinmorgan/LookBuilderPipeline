@@ -77,7 +77,7 @@ class SegmentNotificationManager(NotificationManager):
                 # Create a temporary ImageVariant instance to use get_or_create_variant
                 base_variant = ImageVariant(
                     source_image_id=image.image_id,
-                    variant_type='segment'
+                    variant_type='segment',
                 )
                 session.add(base_variant)
                 session.flush()
@@ -86,7 +86,7 @@ class SegmentNotificationManager(NotificationManager):
                 variant = base_variant.get_or_create_variant(
                     session=session,
                     variant_type='segment',
-                    inverse=validated_data['inverse']
+                    inverse=validated_data.get('inverse', True)
                 )
                 
                 if not variant:
@@ -112,28 +112,3 @@ class SegmentNotificationManager(NotificationManager):
                 return None
         
         return self.process_with_error_handling(process_id, execute_segment_process)
-
-    def mark_process_error(self, session, process_id, error_message):
-        """Mark a process as error with an error message."""
-        process = session.query(ProcessQueue).get(process_id)
-        if process:
-            process.status = 'error'
-            process.error_message = error_message
-            session.commit()
-
-    def _listen_for_notifications(self):
-        """Override parent method to add more logging"""
-        logging.info("Starting segment notification listener thread")
-        
-        while self.should_listen:
-            try:
-                if select.select([self.conn], [], [], 1.0)[0]:
-                    self.conn.poll()
-                    while self.conn.notifies:
-                        notify = self.conn.notifies.pop()
-                        logging.info(f"segment raw notification received: {notify}")
-                        self.notification_queue.put((notify.channel, notify.payload))
-                        logging.info(f"segment notification added to queue: {notify.channel}")
-            except Exception as e:
-                logging.error(f"Error in segment notification listener: {str(e)}")
-                self._handle_connection_error()

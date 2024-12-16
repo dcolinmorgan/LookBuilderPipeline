@@ -1,26 +1,26 @@
 from typing import Optional
 from .image_variant import ImageVariant
-from LookBuilderPipeline.segment import segment_image
+from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
 from LookBuilderPipeline.models.image import Image
 import logging
 import io
 
-class SegmentVariant(ImageVariant):
-    """A specialized variant class for segment transformations."""
+class SDXLVariant(ImageVariant):
+    """A specialized variant class for sdxl transformations."""
     __mapper_args__ = {
-        'polymorphic_identity': 'segment_variant'
+        'polymorphic_identity': 'sdxl_variant'
     }
 
-    variant_class = ('LookBuilderPipeline.models.segment_variant', 'SegmentVariant')
-
+    variant_class = ('LookBuilderPipeline.models.sdxl_variant', 'SDXLVariant')
+    
     @property
-    def segment_parameters(self) -> dict:
-        """Get the segment parameters."""
-        return self.parameters.get('segment', {})
+    def sdxl_parameters(self) -> dict:
+        """Get the sdxl parameters."""
+        return self.parameters.get('sdxl', {})
 
 
     def __init__(self, source_image_id=None, variant_type=None, parameters=None, **kwargs):
-        """Initialize segment variant"""
+        """Initialize sdxl variant"""
         super().__init__(
             source_image_id=source_image_id,
             variant_type=variant_type,
@@ -28,9 +28,8 @@ class SegmentVariant(ImageVariant):
             **kwargs
         )
 
-
-    def create_segment_image(self, session) -> Optional[bytes]:
-        """Use original image to create segment variant."""
+    def create_sdxl_image(self, session) -> Optional[bytes]:
+        """Use original image to create sdxl variant."""
         try:
             # Get source image data properly through session
             source_image = session.query(Image).get(self.source_image_id)
@@ -40,11 +39,13 @@ class SegmentVariant(ImageVariant):
             image_data = source_image.get_image_data(session)
             if not image_data:
                 raise ValueError("No source image data found")
-
-            # Create image model and get segment
-            _, segmented_image = segment_image(image_data)
             
-            return segmented_image
+            # Create image model and get sdxl
+            image_model = ImageModelSDXL(image=image_data, prompt=self.parameters['prompt'], negative_prompt=self.parameters['negative_prompt'], seed=self.parameters['seed'], strength=self.parameters['strength'], guidance_scale=self.parameters['guidance_scale'], LoRA=self.parameters['LoRA'])
+            image_model.prepare_model()
+            generated_image = image_model.generate_image()
+            
+            return generated_image
             
         except Exception as e:
             logging.error(f"Error creating segment variant: {str(e)}")

@@ -7,8 +7,6 @@ from LookBuilderPipeline.manager.ping_notification_manager import PingNotificati
 from LookBuilderPipeline.manager.resize_notification_manager import ResizeNotificationManager
 from LookBuilderPipeline.manager.segment_notification_manager import SegmentNotificationManager
 from LookBuilderPipeline.manager.pose_notification_manager import PoseNotificationManager
-from LookBuilderPipeline.manager.loadpipe_notification_manager import LoadPipeNotificationManager
-from LookBuilderPipeline.manager.runpipe_notification_manager import RunPipeNotificationManager
 from LookBuilderPipeline.manager.sdxl_notification_manager import SDXLNotificationManager
 
 logging.basicConfig(level=logging.INFO)
@@ -30,8 +28,6 @@ def run_listener(mode):
         'resize': ResizeNotificationManager,
         'segment': SegmentNotificationManager,
         'pose': PoseNotificationManager,
-        'loadpipe': LoadPipeNotificationManager,
-        'runpipe': RunPipeNotificationManager,
         'sdxl': SDXLNotificationManager
     }
     
