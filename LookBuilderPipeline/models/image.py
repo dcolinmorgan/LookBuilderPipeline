@@ -65,22 +65,14 @@ class Image(Base):
 
     def get_image_data(self, session):
         """Get the image data from the large object storage."""
-        logging.info(f"Attempting to get image data for image_id={self.image_id}, image_oid={self.image_oid}")
         
         if not self.image_oid:
-            logging.error(f"No image_oid found for image {self.image_id}")
             return None
             
         try:
-            logging.info(f"Creating lobject for image {self.image_id} with oid {self.image_oid}")
             connection = session.connection().connection
-            
             lob = connection.lobject(oid=self.image_oid, mode='rb')
-            logging.info(f"Successfully created lobject for image {self.image_id}")
-            
             data = lob.read()
-            logging.info(f"Successfully read {len(data)} bytes from image {self.image_id}")
-            
             lob.close()
             return data
             

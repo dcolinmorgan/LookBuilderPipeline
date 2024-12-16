@@ -23,15 +23,6 @@ class ImageVariant(Base):
     # Composition - reference to source image
     source_image = relationship("Image", back_populates="variants")
 
-    # Define variant class mappings
-    variant_classes = {
-        'pose': ('LookBuilderPipeline.models.pose_variant', 'PoseVariant'),
-        'segment': ('LookBuilderPipeline.models.segment_variant', 'SegmentVariant'),
-        'outfit': ('LookBuilderPipeline.models.outfit_variant', 'OutfitVariant'),
-        'sdxl': ('LookBuilderPipeline.models.sdxl_variant', 'SDXLVariant'),
-        'flux': ('LookBuilderPipeline.models.flux_variant', 'FluxVariant')
-    }
-
     @property
     def user(self):
         """Get user through composition"""
@@ -40,15 +31,15 @@ class ImageVariant(Base):
     def __repr__(self):
         return f"<self(variant_id={self.variant_id}, type={self.variant_type})>"
  
-    def get_variant_chain(self) -> List[Union["ImageVariant", "Image"]]:
-        """Get the full chain of variants leading to this image."""
-        chain = []
-        current = self
-        while current.parent_variant:
-            chain.append(current.parent_variant)
-            current = current.parent_variant
-        chain.append(current.source_image)
-        return list(reversed(chain))
+    # def get_variant_chain(self) -> List[Union["ImageVariant", "Image"]]:
+    #     """Get the full chain of variants leading to this image."""
+    #     chain = []
+    #     current = self
+    #     while current.parent_variant:
+    #         chain.append(current.parent_variant)
+    #         current = current.parent_variant
+    #     chain.append(current.source_image)
+    #     return list(reversed(chain))
     
     @property
     def size(self) -> Optional[int]:
@@ -104,26 +95,42 @@ class ImageVariant(Base):
     def _create_variant_instance(self, session, variant_type: str, **kwargs) -> 'ImageVariant':
         """Internal method to create a new variant instance."""
         try:
-            if variant_type not in self.variant_classes:
+            from .pose_variant import PoseVariant
+            # from .segment_variant import SegmentVariant
+            # from .outfit_variant import OutfitVariant
+            # from .sdxl_variant import SDXLVariant
+            # from .flux_variant import FluxVariant
+            # Get the variant class from the registry
+            variant_classes = {
+                'pose': PoseVariant.variant_class,
+                # 'segment': SegmentVariant.variant_class,
+                # 'outfit': OutfitVariant.variant_class,
+                # 'sdxl': SDXLVariant.variant_class,
+                # 'flux': FluxVariant.variant_class,
+            }
+
+            if variant_type not in variant_classes:
                 raise ValueError(f"Invalid variant type: {variant_type}")
 
-            module_path, class_name = self.variant_classes[variant_type]
+            module_path, class_name = variant_classes[variant_type]
             logging.info(f"Importing {class_name} from {module_path}")
             
-            # Use importlib for more reliable imports
+            # Use importlib for more reliable & dynamic imports without hardcoding.
+            # this dynamic import allows the application to handle different types of image variants.
+            # the specific variant class is determined at runtime based on the variant_type provided.
             import importlib
             module = importlib.import_module(module_path)
             variant_class = getattr(module, class_name)
             logging.info(f"Imported {variant_class}")
             
-            # Create variant instance with source_image_id first
+            # Create variant instance
             variant = variant_class(
                 source_image_id=self.source_image_id,
                 variant_type=variant_type,
                 parameters=kwargs
             )
             session.add(variant)
-            session.flush()  # This will set up the relationships
+            session.flush()
             
             # Now process the image
             variant.process_image(session)
@@ -134,31 +141,21 @@ class ImageVariant(Base):
             logging.error(f"Failed to create variant instance: {str(e)}")
             raise
 
-    def create_variant(self, variant_type: str, session, **kwargs) -> 'ImageVariant':
-        """Create a new variant of the specified type."""
+    def process_image(self, session):
+        """Process the image and store the result."""
+        logging.info(f"Processing {self.variant_type} variant")
         try:
-            logging.info(f"Creating variant of type {variant_type}")
-            
-            # Verify source image and get its data
-            source_image = session.merge(self.source_image)
-            if not source_image:
-                raise ValueError(f"No source image found for variant")
-            
-            image_data = source_image.get_image_data(session)
-            if not image_data:
-                raise ValueError(f"No image data found for source image")
-
-            # Create variant instance
-            variant = self._create_variant_instance(session, variant_type, **kwargs)
-            
-            # Get processed image using variant's specific method
-            process_method = f'get_{variant_type}_image'
-            if not hasattr(variant, process_method):
-                raise ValueError(f"Variant type {variant_type} has no processing method")
-            
-            processed_image = getattr(variant, process_method)(session)
-            if processed_image is None:
-                raise ValueError(f"Failed to process {variant_type} variant")
+            # Process the image using the variant-specific method
+            if self.variant_type == 'pose':
+                processed_image = self.create_pose_image(session)
+            elif self.variant_type == 'segment':
+                processed_image = self.create_segment_image(session)
+            elif self.variant_type == 'outfit':
+                processed_image = self.create_outfit_image(session)
+            elif self.variant_type == 'sdxl':
+                processed_image = self.create_sdxl_image(session)
+            elif self.variant_type == 'flux':
+                processed_image = self.create_flux_image(session)
             
             # Convert to bytes if needed
             if not isinstance(processed_image, bytes):
@@ -166,89 +163,19 @@ class ImageVariant(Base):
                 processed_image.save(img_byte_arr, format='PNG')
                 processed_image = img_byte_arr.getvalue()
             
-            # Store the processed image
-            lob = session.connection().connection.lobject(mode='wb')
-            lob.write(processed_image)
-            variant.variant_oid = lob.oid
-            lob.close()
-            
-            # Make sure variant is properly saved and has an ID
-            session.flush()
-            logging.info(f"Created variant with ID: {variant.variant_id}, type: {variant_type}")
-            
-            # Ensure variant is attached to session but detached from parent
-            session.expunge(self)
-            session.refresh(variant)
-            
-            return variant
-            
+            if processed_image:
+                # Store the processed image
+                lob = session.connection().connection.lobject(mode='wb')
+                lob.write(processed_image)
+                self.variant_oid = lob.oid
+                lob.close()
+                self.processed = True
+                logging.info(f"Successfully processed {self.variant_type} variant {self.variant_id}")
         except Exception as e:
-            logging.error(f"Error in create_variant: {str(e)}")
+            logging.error(f"Failed to process {self.variant_type} variant: {str(e)}")
             raise
 
-    def get_variant(self, variant_type: str, session, **kwargs):
-        """Get a variant with specific parameters"""
-        # Merge the image with the current session
-        session.add(self)
-        
-        filter_conditions = [
-            ImageVariant.source_image_id == self.source_image_id,
-            ImageVariant.variant_type == variant_type
-        ]
-        
-        for key, value in kwargs.items():
-            if key == 'size':
-                # Handle size as single integer
-                filter_conditions.append(
-                    cast(ImageVariant.parameters['size'].astext, Integer) == value
-                )
-            else:
-                # Handle other parameters normally
-                if isinstance(value, bool):
-                    filter_conditions.append(
-                        cast(ImageVariant.parameters[key].astext, Boolean) == value
-                    )
-                elif isinstance(value, float):
-                    filter_conditions.append(
-                        cast(ImageVariant.parameters[key].astext, Float) == value
-                    )
-                else:
-                    filter_conditions.append(
-                        cast(ImageVariant.parameters[key].astext, String) == str(value)
-                    )
-        
-        try:
-            return session.query(ImageVariant).filter(*filter_conditions).first()
-        finally:
-            # Clean up by expunging the image from session
-            session.expunge(self)
+    def create_variant_image(self, session):
+        """Abstract method to be implemented by subclasses."""
+        raise NotImplementedError("Subclasses must implement create_variant_image")
 
-
-    def get_variant_image(self, variant: 'self', session) -> Optional[bytes]:
-        """Get the actual image data from a variant.
-        
-        Args:
-            variant: self instance to get image from
-            session: Database session
-            
-        Returns:
-            bytes: Image data if found, None otherwise
-        """
-        if not variant:
-            logging.error("No variant provided to get_variant_image")
-            return None
-            
-        try:
-            logging.info(f"Getting image data for variant {variant.id}")
-            connection = session.connection().connection
-            
-            lob = connection.lobject(oid=variant.variant_oid, mode='rb')
-            data = lob.read()
-            lob.close()
-            
-            logging.info(f"Successfully read {len(data)} bytes from variant {variant.id}")
-            return data
-            
-        except Exception as e:
-            logging.error(f"Error reading variant image data: {str(e)}", exc_info=True)
-            return None

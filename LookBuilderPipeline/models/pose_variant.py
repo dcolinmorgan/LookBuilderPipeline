@@ -6,11 +6,14 @@ import logging
 import io
 
 class PoseVariant(ImageVariant):
-    """Pose-specific variant implementation"""
+    """A specialized variant class for pose transformations."""
     __mapper_args__ = {
         'polymorphic_identity': 'pose_variant'
     }
-     @property
+
+    variant_class = ('LookBuilderPipeline.models.pose_variant', 'PoseVariant')
+
+    @property
     def pose_parameters(self) -> dict:
         """Get the pose parameters."""
         return self.parameters.get('pose', {})
@@ -32,26 +35,9 @@ class PoseVariant(ImageVariant):
             **kwargs
         )
 
-    def process_image(self, session):
-        """Process the pose image after initialization"""
-        logging.info("Processing pose variant")
-        try:
-            # Process the pose
-            processed_image = self.get_pose_image(session)
-            if processed_image:
-                # Store the processed image
-                lob = session.connection().connection.lobject(mode='wb')
-                lob.write(processed_image)
-                self.variant_oid = lob.oid
-                lob.close()
-                self.processed = True
-                logging.info(f"Successfully processed pose variant {self.variant_id}")
-        except Exception as e:
-            logging.error(f"Failed to process pose variant: {str(e)}")
-            raise
 
-    def get_pose_image(self, session) -> Optional[bytes]:
-        """Get the pose image for this pose variant."""
+    def create_pose_image(self, session) -> Optional[bytes]:
+        """Use original image to create pose variant."""
         try:
             # Get source image data properly through session
             source_image = session.query(Image).get(self.source_image_id)
@@ -64,12 +50,6 @@ class PoseVariant(ImageVariant):
 
             # Create image model and get pose
             pose_image = detect_pose(image_data)
-            
-            # Convert to bytes if needed
-            if not isinstance(pose_image, bytes):
-                img_byte_arr = io.BytesIO()
-                pose_image.save(img_byte_arr, format='PNG')
-                return img_byte_arr.getvalue()
             
             return pose_image
             
