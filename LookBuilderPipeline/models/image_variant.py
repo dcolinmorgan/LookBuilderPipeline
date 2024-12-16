@@ -25,7 +25,7 @@ class ImageVariant(Base):
 
     @property
     def user(self):
-        """Get user through composition"""
+        """Get user through the source image."""
         return self.source_image.user if self.source_image else None
 
     def __repr__(self):
@@ -174,8 +174,3 @@ class ImageVariant(Base):
         except Exception as e:
             logging.error(f"Failed to process {self.variant_type} variant: {str(e)}")
             raise
-
-    def create_variant_image(self, session):
-        """Abstract method to be implemented by subclasses."""
-        raise NotImplementedError("Subclasses must implement create_variant_image")
-
