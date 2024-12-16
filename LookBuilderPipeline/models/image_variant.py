@@ -31,16 +31,6 @@ class ImageVariant(Base):
     def __repr__(self):
         return f"<self(variant_id={self.variant_id}, type={self.variant_type})>"
  
-    # def get_variant_chain(self) -> List[Union["ImageVariant", "Image"]]:
-    #     """Get the full chain of variants leading to this image."""
-    #     chain = []
-    #     current = self
-    #     while current.parent_variant:
-    #         chain.append(current.parent_variant)
-    #         current = current.parent_variant
-    #     chain.append(current.source_image)
-    #     return list(reversed(chain))
-    
     @property
     def size(self) -> Optional[int]:
         """Get the size parameter for resized variants."""
@@ -96,14 +86,14 @@ class ImageVariant(Base):
         """Internal method to create a new variant instance."""
         try:
             from .pose_variant import PoseVariant
-            # from .segment_variant import SegmentVariant
+            from .segment_variant import SegmentVariant
             # from .outfit_variant import OutfitVariant
             # from .sdxl_variant import SDXLVariant
             # from .flux_variant import FluxVariant
             # Get the variant class from the registry
             variant_classes = {
                 'pose': PoseVariant.variant_class,
-                # 'segment': SegmentVariant.variant_class,
+                'segment': SegmentVariant.variant_class,
                 # 'outfit': OutfitVariant.variant_class,
                 # 'sdxl': SDXLVariant.variant_class,
                 # 'flux': FluxVariant.variant_class,

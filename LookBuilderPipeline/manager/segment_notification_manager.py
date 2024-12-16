@@ -2,7 +2,9 @@ import logging
 from LookBuilderPipeline.manager.notification_manager import NotificationManager
 from LookBuilderPipeline.models.process_queue import ProcessQueue
 from LookBuilderPipeline.models.image import Image
+from LookBuilderPipeline.models.image_variant import ImageVariant
 import select
+
 
 class SegmentNotificationManager(NotificationManager):
     def __init__(self):
@@ -72,9 +74,18 @@ class SegmentNotificationManager(NotificationManager):
                 return None
 
             try:
-                self.session = session
-                variant = image.get_or_create_segment_variant(
-                    session=self.session,
+                # Create a temporary ImageVariant instance to use get_or_create_variant
+                base_variant = ImageVariant(
+                    source_image_id=image.image_id,
+                    variant_type='segment'
+                )
+                session.add(base_variant)
+                session.flush()
+                
+                # Now use the source_image_id instead of image_id
+                variant = base_variant.get_or_create_variant(
+                    session=session,
+                    variant_type='segment',
                     inverse=validated_data['inverse']
                 )
                 
@@ -88,6 +99,7 @@ class SegmentNotificationManager(NotificationManager):
                     self.mark_process_error(session, process_id, error_msg)
                     return None
                     
+                session.expunge(base_variant)
                 return variant
                 
             except Exception as e:
