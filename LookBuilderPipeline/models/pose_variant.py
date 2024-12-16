@@ -49,7 +49,7 @@ class PoseVariant(ImageVariant):
                 raise ValueError("No source image data found")
 
             # Create image model and get pose
-            pose_image = detect_pose(image_data)
+            pose_image = detect_pose(image_data, face=self.pose_parameters.get('face'))
             
             return pose_image
             
