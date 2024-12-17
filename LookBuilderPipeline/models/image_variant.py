@@ -13,6 +13,7 @@ class ImageVariant(Base):
     variant_id = Column(Integer, primary_key=True)
     variant_oid = Column(Integer, nullable=True)
     source_image_id = Column(Integer, ForeignKey('images.image_id'), nullable=False)
+    parent_variant_id = Column(Integer, ForeignKey('image_variants.variant_id'), nullable=True)
     variant_type = Column(String, nullable=False)
     parameters = Column(JSONB, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
@@ -25,12 +26,22 @@ class ImageVariant(Base):
 
     @property
     def user(self):
-        """Get user through composition"""
+        """Get user through the source image."""
         return self.source_image.user if self.source_image else None
 
     def __repr__(self):
         return f"<self(variant_id={self.variant_id}, type={self.variant_type})>"
  
+    def get_variant_chain(self) -> List[Union["ImageVariant", "Image"]]:
+        """Get the full chain of variants leading to this image."""
+        chain = []
+        current = self
+        while current.parent_variant:
+            chain.append(current.parent_variant)
+            current = current.parent_variant
+        chain.append(current.source_image)
+        return list(reversed(chain))
+    
     @property
     def size(self) -> Optional[int]:
         """Get the size parameter for resized variants."""
@@ -123,49 +134,11 @@ class ImageVariant(Base):
             session.flush()
             
             # Now process the image
-            variant.process_image(session)
-            
-            return variant
-            
+            processed_image = variant.process_image(session)
+            self.source_image.store_image(session, processed_image, variant)
+
         except Exception as e:
-            logging.error(f"Failed to create variant instance: {str(e)}")
+            logging.error(f"Failed to store image or variant: {str(e)}")
             raise
-
-    def process_image(self, session):
-        """Process the image and store the result."""
-        logging.info(f"Processing {self.variant_type} variant")
-        try:
-            # Process the image using the variant-specific method
-            if self.variant_type == 'pose':
-                processed_image = self.create_pose_image(session)
-            elif self.variant_type == 'segment':
-                processed_image = self.create_segment_image(session)
-            elif self.variant_type == 'outfit':
-                processed_image = self.create_outfit_image(session)
-            elif self.variant_type == 'sdxl':
-                processed_image = self.create_sdxl_image(session)
-            elif self.variant_type == 'flux':
-                processed_image = self.create_flux_image(session)
+        return variant
             
-            # Convert to bytes if needed
-            if not isinstance(processed_image, bytes):
-                img_byte_arr = io.BytesIO()
-                processed_image.save(img_byte_arr, format='PNG')
-                processed_image = img_byte_arr.getvalue()
-            
-            if processed_image:
-                # Store the processed image
-                lob = session.connection().connection.lobject(mode='wb')
-                lob.write(processed_image)
-                self.variant_oid = lob.oid
-                lob.close()
-                self.processed = True
-                logging.info(f"Successfully processed {self.variant_type} variant {self.variant_id}")
-        except Exception as e:
-            logging.error(f"Failed to process {self.variant_type} variant: {str(e)}")
-            raise
-
-    def create_variant_image(self, session):
-        """Abstract method to be implemented by subclasses."""
-        raise NotImplementedError("Subclasses must implement create_variant_image")
-

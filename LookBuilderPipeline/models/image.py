@@ -80,3 +80,26 @@ class Image(Base):
             logging.error(f"Error reading image data for image {self.image_id}: {str(e)}", exc_info=True)
             return None
 
+    def store_image(self,session, processed_image, variant):
+        """store the image or variant result."""
+        try:
+            
+            # Convert to bytes if needed
+            if not isinstance(processed_image, bytes):
+                img_byte_arr = io.BytesIO()
+                processed_image.save(img_byte_arr, format='PNG')
+                processed_image = img_byte_arr.getvalue()
+            # return processed_image
+            
+            if processed_image:
+                # Store the processed image
+                lob = session.connection().connection.lobject(mode='wb')
+                lob.write(processed_image)
+                variant.variant_oid = lob.oid
+                lob.close()
+                variant.processed = True
+                logging.info(f"Successfully stored image or variant: {variant.variant_oid}")
+                
+        except Exception as e:
+            logging.error(f"Failed to store image or variant: {str(e)}")
+            raise
