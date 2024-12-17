@@ -1,32 +1,32 @@
 from unittest.mock import MagicMock, patch
 import unittest
-from LookBuilderPipeline.manager.segment_notification_manager import SegmentNotificationManager
+from LookBuilderPipeline.manager.sdxl_notification_manager import SDXLNotificationManager
 from LookBuilderPipeline.models.process_queue import ProcessQueue
 from LookBuilderPipeline.models.image import Image
 from LookBuilderPipeline.models.image_variant import ImageVariant
 
-class TestSegmentNotificationManager(unittest.TestCase):
+class TestSDXLNotificationManager(unittest.TestCase):
     """
-    Test suite for SegmentNotificationManager.
-    Tests the handling of segment detection notifications and process management.
+    Test suite for SDXLNotificationManager.
+    Tests the handling of sdxl detection notifications and process management.
     """
     
     def setUp(self):
         """
         Setup runs before each test.
-        Creates a fresh SegmentNotificationManager instance and mocks its session handling
+        Creates a fresh SDXLNotificationManager instance and mocks its session handling
         to avoid actual database connections during testing.
         """
-        self.manager = SegmentNotificationManager()
+        self.manager = SDXLNotificationManager()
         self.manager.get_managed_session = MagicMock()
 
-    @patch('LookBuilderPipeline.manager.segment_notification_manager.logging')
+    @patch('LookBuilderPipeline.manager.sdxl_notification_manager.logging')
     def test_handle_notification_success(self, mock_logging):
         """
-        Tests successful handling of a segment notification.
+        Tests successful handling of a sdxl notification.
         
         Verifies that:
-        1. Manager correctly processes a valid segment notification
+        1. Manager correctly processes a valid sdxl notification
         2. Process parameters are properly retrieved from the database
         3. Logging is performed with correct parameters
         4. A result is returned (indicating successful processing)
@@ -40,16 +40,16 @@ class TestSegmentNotificationManager(unittest.TestCase):
         mock_process.parameters = {'inverse': True}
         mock_session.query.return_value.get.return_value = mock_process
         
-        # Simulate receiving a segment notification
-        result = self.manager.handle_notification('image_segment', {'process_id': 1, 'image_id': 2})
+        # Simulate receiving a sdxl notification
+        result = self.manager.handle_notification('image_sdxl', {'process_id': 1, 'image_id': 2})
         
         # Verify the notification was handled correctly
         self.assertIsNotNone(result)
         mock_logging.info.assert_called_with(
-            "Processing segment with parameters: {'process_id': 1, 'image_id': 2, 'inverse': True}"
+            "Processing sdxl with parameters: {'process_id': 1, 'image_id': 2, 'prompt': None, 'negative_prompt': 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', 'seed': None, 'strength': 1.0, 'guidance_scale': 7.5, 'LoRA': None}"
         )
 
-    @patch('LookBuilderPipeline.manager.segment_notification_manager.logging')
+    @patch('LookBuilderPipeline.manager.sdxl_notification_manager.logging')
     def test_handle_notification_process_not_found(self, mock_logging):
         """
         Tests handling of notifications when the process doesn't exist.
@@ -66,21 +66,21 @@ class TestSegmentNotificationManager(unittest.TestCase):
         # Simulate process not found in database
         mock_session.query.return_value.get.return_value = None
         
-        result = self.manager.handle_notification('image_segment', {'process_id': 1, 'image_id': 2})
+        result = self.manager.handle_notification('image_sdxl', {'process_id': 1, 'image_id': 2, 'prompt': 'woman on beach'})
         
         # Verify proper error handling
         self.assertIsNone(result)
         mock_logging.error.assert_called_with("Process 1 not found or has no parameters")
 
-    @patch('LookBuilderPipeline.manager.segment_notification_manager.logging')
-    def test_process_segment_success(self, mock_logging):
+    @patch('LookBuilderPipeline.manager.sdxl_notification_manager.logging')
+    def test_process_sdxl_success(self, mock_logging):
         """
-        Tests successful processing of a segment detection request.
+        Tests successful processing of a sdxl detection request.
         
         Verifies that:
         1. Image is correctly retrieved from database
         2. ImageVariant is properly created
-        3. Segment detection variant is created with correct parameters
+        3. SDXL detection variant is created with correct parameters
         4. Processing result is returned
         5. All database operations are performed in correct order
         """
@@ -91,11 +91,11 @@ class TestSegmentNotificationManager(unittest.TestCase):
         mock_process.parameters = {'inverse': True}
         mock_session.query.return_value.get.return_value = mock_process
         
-        result = self.manager.process_segment({'process_id': 1, 'image_id': 2, 'inverse': True})
+        result = self.manager.process_sdxl({'process_id': 1, 'image_id': 2, 'prompt': 'woman on beach', 'negative_prompt': 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves', 'seed': None, 'strength': 1.0, 'guidance_scale': 7.5, 'LoRA': None})
         
         self.assertIsNotNone(result)
 
-    @patch('LookBuilderPipeline.manager.segment_notification_manager.logging')
+    @patch('LookBuilderPipeline.manager.sdxl_notification_manager.logging')
     def test_mark_process_error(self, mock_logging):
         """
         Tests error marking functionality for failed processes.
