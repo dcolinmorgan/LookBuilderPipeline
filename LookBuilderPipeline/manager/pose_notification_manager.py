@@ -75,6 +75,19 @@ class PoseNotificationManager(NotificationManager):
 
             try:
                 # Create a temporary ImageVariant instance to use get_or_create_variant
+                # get_or_create_variant is defined in ImageVariant because it deals with variant-specific logic
+                # It needs access to variant-specific parameters and processing methods
+                # If we tried to put this in Image class:
+                # class Image:
+                # def get_or_create_variant(self, session, variant_type, **kwargs):
+                # Would need to import ImageVariant here
+                # existing = session.query(ImageVariant).filter_by(...)
+                # Creates circular import!
+                # Avoids circular imports
+                # Maintains proper separation of concerns
+                # Allows variant-specific logic to stay in variant classes
+                # Provides a clean interface for creating variants
+                # The temporary variant is essentially acting as a factory object to create the proper specialized variant.
                 base_variant = ImageVariant(
                     source_image_id=image.image_id,
                     variant_type='pose'
@@ -112,28 +125,3 @@ class PoseNotificationManager(NotificationManager):
                 return None
         
         return self.process_with_error_handling(process_id, execute_pose_process)
-
-    def mark_process_error(self, session, process_id, error_message):
-        """Mark a process as error with an error message."""
-        process = session.query(ProcessQueue).get(process_id)
-        if process:
-            process.status = 'error'
-            process.error_message = error_message
-            session.commit()
-
-    def _listen_for_notifications(self):
-        """Override parent method to add more logging"""
-        logging.info("Starting pose notification listener thread")
-        
-        while self.should_listen:
-            try:
-                if select.select([self.conn], [], [], 1.0)[0]:
-                    self.conn.poll()
-                    while self.conn.notifies:
-                        notify = self.conn.notifies.pop()
-                        logging.info(f"pose raw notification received: {notify}")
-                        self.notification_queue.put((notify.channel, notify.payload))
-                        logging.info(f"pose notification added to queue: {notify.channel}")
-            except Exception as e:
-                logging.error(f"Error in pose notification listener: {str(e)}")
-                self._handle_connection_error()
