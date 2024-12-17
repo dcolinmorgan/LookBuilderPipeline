@@ -18,13 +18,13 @@ class SegmentVariant(ImageVariant):
         """Get the segment parameters."""
         return self.parameters.get('segment', {})
 
-    # @classmethod
-    # def find_by_segment(cls, session, source_image_id: int, segment_parameters: dict) -> Optional["SegmentVariant"]:
-    #     """Find a segment variant with specific segment parameters for an image."""
-    #     return (session.query(cls)
-    #             .filter(cls.source_image_id == source_image_id,
-    #                    cls.parameters['segment'].astext == segment_parameters)
-    #             .first()) 
+    @classmethod
+    def find_by_segment(cls, session, source_image_id: int, segment_parameters: dict) -> Optional["SegmentVariant"]:
+        """Find a segment variant with specific segment parameters for an image."""
+        return (session.query(cls)
+                .filter(cls.source_image_id == source_image_id,
+                       cls.parameters['segment'].astext == segment_parameters)
+                .first()) 
 
     def __init__(self, source_image_id=None, variant_type=None, parameters=None, **kwargs):
         """Initialize segment variant"""
@@ -36,15 +36,13 @@ class SegmentVariant(ImageVariant):
         )
 
 
-    def create_segment_image(self, session) -> Optional[bytes]:
+    def process_image(self, session) -> Optional[bytes]:
         """Use original image to create segment variant."""
         try:
-            # Get source image data properly through session
-            source_image = session.query(Image).get(self.source_image_id)
-            if not source_image:
+            if not self.source_image:
                 raise ValueError(f"No source image found for ID {self.source_image_id}")
                 
-            image_data = source_image.get_image_data(session)
+            image_data = self.source_image.get_image_data(session)
             if not image_data:
                 raise ValueError("No source image data found")
 
