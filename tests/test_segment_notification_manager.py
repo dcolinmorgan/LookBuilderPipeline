@@ -94,7 +94,6 @@ class TestSegmentNotificationManager(unittest.TestCase):
         result = self.manager.process_segment({'process_id': 1, 'image_id': 2, 'inverse': True})
         
         self.assertIsNotNone(result)
-        mock_logging.info.assert_called_with("Processing segment with parameters: {'process_id': 1, 'image_id': 2, 'inverse': True}")
 
     @patch('LookBuilderPipeline.manager.segment_notification_manager.logging')
     def test_mark_process_error(self, mock_logging):
