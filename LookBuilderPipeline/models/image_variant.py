@@ -70,7 +70,6 @@ class ImageVariant(Base):
         """Alias for variant_id for compatibility."""
         return self.variant_id
 
-
     def get_or_create_variant(self, session, variant_type: str, **kwargs):
         """Get an existing variant or create a new one if it doesn't exist."""
         # Look for existing variant with matching parameters
@@ -131,9 +130,11 @@ class ImageVariant(Base):
                 parameters=kwargs
             )
             session.add(variant)
+            ### we use session.flush() to ensure the temporary base variant is properly initialized before using it to create the actual variant, while still maintaining transaction control.
+            ### session.flush() synchronizes the in-memory state of objects with the database, but without committing the transaction. Here's a detailed explanation:
             session.flush()
             
-            # Now process the image
+            # Now process the image via the variant class
             processed_image = variant.process_image(session)
             self.source_image.store_image(session, processed_image, variant)
 

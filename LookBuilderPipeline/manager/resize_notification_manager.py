@@ -42,6 +42,10 @@ class ResizeNotificationManager(NotificationManager):
 
     def process_item(self, resize):
         """Process a single resize notification."""
+        # Validate size parameter first
+        if not resize.parameters or 'size' not in resize.parameters:
+            raise ValueError("Process is missing required size parameter")
+        
         return self.process_resize({
             'process_id': resize.process_id,
             'image_id': resize.image_id,
@@ -109,28 +113,3 @@ class ResizeNotificationManager(NotificationManager):
                 return None
         
         return self.process_with_error_handling(process_id, execute_resize_process)
-
-    def mark_process_error(self, session, process_id, error_message):
-        """Mark a process as error with an error message."""
-        process = session.query(ProcessQueue).get(process_id)
-        if process:
-            process.status = 'error'
-            process.error_message = error_message
-            session.commit()
-
-    def _listen_for_notifications(self):
-        """Override parent method to add more logging"""
-        logging.info("Starting resize notification listener thread")
-        
-        while self.should_listen:
-            try:
-                if select.select([self.conn], [], [], 1.0)[0]:
-                    self.conn.poll()
-                    while self.conn.notifies:
-                        notify = self.conn.notifies.pop()
-                        logging.info(f"Resize raw notification received: {notify}")
-                        self.notification_queue.put((notify.channel, notify.payload))
-                        logging.info(f"Resize notification added to queue: {notify.channel}")
-            except Exception as e:
-                logging.error(f"Error in resize notification listener: {str(e)}")
-                self._handle_connection_error()

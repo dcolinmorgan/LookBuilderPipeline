@@ -351,3 +351,11 @@ class NotificationManager:
             # Implementation depends on your database setup
             # For testing, we'll just return a mock OID
             return 12345
+        
+    def mark_process_error(self, session, process_id, error_message):
+        """Mark a process as error with an error message."""
+        process = session.query(ProcessQueue).get(process_id)
+        if process:
+            process.status = 'error'
+            process.error_message = error_message
+            session.commit()

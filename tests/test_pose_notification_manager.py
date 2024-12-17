@@ -94,7 +94,6 @@ class TestPoseNotificationManager(unittest.TestCase):
         result = self.manager.process_pose({'process_id': 1, 'image_id': 2, 'face': True})
         
         self.assertIsNotNone(result)
-        mock_logging.info.assert_called_with("Processing pose with parameters: {'process_id': 1, 'image_id': 2, 'face': True}")
 
     @patch('LookBuilderPipeline.manager.pose_notification_manager.logging')
     def test_mark_process_error(self, mock_logging):
@@ -121,6 +120,49 @@ class TestPoseNotificationManager(unittest.TestCase):
         mock_process.status = 'error'
         mock_process.error_message = "Test error message"
         mock_session.commit.assert_called_once()
+
+    def test_handle_notification(self):
+        """Test handling of pose notifications."""
+        # Mock process_pose
+        self.manager.process_pose = MagicMock()
+        
+        # Mock session and process
+        mock_process = MagicMock(spec=ProcessQueue)
+        mock_process.parameters = {'face': True}  # Add required face parameter
+        mock_session = MagicMock()
+        mock_session.query.return_value.get.return_value = mock_process
+        
+        with patch.object(self.manager, 'get_managed_session') as mock_get_session:
+            mock_get_session.return_value.__enter__.return_value = mock_session
+            
+            # Test valid channel with data
+            test_data = {
+                'process_id': 1,
+                'image_id': 2
+            }
+            
+            # Mock logging
+            with patch('logging.info') as mock_logging:
+                self.manager.handle_notification('image_pose', test_data)
+                
+                # Verify logging was called with correct parameters
+                mock_logging.assert_any_call(
+                    "Processing pose with parameters: {'process_id': 1, 'image_id': 2, 'face': True}"
+                )
+            
+            # Verify process_pose was called with correct data
+            expected_data = {
+                'process_id': 1,
+                'image_id': 2,
+                'face': True
+            }
+            self.manager.process_pose.assert_called_once_with(expected_data)
+            
+            # Test invalid channel
+            self.manager.process_pose.reset_mock()
+            result = self.manager.handle_notification('invalid', test_data)
+            assert result is None
+            self.manager.process_pose.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()
