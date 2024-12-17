@@ -24,31 +24,30 @@ def test_update_ping_status(ping_notification_manager):
         status='pending'
     )
     
-    with ping_notification_manager.session.begin():
-        ping_notification_manager.session.add(ping_process)
-        ping_notification_manager.session.flush()
+    # Add process using context manager
+    with ping_notification_manager.get_managed_session() as session:
+        session.add(ping_process)
+        session.flush()
         process_id = ping_process.process_id
     
     # Test status transitions
-    with ping_notification_manager.db_manager.get_session() as session:
+    with ping_notification_manager.get_managed_session() as session:
         ping_notification_manager.update_process_status(session, process_id, 'processing')
-        session.commit()
     
     # Verify processing status with fresh session
-    with ping_notification_manager.db_manager.get_session() as verify_session:
-        updated_ping = verify_session.query(ProcessQueue)\
+    with ping_notification_manager.get_managed_session() as session:
+        updated_ping = session.query(ProcessQueue)\
             .filter_by(process_id=process_id)\
             .first()
         assert updated_ping.status == 'processing'
     
     # Test next transition
-    with ping_notification_manager.db_manager.get_session() as session:
+    with ping_notification_manager.get_managed_session() as session:
         ping_notification_manager.update_process_status(session, process_id, 'completed')
-        session.commit()
     
     # Verify completed status with fresh session
-    with ping_notification_manager.db_manager.get_session() as verify_session:
-        updated_ping = verify_session.query(ProcessQueue)\
+    with ping_notification_manager.get_managed_session() as session:
+        updated_ping = session.query(ProcessQueue)\
             .filter_by(process_id=process_id)\
             .first()
         assert updated_ping.status == 'completed'
@@ -67,10 +66,12 @@ def test_create_pong_process(ping_notification_manager):
         session.flush()
         ping_id = ping_process.process_id
     
-        # Create pong process
-        pong_id = ping_notification_manager.create_pong_process(
-            image_id=1,
-            ping_process_id=ping_id
+        # Create pong process via execute_ping_process within process_ping
+        pong_id = ping_notification_manager.process_ping(
+            ping_data={
+                'image_id': 1,
+                'process_id': ping_id
+            }
         )
     
         # Verify pong process - use same session
@@ -92,9 +93,9 @@ def test_full_ping_processing(ping_notification_manager):
         status='pending'
     )
     
-    with ping_notification_manager.session.begin():
-        ping_notification_manager.session.add(ping_process)
-        ping_notification_manager.session.flush()
+    with ping_notification_manager.get_managed_session() as session:
+        session.add(ping_process)
+        session.flush()
         ping_id = ping_process.process_id
     
     # Process the ping
@@ -105,15 +106,15 @@ def test_full_ping_processing(ping_notification_manager):
     ping_notification_manager.process_ping(ping_data)
     
     # Verify state transitions
-    with ping_notification_manager.session.begin():
+    with ping_notification_manager.get_managed_session() as session:
         # Check ping status progression
-        ping = ping_notification_manager.session.query(ProcessQueue)\
+        ping = session.query(ProcessQueue)\
             .filter_by(process_id=ping_id)\
             .first()
         assert ping.status == 'completed'
         
         # Verify pong was created
-        pong = ping_notification_manager.session.query(ProcessQueue)\
+        pong = session.query(ProcessQueue)\
             .filter_by(next_step='pong')\
             .filter_by(parameters={'ping_process_id': ping_id, 'image_id': 1})\
             .first()
@@ -129,9 +130,9 @@ def test_error_handling(ping_notification_manager):
         status='pending'
     )
     
-    with ping_notification_manager.session.begin():
-        ping_notification_manager.session.add(ping_process)
-        ping_notification_manager.session.flush()
+    with ping_notification_manager.get_managed_session() as session:
+        session.add(ping_process)
+        session.flush()
         ping_id = ping_process.process_id
     
     ping_data = {
@@ -148,8 +149,8 @@ def test_error_handling(ping_notification_manager):
             ping_notification_manager.process_ping(ping_data)
         
         # Verify error state
-        with ping_notification_manager.session.begin():
-            ping = ping_notification_manager.session.query(ProcessQueue)\
+        with ping_notification_manager.get_managed_session() as session:
+            ping = session.query(ProcessQueue)\
                 .filter_by(process_id=ping_id)\
                 .first()
             assert ping.status == 'error'

@@ -35,7 +35,7 @@ class PoseVariant(ImageVariant):
             **kwargs
         )
 
-
+    ### image_variant calls process_image, which is defined here
     def process_image(self, session) -> Optional[bytes]:
         """Use original image to create pose variant."""
         try:

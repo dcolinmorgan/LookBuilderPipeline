@@ -75,6 +75,19 @@ class PoseNotificationManager(NotificationManager):
 
             try:
                 # Create a temporary ImageVariant instance to use get_or_create_variant
+                # get_or_create_variant is defined in ImageVariant because it deals with variant-specific logic
+                # It needs access to variant-specific parameters and processing methods
+                # If we tried to put this in Image class:
+                # class Image:
+                # def get_or_create_variant(self, session, variant_type, **kwargs):
+                # Would need to import ImageVariant here
+                # existing = session.query(ImageVariant).filter_by(...)
+                # Creates circular import!
+                # Avoids circular imports
+                # Maintains proper separation of concerns
+                # Allows variant-specific logic to stay in variant classes
+                # Provides a clean interface for creating variants
+                # The temporary variant is essentially acting as a factory object to create the proper specialized variant.
                 base_variant = ImageVariant(
                     source_image_id=image.image_id,
                     variant_type='pose'
