@@ -36,20 +36,19 @@ class PoseVariant(ImageVariant):
         )
 
 
-    def create_pose_image(self, session) -> Optional[bytes]:
+    def process_image(self, session) -> Optional[bytes]:
         """Use original image to create pose variant."""
         try:
             # Get source image data properly through session
-            source_image = session.query(Image).get(self.source_image_id)
-            if not source_image:
+            if not self.source_image:
                 raise ValueError(f"No source image found for ID {self.source_image_id}")
                 
-            image_data = source_image.get_image_data(session)
+            image_data = self.source_image.get_image_data(session)
             if not image_data:
                 raise ValueError("No source image data found")
 
             # Create image model and get pose
-            pose_image = detect_pose(image_data)
+            pose_image = detect_pose(image_data, face=self.pose_parameters.get('face'))
             
             return pose_image
             
