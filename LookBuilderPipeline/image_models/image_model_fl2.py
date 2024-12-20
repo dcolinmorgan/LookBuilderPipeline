@@ -11,7 +11,7 @@ from LookBuilderPipeline.utils.resize import resize_images
 from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
 
 # Import required components from diffusers
-from diffusers import FluxControlNetInpaintPipeline, FluxImg2ImgPipeline, FluxTransformer2DModel, FluxControlNetPipeline
+from diffusers import FluxControlNetInpaintPipeline, FluxImg2ImgPipeline, FluxTransformer2DModel, FluxControlNetPipeline, FluxMultiControlNetModel
 from diffusers.models.controlnet_flux import FluxControlNetModel
 
 # ## change flux inpainting pipeline to allow negative-prompt in OpenFlux
@@ -21,29 +21,29 @@ from diffusers.models.controlnet_flux import FluxControlNetModel
 # shutil.copy(mod_pipe, orig_pipe)
 
 class ImageModelFlux(BaseImageModel):
-    def __init__(self, image, pose, mask, prompt, *args, **kwargs):
+    def __init__(self, image, **kwargs):
         # Initialize the FLUX image model
-        super().__init__(image, pose, mask, prompt)
+        super().__init__(image, **kwargs)
 
         # Set default values
-        self.num_inference_steps = kwargs.get('num_inference_steps', 10)
-        self.guidance_scale = kwargs.get('guidance_scale', 7.0)
-        self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1.0)
-        self.seed = kwargs.get('seed', np.random.randint(0, 100000000))
-        self.prompt = kwargs.get('prompt', prompt)
-        self.image = kwargs.get('image', image)
-        self.strength = kwargs.get('strength', 0.99)
+        # self.num_inference_steps = kwargs.get('num_inference_steps', 10)
+        # self.guidance_scale = kwargs.get('guidance_scale', 7.0)
+        # self.controlnet_conditioning_scale = kwargs.get('controlnet_conditioning_scale', 1.0)
+        # self.seed = kwargs.get('seed', np.random.randint(0, 100000000))
+        # self.prompt = kwargs.get('prompt', prompt)
+        # self.image = kwargs.get('image', image)
+        # self.strength = kwargs.get('strength', 0.99)
         self.model = kwargs.get('model', 'schnell')
         self.quantize = kwargs.get('quantize', True)
-        self.LoRA = kwargs.get('LoRA', False)
-        self.prompt_embeds=kwargs.get('prompt_embeds', None)
-        self.pooled_prompt_embeds=kwargs.get('pooled_prompt_embeds', None)
-        self.control_guidance_start = kwargs.get('control_guidance_start', 0)
-        self.control_guidance_end = kwargs.get('control_guidance_end', 1)
-        self.benchmark = kwargs.get('benchmark', False)
-        self.res = kwargs.get('res', 1280)
+        # self.LoRA = kwargs.get('LoRA', False)
+        # self.prompt_embeds=kwargs.get('prompt_embeds', None)
+        # self.pooled_prompt_embeds=kwargs.get('pooled_prompt_embeds', None)
+        # self.control_guidance_start = kwargs.get('control_guidance_start', 0)
+        # self.control_guidance_end = kwargs.get('control_guidance_end', 1)
+        # self.benchmark = kwargs.get('benchmark', False)
+        self.res = kwargs.get('res', 1024)
         self.openflux = kwargs.get('openflux', False)
-        self.prompt_embeds, self.pooled_prompt_embeds = get_weighted_text_embeddings_flux1(pipe=self.flux_pipe, prompt=self.prompt)
+        # self.prompt_embeds, self.pooled_prompt_embeds = get_weighted_text_embeddings_flux1(pipe=self.flux_pipe, prompt=self.prompt)
     
 
     def prepare_inpaint_model(self):
@@ -52,23 +52,24 @@ class ImageModelFlux(BaseImageModel):
         """
         # Set up the pipeline
         base_model = 'black-forest-labs/FLUX.1-schnell'
-        controlnet_model = 'InstantX/FLUX.1-dev-Controlnet-Union' ## may need to change this to FLUX.1-schnell-Controlnet-Union or train our own https://huggingface.co/xinsir/controlnet-union-FLUX-1.0/discussions/28
 
-        controlnet_pose = FluxControlNetModel.from_pretrained(controlnet_model, torch_dtype=torch.float16,guidance_embeds=False)#,add_prefix_space=True)
-        # controlnet = FluxMultiControlNetModel([controlnet_pose,controlnet_pose])
+        controlnet = FluxControlNetModel.from_pretrained(
+    "InstantX/FLUX.1-dev-Controlnet-Union", torch_dtype=torch.bfloat16
+)
 
 
         transformer=ImageModelFlux.prepare_quant_model(self)  # quant or not
-        self.flux_pipe = FluxControlNetInpaintpipeline.from_pretrained(base_model,
-            controlnet=controlnet_pose, 
+        self.flux_pipe = FluxControlNetInpaintPipeline.from_pretrained(
+            base_model,
+            controlnet=controlnet,
             transformer = transformer,
             torch_dtype=torch.bfloat16)
         self.flux_pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
         # pipe.to("cuda")
 
-        self.flux_pipe.text_encoder.to(torch.bfloat16)
-        self.flux_pipe.controlnet.to(torch.bfloat16)
-        self.flux_pipe.enable_model_cpu_offload()
+        # self.flux_pipe.text_encoder.to(torch.bfloat16)
+        # self.flux_pipe.controlnet.to(torch.bfloat16)
+        # self.flux_pipe.enable_model_cpu_offload()
         # self.prompt_embeds, self.pooled_prompt_embeds = get_weighted_text_embeddings_flux1(pipe=self.flux_pipe, prompt=self.prompt)
 
     def prepare_img2img_model(self):
@@ -80,15 +81,16 @@ class ImageModelFlux(BaseImageModel):
 
         transformer= ImageModelFlux.prepare_quant_model(self)  # quant or not
 
-        self.flux_pipe = FluxImg2ImgPipeline.from_pretrained(base_model,
+        self.flux_pipe = FluxImg2ImgPipeline.from_pretrained(
+            base_model,
             transformer = transformer,
             torch_dtype=torch.bfloat16)
         self.flux_pipe.enable_model_cpu_offload() #save some VRAM by offloading the model to CPU. Remove this if you have enough GPU power
         # pipe.to("cuda")
 
-        self.flux_pipe.text_encoder.to(torch.bfloat16)
+        # self.flux_pipe.text_encoder.to(torch.bfloat16)
         # self.flux_pipe.controlnet.to(torch.bfloat16)
-        self.flux_pipe.enable_sequential_cpu_offload()
+        # self.flux_pipe.enable_sequential_cpu_offload()
         # self.prompt_embeds, self.pooled_prompt_embeds = get_weighted_text_embeddings_flux1(pipe=self.flux_pipe, prompt=self.prompt)
         
     def prepare_upscale_image(self):
@@ -132,7 +134,7 @@ class ImageModelFlux(BaseImageModel):
                 torch_dtype = torch.bfloat16
             ) 
             quantize_(self.transformer, int8_weight_only())
-            # self.transformer.save_pretrained('flux-schnell-fp8/quant_transformer/',safe_serialization=False)
+            self.transformer.save_pretrained('flux-schnell-fp8/quant_transformer/',safe_serialization=False)
         if self.quantize and os.path.exists('flux-schnell-fp8/quant_transformer/diffusion_pytorch_model-00001-of-00002.bin'):
             self.transformer = FluxTransformer2DModel.from_pretrained(
                 'flux-schnell-fp8',
@@ -151,11 +153,11 @@ class ImageModelFlux(BaseImageModel):
 
     def generate_image(self):
         self.generator = torch.Generator(device="cuda").manual_seed(self.seed)
-        self.control_guidance_start=np.round(self.control_guidance_start,2)
-        self.control_guidance_end=np.round(self.control_guidance_end,2)
+        # self.control_guidance_start=np.round(self.control_guidance_start,2)
+        # self.control_guidance_end=np.round(self.control_guidance_end,2)
         
-        if self.LoRA:
-            self.flux_pipe.load_lora_weights('prithivMLmods/Canopus-LoRA-Flux-UltraRealism-2.0', weight_name='Canopus-LoRA-Flux-UltraRealism.safetensors', adapter_name="ultra")
+        # if self.LoRA:
+        #     self.flux_pipe.load_lora_weights('prithivMLmods/Canopus-LoRA-Flux-UltraRealism-2.0', weight_name='Canopus-LoRA-Flux-UltraRealism.safetensors', adapter_name="ultra")
             # self.flux_pipe.load_lora_weights('prithivMLmods/Canopus-LoRA-Flux-FaceRealism', weight_name='Canopus-LoRA-Flux-FaceRealism.safetensors', adapter_name="face")
             # self.flux_pipe.load_lora_weights('prithivMLmods/Canopus-Clothing-Flux-LoRA', weight_name='Canopus-Clothing-Flux-Dev-Florence2-LoRA.safetensors', adapter_name="clothes")
             # self.flux_pipe.load_lora_weights('hugovntr/flux-schnell-realism', weight_name='schnell-realism_v2.3.safetensors', adapter_name="winner3")
@@ -163,54 +165,51 @@ class ImageModelFlux(BaseImageModel):
             # self.flux_pipe.load_lora_weights('Shakker-Labs/FLUX.1-dev-LoRA-add-details', weight_name='FLUX-dev-lora-add_details.safetensors', adapter_name="winner") 
             # self.flux_pipe.load_lora_weights('ByteDance/Hyper-SD', weight_name='Hyper-FLUX.1-dev-8steps-lora.safetensors', adapter_name="HYSD") 
             # Activate the LoRA
-            self.flux_pipe.set_adapters(["ultra"], adapter_weights=[2.0])
+            # self.flux_pipe.set_adapters(["ultra"], adapter_weights=[2.0])
             # self.flux_pipe.set_adapters(["face"], adapter_weights=[2.0])        
         
         start_time = time.time()
         
         image_res = self.flux_pipe(  ## only inpainting now
-                # prompt=self.prompt,
-                image=self.sm_image,
-                control_image=self.sm_pose_image,
+                prompt=self.prompt,
+                image=self.image,
+                control_image=self.pose,
                 control_mode=4,
-                padding_mask_crop=8,
                 controlnet_conditioning_scale=self.controlnet_conditioning_scale,
-                mask_image=self.sm_mask,
-                height=self.sm_image.size[1],
-                width=self.sm_image.size[0],
+                mask_image=self.mask,
                 strength=self.strength,
                 num_inference_steps=self.num_inference_steps,
                 guidance_scale=self.guidance_scale,
                 generator=self.generator,
-                prompt_embeds=self.prompt_embeds,
-                pooled_prompt_embeds=self.pooled_prompt_embeds,
+                # prompt_embeds=self.prompt_embeds,
+                # pooled_prompt_embeds=self.pooled_prompt_embeds,
 
             ).images[0]
         end_time = time.time()
         self.time = end_time - start_time
         self.clear_mem()
-        self.negative_prompt=None
-        self.i=os.path.basename(self.input_image).split('.')[0]
+        # self.negative_prompt=None
+        # self.i=os.path.basename(self.input_image).split('.')[0]
 
         # Save the generated image
-        save_pathA=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,self.loraout)
-        save_pathC=os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images",self.model,self.loraout)
+        # save_pathA=os.path.join("LookBuilderPipeline","LookBuilderPipeline","generated_images",self.model,self.loraout)
+        # save_pathC=os.path.join("LookBuilderPipeline","LookBuilderPipeline","benchmark_images",self.model,self.loraout)
 
-        os.makedirs(save_pathA, exist_ok=True)
-        os.makedirs(save_pathC, exist_ok=True)
+        # os.makedirs(save_pathA, exist_ok=True)
+        # os.makedirs(save_pathC, exist_ok=True)
         
-        # bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
-        bench_filename = 'img'+str(self.i)+str(self.lora_weight)+'.png'
+        # # bench_filename = 'img'+str(self.i)+'_g'+str(self.guidance_scale)+'_c'+str(self.controlnet_conditioning_scale)+'_s'+str(self.strength)+'_b'+str(self.control_guidance_start)+'_e'+str(self.control_guidance_end)+'.png'
+        # bench_filename = 'img'+str(self.i)+str(self.lora_weight)+'.png'
 
-        save_path1 = os.path.join(save_pathA, bench_filename)
-        save_path2 = os.path.join(save_pathC, bench_filename)
-        image_res.save(save_path1)
+        # save_path1 = os.path.join(save_pathA, bench_filename)
+        # save_path2 = os.path.join(save_pathC, bench_filename)
+        # image_res.save(save_path1)
 
-        self.annot='llava:'+image_llava(self,image_res)+'. blip2:'+image_blip(self,image_res)+'. desc:'+annotate_images(image_res)
+        # self.annot='llava:'+image_llava(self,image_res)+'. blip2:'+image_blip(self,image_res)+'. desc:'+annotate_images(image_res)
         
-        ImageModelFlux.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
+        # ImageModelFlux.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res], output_path=save_path2)
 
-        return image_res, save_path1
+        return image_res #, save_path1
 
     def generate_bench(self,image_path,pose_path,mask_path):
         for self.input_image in glob.glob(self.image):
@@ -224,7 +223,7 @@ class ImageModelFlux(BaseImageModel):
                     # image_res = self.upscale_image(image_res)
                     
     def clear_mem(self):
-        del self.pipe
+        del self.flux_pipe
         gc.collect()
         torch.cuda.empty_cache()
 
