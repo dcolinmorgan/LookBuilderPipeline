@@ -113,7 +113,7 @@ python3 base_image_model_api.py
 
 ```bash
 source ./env
-export FLASK_ENV='alpha
+export FLASK_ENV='alpha'
 history|grep psql
 psql ${DB_NAME}
 select * from process_queue where id = 1

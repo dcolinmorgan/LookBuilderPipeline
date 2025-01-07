@@ -46,7 +46,7 @@ def main():
     parser = argparse.ArgumentParser(description='LookBuilder Pipeline')
     parser.add_argument(
         '--mode', 
-        choices=['ping', 'resize', 'segment', 'pose', 'loadpipe', 'runpipe', 'sdxl'],
+        choices=['ping', 'resize', 'segment', 'pose', 'sdxl'],
         required=True,
         help='Mode to run the application in'
     )

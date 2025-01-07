@@ -212,23 +212,23 @@ if __name__ == "__main__":
 
     image_model = ImageModelSDXL(
         args.image_path, 
-        args.pose_path, 
-        args.mask_path, 
-        args.prompt,
-        num_inference_steps=args.num_inference_steps,
-        guidance_scale=args.guidance_scale,
-        controlnet_conditioning_scale=args.controlnet_conditioning_scale,
-        seed=args.seed,
-        negative_prompt=args.negative_prompt,
-        strength=args.strength,
-        LoRA=args.LoRA,
-        device=args.device
+        # args.pose_path, 
+        # args.mask_path, 
+        # args.prompt,
+        # num_inference_steps=args.num_inference_steps,
+        # guidance_scale=args.guidance_scale,
+        # controlnet_conditioning_scale=args.controlnet_conditioning_scale,
+        # seed=args.seed,
+        # negative_prompt=args.negative_prompt,
+        # strength=args.strength,
+        # LoRA=args.LoRA,
+        # device=args.device
     )
 
     
     if args.benchmark==False:
         image_model.prepare_model()
-        image_model.prepare_image(args.image_path, args.pose_path,args.mask_path)
+        # image_model.prepare_image(args.image_path, args.pose_path,args.mask_path)
         generated_image, generated_image_path = image_model.generate_image()
         # generated_image = image_model.upscale_image(generated_image)  ## will explode the VRAM at this point, need to unload pipe1 or run in series
         print(f"Generated image saved at: {generated_image_path}")

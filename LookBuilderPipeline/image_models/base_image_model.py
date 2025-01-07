@@ -39,23 +39,23 @@ class BaseImageModel:
             self.image = image
         self.res = kwargs.get('res', 1024)
         image=resize_images([self.image],self.res,square=True)[0]
-        # self.original_image=image #resize_images([self.original_image],self.res,square=True)[0]
+        self.original_image=image #resize_images([self.original_image],self.res,square=True)[0]
         self.image=image.copy()
         
         if pose is None:
-            self.pose = detect_pose(image_path=image)
+            self.original_pose = detect_pose(image_path=image)
         else:
-            self.pose = pose
+            self.original_pose = pose
         if mask is None:
-            _, self.mask = segment_image(image_path=image,inverse=True)
+            _, self.original_mask = segment_image(image_path=image,inverse=True)
         else:
-            self.mask = mask
+            self.original_mask = mask
         if outfit is None:
-            self.outfit, _ = segment_image(image_path=image,inverse=False)
+            self.original_outfit, _ = segment_image(image_path=image,inverse=False)
         else:
-            self.outfit = outfit
+            self.original_outfit = outfit
         
-        # self.image,self.mask,self.pose,self.outfit=resize_images([self.original_image,self.original_mask,self.original_pose,self.original_outfit],self.res,square=True)
+        self.image,self.mask,self.pose,self.outfit=resize_images([self.original_image,self.original_mask,self.original_pose,self.original_outfit],self.res,square=True)
         logging.info(f"Base parameters set")
         
         self.num_inference_steps = kwargs.get('num_inference_steps', 50)
