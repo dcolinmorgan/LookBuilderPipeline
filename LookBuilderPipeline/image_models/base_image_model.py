@@ -73,3 +73,12 @@ class BaseImageModel:
         self.lora_weight=kwargs.get('lora_weight', 1.0)
         self.device = device
         logging.info(f"BaseImageModel initialized")
+        
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run BaseImageModel")
+    parser.add_argument("--image_path", required=True, help="Path to the input image")
+    args = parser.parse_args()
+    image_model = BaseImageModel(
+            args.image_path)
