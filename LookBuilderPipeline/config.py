@@ -48,7 +48,7 @@ class AlphaConfig(Config):
     DEBUG = True
     DB_USERNAME = 'lookbuilderhub_user'
     DB_PASSWORD = 'svLjBtkiTOMyYND7MTXJ7EnGBymPo9n4'
-    DB_HOST = 'dpg-cspvql5ds78s73dd4020-a.frankfurt-postgres.render.com'
+    DB_HOST = 'dpg-cspvql5ds78s73dd4020-a'
     DB_NAME = 'lookbuilderhub_db'
     DB_PORT = '5432'
 
@@ -62,7 +62,7 @@ config = {
     'development': DevelopmentConfig,
     'alpha': AlphaConfig,
     'production': ProductionConfig,
-    'default': DevelopmentConfig
+    'default': AlphaConfig
 }
 
 def get_config():
