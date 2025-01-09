@@ -231,7 +231,6 @@ def test_process_resize_workflow(resize_manager, mock_session, mock_process, moc
     """Test the complete resize workflow with all database operations."""
     mock_process.image_id = 123  # Change from string to integer
     resize_manager.get_image = Mock(return_value=mock_image)
-    resize_manager.store_large_object = Mock(return_value=12345)
 
     # Mock the image object
     mock_image_obj = Mock(spec=Image)

@@ -1,15 +1,10 @@
 # Import necessary libraries for pose detection
-# from controlnet_aux import OpenposeDetector  # For pose detection using OpenPose
+
 from diffusers.utils import load_image  # For loading images
 import os,sys
 import torch
 from PIL import Image
 import io
-# # Initialize the OpenPose detector using a pre-trained model from Hugging Face
-# openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
-# from controlnet_aux.processor import Processor
-# processor_id = 'openpose_full'
-# openpose = Processor(processor_id)
 
 from .DWPose.src.dwpose import DwposeDetector
 
@@ -45,7 +40,7 @@ def detect_pose(image_path, face=True):
     else:
         device = torch.device('cpu')
     # Use the OpenPose detector to detect the pose in the image
-    # pose_img = openpose(image) #,include_hand=True,include_face=False)
+
     pose_img,j,source = model(image,
         include_hand=True,
         include_face=face,
@@ -55,7 +50,6 @@ def detect_pose(image_path, face=True):
         detect_resolution=512,
         device=device)
     
-    # pose_image = openpose(image, hand_and_face=False, output_type='cv2')
 
     # Return the image with the detected pose
     return pose_img

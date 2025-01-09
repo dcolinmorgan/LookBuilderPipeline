@@ -345,12 +345,6 @@ class NotificationManager:
                 raise ValueError(f"Image {image_id} not found")
             return image.data  # Assuming your Image model has a 'data' field
 
-    def store_large_object(self, data: bytes) -> int:
-        """Store data as a large object and return its OID."""
-        with self.get_managed_session() as session:
-            # Implementation depends on your database setup
-            # For testing, we'll just return a mock OID
-            return 12345
         
     def mark_process_error(self, session, process_id, error_message):
         """Mark a process as error with an error message."""

@@ -39,7 +39,7 @@ class BaseImageModel:
             self.image = image
         self.res = kwargs.get('res', 1024)
         image=resize_images([self.image],self.res,square=True)[0]
-        self.original_image=image #resize_images([self.original_image],self.res,square=True)[0]
+        self.original_image=image
         self.image=image.copy()
         
         if pose is None:
@@ -66,7 +66,6 @@ class BaseImageModel:
         self.LoRA = kwargs.get('LoRA', None)
         self.prompt = kwargs.get('prompt')
         
-        # self.negative_prompt = kwargs.get('negative_prompt', "dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves")
         self.benchmark = kwargs.get('benchmark', False)
         self.control_guidance_start=kwargs.get('control_guidance_start', 0)
         self.control_guidance_end=kwargs.get('control_guidance_end', 1)

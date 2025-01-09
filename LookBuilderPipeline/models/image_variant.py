@@ -97,9 +97,9 @@ class ImageVariant(Base):
         try:
             from .pose_variant import PoseVariant
             from .segment_variant import SegmentVariant
-            # from .outfit_variant import OutfitVariant
+            # from .outfit_variant import OutfitVariant  # placeholders until we implement outfit variants
             from .sdxl_variant import SDXLVariant
-            # from .flux_variant import FluxVariant
+            # from .flux_variant import FluxVariant  # placeholders until we implement flux variants
             # Get the variant class from the registry
             variant_classes = {
                 'pose': PoseVariant.variant_class,
