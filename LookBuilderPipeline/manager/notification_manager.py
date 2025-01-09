@@ -209,10 +209,6 @@ class NotificationManager:
             logging.error(f"Error in queue processing: {str(e)}")
             raise
 
-    def process_item(self, item):
-        """Process a single queue item. To be implemented by subclasses."""
-        raise NotImplementedError
-
     def stop(self):
         """Stop the notification manager."""
         logging.info("Stopping NotificationManager...")
