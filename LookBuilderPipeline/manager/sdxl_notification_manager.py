@@ -41,6 +41,18 @@ class SDXLNotificationManager(NotificationManager):
         logging.warning(f"Unexpected channel: {channel}")
         return None
 
+    def process_item(self, sdxl_request):
+        """Process a single SDXL request."""
+        return self.process_sdxl({
+            'process_id': sdxl_request.process_id,
+            'image_id': sdxl_request.image_id,
+            'prompt': sdxl_request.parameters.get('prompt'),
+            'negative_prompt': sdxl_request.parameters.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
+            'seed': sdxl_request.parameters.get('seed', None),
+            'strength': sdxl_request.parameters.get('strength', 1.0),
+            'guidance_scale': sdxl_request.parameters.get('guidance_scale', 7.5),
+            'LoRA': sdxl_request.parameters.get('LoRA', None)
+        })
 
     def process_sdxl(self, sdxl_data):
         """Process an SDXL request."""

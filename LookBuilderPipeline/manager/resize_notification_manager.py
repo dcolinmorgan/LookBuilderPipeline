@@ -40,6 +40,19 @@ class ResizeNotificationManager(NotificationManager):
         logging.warning(f"ResizeNotificationManager received unexpected channel: {channel}")
         return None
 
+    def process_item(self, resize):
+        """Process a single resize notification."""
+        # Validate size parameter first
+        if not resize.parameters or 'size' not in resize.parameters:
+            raise ValueError("Process is missing required size parameter")
+        
+        return self.process_resize({
+            'process_id': resize.process_id,
+            'image_id': resize.image_id,
+            'size': resize.parameters.get('size'),
+            'aspect_ratio': resize.parameters.get('aspect_ratio', 1.0),
+            'square': resize.parameters.get('square', False)
+        })
 
     def process_resize(self, resize_data):
         """Process a resize notification through its stages."""

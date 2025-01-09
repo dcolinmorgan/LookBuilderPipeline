@@ -36,6 +36,14 @@ class SegmentNotificationManager(NotificationManager):
         logging.warning(f"SegmentNotificationManager received unexpected channel: {channel}")
         return None
 
+    def process_item(self, segment):
+        """Process a single segment notification."""
+        return self.process_segment({
+            'process_id': segment.process_id,
+            'image_id': segment.image_id,
+            'inverse': segment.parameters.get('inverse')
+        })
+
     def process_segment(self, segment_data):
         """Process a segment notification through its stages."""
         validated_data = self.validate_process_data(segment_data)

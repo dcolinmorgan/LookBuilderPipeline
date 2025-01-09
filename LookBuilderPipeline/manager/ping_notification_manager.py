@@ -10,7 +10,13 @@ class PingNotificationManager(NotificationManager):
         super().__init__()
         self.channels = ['ping']
         self.required_fields = ['process_id', 'image_id']  # Define required fields
-
+    
+    def process_item(self, ping):
+        """Process a single ping notification."""
+        return self.process_ping({
+            'process_id': ping.process_id,
+            'image_id': ping.image_id
+        })
 
     def process_ping(self, ping_data):
         """Process a ping notification through its stages."""

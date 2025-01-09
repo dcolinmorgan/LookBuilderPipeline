@@ -36,6 +36,14 @@ class PoseNotificationManager(NotificationManager):
         logging.warning(f"PoseNotificationManager received unexpected channel: {channel}")
         return None
 
+    def process_item(self, pose):
+        """Process a single pose notification."""
+        return self.process_pose({
+            'process_id': pose.process_id,
+            'image_id': pose.image_id,
+            'face': pose.parameters.get('face')
+        })
+
     def process_pose(self, pose_data):
         """Process a pose notification through its stages."""
         validated_data = self.validate_process_data(pose_data)
