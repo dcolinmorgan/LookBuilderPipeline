@@ -32,8 +32,8 @@ class ResizeNotificationManager(NotificationManager):
                     #     'aspect_ratio': process.parameters.get('aspect_ratio', 1.0),
                     #     'square': process.parameters.get('square', False)
                     # }
-                    logging.info(f"Processing resize with parameters: {size}")
-                    return self.process_item()
+                    # logging.info(f"Processing resize with parameters: {size}")
+                    return self.process_item(process)
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None

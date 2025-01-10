@@ -32,8 +32,8 @@ class SDXLNotificationManager(NotificationManager):
                     #     'guidance_scale': process.parameters.get('guidance_scale', 7.5),  # Default to 7.5
                     #     'LoRA': process.parameters.get('LoRA', None)
                     # }
-                    logging.info(f"Processing SDXL with parameters: {full_data}")
-                    return self.process_item()
+                    # logging.info(f"Processing SDXL with parameters: {full_data}")
+                    return self.process_item(process)
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None
@@ -51,7 +51,7 @@ class SDXLNotificationManager(NotificationManager):
             'seed': sdxl_request.parameters.get('seed', None),
             'strength': sdxl_request.parameters.get('strength', 1.0),
             'guidance_scale': sdxl_request.parameters.get('guidance_scale', 7.5),
-            'LoRA': sdxl_request.parameters.get('LoRA', None)
+            # 'LoRA': sdxl_request.parameters.get('LoRA', None)
         } 
         #)
 
@@ -83,7 +83,7 @@ class SDXLNotificationManager(NotificationManager):
                 seed=validated_data['seed'],
                 strength=validated_data['strength'],
                 guidance_scale=validated_data['guidance_scale'],
-                LoRA=validated_data['LoRA']
+                # LoRA=validated_data['LoRA']
             )
             
             if not variant:

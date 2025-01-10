@@ -28,8 +28,8 @@ class SegmentNotificationManager(NotificationManager):
                     #     'image_id': data['image_id'],
                     #     'inverse': process.parameters.get('inverse')
                     # }
-                    logging.info(f"Processing segment with parameters: {full_data}")
-                    return self.process_item(full_data)
+                    # logging.info(f"Processing segment with parameters: {full_data}")
+                    return self.process_item(process)
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None

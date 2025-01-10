@@ -28,8 +28,8 @@ class PoseNotificationManager(NotificationManager):
                     #     'image_id': data['image_id'],
                     #     'face': process.parameters.get('face')
                     # }
-                    logging.info(f"Processing pose with parameters: {full_data}")
-                    return self.process_item()
+                    # logging.info(f"Processing pose with parameters: {full_data}")
+                    return self.process_item(process)
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None
