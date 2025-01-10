@@ -11,9 +11,6 @@ import torch.nn as nn
 from compel import Compel, ReturnedEmbeddingsType
 import glob
 from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
-from LookBuilderPipeline.utils.resize import resize_images
-from LookBuilderPipeline.annotate import annotate_images, image_blip, image_llava
-from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
 from PIL import Image
 import io
 # Import required components from diffusers
@@ -57,41 +54,7 @@ class ImageModelSDXL(BaseImageModel):
         
         self.generator = torch.Generator(device=self.device).manual_seed(self.seed)
 
-        supermodel_face=231666  # these are hardcoded model IDs, need to be changed to the actual model names and paths
-        female_face=273591
-        better_face=301988
-        diana=293406
-        def download_lora(lora_id):
-            url=f'https://civitai.com/api/download/models/{lora_id}'
-            r = requests.get(url)
-            fname=f'/LookBuilderPipeline/LookBuilderPipeline/image_models/{self.LoRA}.safetensors'
-            open(fname , 'wb').write(r.content)
-        # Load the LoRA
-        if self.LoRA=='supermodel_face':
-            download_lora(supermodel_face)
-            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='supermodel_face.safetensors',adapter_name=self.LoRA)
-        elif self.LoRA=='female_face':
-            download_lora(female_face)
-            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='female_face.safetensors',adapter_name=self.LoRA)
-        elif self.LoRA=='better_face':
-            download_lora(better_face)
-            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='better_face.safetensors',adapter_name=self.LoRA)
-        elif self.LoRA=='diana':
-            download_lora(diana)
-            self.pipe.load_lora_weights('LookBuilderPipeline/LookBuilderPipeline/image_models',weight_name='diana.safetensors',adapter_name=self.LoRA)
-        elif self.LoRA=='mg1c':
-            self.pipe.load_lora_weights("Dcolinmorgan/style-mg1c",token=os.getenv("HF_SD3_FLUX"), adapter_name=self.LoRA)
-        elif self.LoRA=='hyper':
-            self.pipe.load_lora_weights(hf_hub_download("ByteDance/Hyper-SD", "Hyper-SDXL-2steps-lora.safetensors"), adapter_name=self.LoRA)
-            # Ensure ddim scheduler timestep spacing set as trailing !!!
-            self.pipe.scheduler = DDIMScheduler.from_config(self.pipe.scheduler.config, timestep_spacing="trailing")
-            self.pipe.fuse_lora()
         
-        if self.LoRA!=None and self.LoRA!='':
-            logging.info(f"Activating LoRA: {self.LoRA}")
-            # self.pipe.fuse_lora()
-            # Activate the LoRA
-            self.pipe.set_adapters(self.LoRA, adapter_weights=[self.lora_weight])
 
         # Activate compel for long prompts
         compel = Compel(tokenizer=[self.pipe.tokenizer, self.pipe.tokenizer_2], text_encoder=[self.pipe.text_encoder, self.pipe.text_encoder_2], returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED, requires_pooled=[False, True])

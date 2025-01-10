@@ -1,26 +1,28 @@
 from typing import Optional
 from .image_variant import ImageVariant
 from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
+from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
+
 from LookBuilderPipeline.models.image import Image
 import logging
 import io
 
-class SDXLVariant(ImageVariant):
-    """A specialized variant class for sdxl transformations."""
+class LORAVariant(ImageVariant):
+    """A specialized variant class for lora transformations."""
     __mapper_args__ = {
-        'polymorphic_identity': 'sdxl_variant'
+        'polymorphic_identity': 'lora_variant'
     }
 
-    variant_class = ('LookBuilderPipeline.models.sdxl_variant', 'SDXLVariant')
+    variant_class = ('LookBuilderPipeline.models.lora_variant', 'LORAVariant')
     
     @property
-    def sdxl_parameters(self) -> dict:
-        """Get the sdxl parameters."""
-        return self.parameters.get('sdxl', {})
+    def lora_parameters(self) -> dict:
+        """Get the lora parameters."""
+        return self.parameters.get('lora', {})
 
 
     def __init__(self, source_image_id=None, variant_type=None, parameters=None, **kwargs):
-        """Initialize sdxl variant"""
+        """Initialize lora variant"""
         super().__init__(
             source_image_id=source_image_id,
             variant_type=variant_type,
@@ -29,7 +31,7 @@ class SDXLVariant(ImageVariant):
         )
 
     def process_image(self, session) -> Optional[bytes]:
-        """Use original image to create sdxl variant."""
+        """Use original image to create lora variant."""
         try:
             # Get source image data properly through session
             if not self.source_image:
@@ -39,8 +41,11 @@ class SDXLVariant(ImageVariant):
             if not image_data:
                 raise ValueError("No source image data found")
             
-            # Create image model and get sdxl
-            image_model = ImageModelSDXL(image=image_data, prompt=self.parameters['prompt'], negative_prompt=self.parameters['negative_prompt'], seed=self.parameters['seed'], strength=self.parameters['strength'], guidance_scale=self.parameters['guidance_scale'])
+            # Create image model and get sdxl or flux
+            if self.parameters['model'] == 'sdxl':
+                image_model = ImageModelSDXL(image=image_data, prompt=self.parameters['prompt'], negative_prompt=self.parameters['negative_prompt'], seed=self.parameters['seed'], strength=self.parameters['strength'], guidance_scale=self.parameters['guidance_scale'], LoRA=self.parameters['LoRA'])
+            elif self.parameters['model'] == 'flux':
+                image_model = ImageModelFlux(image=image_data, prompt=self.parameters['prompt'], seed=self.parameters['seed'], strength=self.parameters['strength'], guidance_scale=self.parameters['guidance_scale'], LoRA=self.parameters['LoRA'])
             image_model.prepare_model()
             generated_image = image_model.generate_image()
             
