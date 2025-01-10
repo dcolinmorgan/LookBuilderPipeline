@@ -23,13 +23,13 @@ class PoseNotificationManager(NotificationManager):
                 process = session.query(ProcessQueue).get(data['process_id'])
                 if process and process.parameters:
                     # Merge the notification data with process parameters
-                    full_data = {
-                        'process_id': data['process_id'],
-                        'image_id': data['image_id'],
-                        'face': process.parameters.get('face')
-                    }
+                    # full_data = {
+                    #     'process_id': data['process_id'],
+                    #     'image_id': data['image_id'],
+                    #     'face': process.parameters.get('face')
+                    # }
                     logging.info(f"Processing pose with parameters: {full_data}")
-                    return self.process_pose(full_data)
+                    return self.process_item()
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None
@@ -38,15 +38,15 @@ class PoseNotificationManager(NotificationManager):
 
     def process_item(self, pose):
         """Process a single pose notification."""
-        return self.process_pose({
+        # Validate face parameter first
+        if not pose.parameters or 'face' not in pose.parameters:
+            raise ValueError("Process is missing required face parameter")
+        
+        validated_data = {
             'process_id': pose.process_id,
             'image_id': pose.image_id,
             'face': pose.parameters.get('face')
-        })
-
-    def process_pose(self, pose_data):
-        """Process a pose notification through its stages."""
-        validated_data = self.validate_process_data(pose_data)
+        }
         process_id = validated_data['process_id']
         
         def execute_pose_process(session):

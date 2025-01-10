@@ -23,13 +23,13 @@ class SegmentNotificationManager(NotificationManager):
                 process = session.query(ProcessQueue).get(data['process_id'])
                 if process and process.parameters:
                     # Merge the notification data with process parameters
-                    full_data = {
-                        'process_id': data['process_id'],
-                        'image_id': data['image_id'],
-                        'inverse': process.parameters.get('inverse')
-                    }
+                    # full_data = {
+                    #     'process_id': data['process_id'],
+                    #     'image_id': data['image_id'],
+                    #     'inverse': process.parameters.get('inverse')
+                    # }
                     logging.info(f"Processing segment with parameters: {full_data}")
-                    return self.process_segment(full_data)
+                    return self.process_item(full_data)
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None
@@ -38,15 +38,16 @@ class SegmentNotificationManager(NotificationManager):
 
     def process_item(self, segment):
         """Process a single segment notification."""
-        return self.process_segment({
+        validated_data = { #return self.process_segment({
             'process_id': segment.process_id,
             'image_id': segment.image_id,
             'inverse': segment.parameters.get('inverse')
-        })
+        } 
+        #)
 
-    def process_segment(self, segment_data):
-        """Process a segment notification through its stages."""
-        validated_data = self.validate_process_data(segment_data)
+    # def process_segment(self, segment_data):
+        # """Process a segment notification through its stages."""
+        # validated_data = self.validate_process_data(segment_data)
         process_id = validated_data['process_id']
         
         def execute_segment_process(session):

@@ -22,18 +22,18 @@ class SDXLNotificationManager(NotificationManager):
                 process = session.query(ProcessQueue).get(data['process_id'])
                 if process and process.parameters:
                     # Get parameters from process.parameters
-                    full_data = {
-                        'process_id': data['process_id'],
-                        'image_id': data['image_id'],
-                        'prompt': process.parameters.get('prompt'),
-                        'negative_prompt': process.parameters.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
-                        'seed': process.parameters.get('seed', None),  # Optional seed
-                        'strength': process.parameters.get('strength', 1.0),  # Default to 1.0
-                        'guidance_scale': process.parameters.get('guidance_scale', 7.5),  # Default to 7.5
-                        'LoRA': process.parameters.get('LoRA', None)
-                    }
+                    # full_data = {
+                    #     'process_id': data['process_id'],
+                    #     'image_id': data['image_id'],
+                    #     'prompt': process.parameters.get('prompt'),
+                    #     'negative_prompt': process.parameters.get('negative_prompt', 'ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves'),
+                    #     'seed': process.parameters.get('seed', None),  # Optional seed
+                    #     'strength': process.parameters.get('strength', 1.0),  # Default to 1.0
+                    #     'guidance_scale': process.parameters.get('guidance_scale', 7.5),  # Default to 7.5
+                    #     'LoRA': process.parameters.get('LoRA', None)
+                    # }
                     logging.info(f"Processing SDXL with parameters: {full_data}")
-                    return self.process_sdxl(full_data)
+                    return self.process_item()
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None
@@ -43,7 +43,7 @@ class SDXLNotificationManager(NotificationManager):
 
     def process_item(self, sdxl_request):
         """Process a single SDXL request."""
-        return self.process_sdxl({
+        validated_data = { #return self.process_sdxl({
             'process_id': sdxl_request.process_id,
             'image_id': sdxl_request.image_id,
             'prompt': sdxl_request.parameters.get('prompt'),
@@ -52,11 +52,12 @@ class SDXLNotificationManager(NotificationManager):
             'strength': sdxl_request.parameters.get('strength', 1.0),
             'guidance_scale': sdxl_request.parameters.get('guidance_scale', 7.5),
             'LoRA': sdxl_request.parameters.get('LoRA', None)
-        })
+        } 
+        #)
 
-    def process_sdxl(self, sdxl_data):
-        """Process an SDXL request."""
-        validated_data = self.validate_process_data(sdxl_data)
+    # def process_sdxl(self, sdxl_data):
+        # """Process an SDXL request."""
+        # validated_data = self.validate_process_data(sdxl_data)
         process_id = validated_data['process_id']
         
         def execute_sdxl_process(session):

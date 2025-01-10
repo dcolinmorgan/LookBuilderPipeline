@@ -25,15 +25,15 @@ class ResizeNotificationManager(NotificationManager):
                 process = session.query(ProcessQueue).get(data['process_id'])
                 if process and process.parameters:
                     # Merge the notification data with process parameters
-                    full_data = {
-                        'process_id': data['process_id'],
-                        'image_id': data['image_id'],
-                        'size': process.parameters.get('size'),
-                        'aspect_ratio': process.parameters.get('aspect_ratio', 1.0),
-                        'square': process.parameters.get('square', False)
-                    }
-                    logging.info(f"Processing resize with parameters: {full_data}")
-                    return self.process_resize(full_data)
+                    # full_data = {
+                    #     'process_id': data['process_id'],
+                    #     'image_id': data['image_id'],
+                    #     'size': process.parameters.get('size'),
+                    #     'aspect_ratio': process.parameters.get('aspect_ratio', 1.0),
+                    #     'square': process.parameters.get('square', False)
+                    # }
+                    logging.info(f"Processing resize with parameters: {size}")
+                    return self.process_item()
                 else:
                     logging.error(f"Process {data['process_id']} not found or has no parameters")
             return None
@@ -46,17 +46,15 @@ class ResizeNotificationManager(NotificationManager):
         if not resize.parameters or 'size' not in resize.parameters:
             raise ValueError("Process is missing required size parameter")
         
-        return self.process_resize({
+        # Create validated data from resize object
+        validated_data = {
             'process_id': resize.process_id,
             'image_id': resize.image_id,
             'size': resize.parameters.get('size'),
             'aspect_ratio': resize.parameters.get('aspect_ratio', 1.0),
             'square': resize.parameters.get('square', False)
-        })
-
-    def process_resize(self, resize_data):
-        """Process a resize notification through its stages."""
-        validated_data = self.validate_process_data(resize_data)
+        }
+        
         process_id = validated_data['process_id']
         
         def execute_resize_process(session):

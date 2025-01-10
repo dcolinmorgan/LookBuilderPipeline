@@ -1,0 +1,62 @@
+digraph G {
+    rankdir=LR;
+
+    // Image
+    Image -> get_db_manager;
+    Image -> get_by_id;
+    Image -> save;
+    Image -> update;
+    Image -> get_image_data;
+    Image -> store_image;
+
+    // ImageVariant (inherits from Image)
+    ImageVariant -> get_or_create_variant;
+    ImageVariant -> _create_variant_instance;
+    ImageVariant -> find_by_size;
+    ImageVariant -> get_all_variants;
+    ImageVariant -> process_image; // Inherited from Image
+
+    // Inheritance relationship
+    ImageVariant -> Image [style=dashed]; // Dashed line for inheritance
+
+    // SegmentVariant (inherits from ImageVariant)
+    SegmentVariant -> process_image;
+    SegmentVariant -> find_by_segment;
+
+    // Inheritance relationship
+    SegmentVariant -> ImageVariant [style=dashed]; // Dashed line for inheritance
+
+    // PoseVariant (inherits from ImageVariant)
+    PoseVariant -> process_image;
+    PoseVariant -> find_by_pose;
+
+    // Inheritance relationship
+    PoseVariant -> ImageVariant [style=dashed]; // Dashed line for inheritance
+
+    // SDXLVariant (inherits from ImageVariant)
+    SDXLVariant -> process_image;
+    SDXLVariant -> sdxl_parameters;
+
+    // Inheritance relationship
+    SDXLVariant -> ImageVariant [style=dashed]; // Dashed line for inheritance
+
+    // Function Calls
+    get_by_id -> get_db_manager;
+    save -> get_db_manager;
+    update -> get_db_manager;
+    get_image_data -> session_connection;
+    store_image -> session_connection;
+
+    get_or_create_variant -> session_query;
+    _create_variant_instance -> importlib_import_module;
+    _create_variant_instance -> source_image_store_image;
+
+    process_image -> source_image_get_image_data;
+    process_image -> segment_image; // SegmentVariant
+    process_image -> detect_pose; // PoseVariant
+    process_image -> ImageModelSDXL; // SDXLVariant
+
+    find_by_size -> session_query;
+    find_by_segment -> session_query;
+    find_by_pose -> session_query;
+}
