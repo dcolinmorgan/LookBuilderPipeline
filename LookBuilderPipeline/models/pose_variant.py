@@ -1,6 +1,6 @@
 from typing import Optional
 from .image_variant import ImageVariant
-from LookBuilderPipeline.pose import detect_pose
+from LookBuilderPipeline.pose import PoseDetector
 from LookBuilderPipeline.models.image import Image
 import logging
 import io
@@ -46,10 +46,15 @@ class PoseVariant(ImageVariant):
             image_data = self.source_image.get_image_data(session)
             if not image_data:
                 raise ValueError("No source image data found")
-
-            # Create image model and get pose
-            pose_image = detect_pose(image_data, face=self.pose_parameters.get('face'))
             
+            # Initialize detector once
+            detector = PoseDetector()
+            
+            # Use the detector instance
+            pose_image = detector.detect_pose(
+                self.source_image.get_image_data(session),
+                face=self.parameters.get('face', True)
+            )
             return pose_image
             
         except Exception as e:

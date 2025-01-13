@@ -8,48 +8,44 @@ import io
 
 from .DWPose.src.dwpose import DwposeDetector
 
-model = DwposeDetector.from_pretrained_default()
-
-def blockPrint():
-    sys.stdout = open(os.devnull, 'w')
-blockPrint()
-
-def detect_pose(image_path, face=True):
-    """
-    Function for detecting the pose in an image.
+class PoseDetector:
+    def __init__(self):
+        self.model = DwposeDetector.from_pretrained_default()
+        self._setup_device()
+        self._block_print()
     
-    Args:
-        image_path (str): Path to the input image.
-        face (bool): Whether to include the face in the pose detection.
-    Returns:
-        PIL.Image: An image indicating the detected pose.
-    """
-    # Load the image from the specified path and convert it to RGB format
-    if isinstance(image_path,str):
-        image = load_image(image_path).convert("RGB")
-    elif isinstance(image_path,bytes):
-        image = Image.open(io.BytesIO(image_path)).convert("RGB")
-    else:
-        image=image_path
-
-    # Determine the device to use: CUDA, MPS, or CPU
-    if torch.backends.mps.is_available():
-        device = torch.device('mps')  # Use MPS if available
-    elif torch.cuda.is_available():
-        device = torch.device('cuda')  # Use CUDA if available
-    else:
-        device = torch.device('cpu')
-    # Use the OpenPose detector to detect the pose in the image
-
-    pose_img,j,source = model(image,
-        include_hand=True,
-        include_face=face,
-        include_body=True,
-        include_foot=True,
-        image_and_json=True,
-        detect_resolution=512,
-        device=device)
+    def _setup_device(self):
+        if torch.backends.mps.is_available():
+            self.device = torch.device('mps')
+        elif torch.cuda.is_available():
+            self.device = torch.device('cuda')
+        else:
+            self.device = torch.device('cpu')
     
-
-    # Return the image with the detected pose
-    return pose_img
+    def _block_print(self):
+        sys.stdout = open(os.devnull, 'w')
+    
+    def detect_pose(self, image_path, face=True):
+        """Process image and detect pose."""
+        image = self._load_image(image_path)
+        return self._process_pose(image, face)
+    
+    def _load_image(self, image_path):
+        if isinstance(image_path, str):
+            return load_image(image_path).convert("RGB")
+        elif isinstance(image_path, bytes):
+            return Image.open(io.BytesIO(image_path)).convert("RGB")
+        return image_path
+    
+    def _process_pose(self, image, face):
+        pose_img, _, _ = self.model(
+            image,
+            include_hand=True,
+            include_face=face,
+            include_body=True,
+            include_foot=True,
+            image_and_json=True,
+            detect_resolution=512,
+            device=self.device
+        )
+        return pose_img
