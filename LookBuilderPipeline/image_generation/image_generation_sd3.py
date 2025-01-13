@@ -9,17 +9,17 @@ from transformers import pipeline
 import torch.nn as nn
 from compel import Compel, ReturnedEmbeddingsType
 import glob
-from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
+from LookBuilderPipeline.image_generation.base_image_generation import BaseImageGeneration
 from LookBuilderPipeline.resize import resize_images
 from LookBuilderPipeline.annotate import annotate_images, image_blip, image_llava
-from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
+from LookBuilderPipeline.image_generation.image_generation_fl2 import ImageGenerationFlux
 from dotenv import load_dotenv
 load_dotenv()
 
 from diffusers.pipelines import StableDiffusion3ControlNetInpaintingPipeline
 from diffusers.models import SD3ControlNetModel, SD3MultiControlNetModel
 
-class ImageModelSD3(BaseImageModel):
+class ImageGenerationSD3(BaseImageGeneration):
     def __init__(self, image, pose, mask, prompt, *args, **kwargs):
         # Initialize the SD3 image model
         super().__init__(image, pose, mask, prompt)
@@ -148,7 +148,7 @@ class ImageModelSD3(BaseImageModel):
         self.annot='llava: not yet. blip2:not yet either. desc:'+annotate_images(image_res)
 
         
-        ImageModelSD3.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res,image_res2], output_path=save_path2)
+        ImageGenerationSD3.showImagesHorizontally(self,list_of_files=[self.sm_image,self.sm_pose_image,self.sm_mask,image_res,image_res2], output_path=save_path2)
 
         return image_res, save_path1
     
@@ -174,7 +174,7 @@ class ImageModelSD3(BaseImageModel):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run ImageModelSD3")
+    parser = argparse.ArgumentParser(description="Run ImageGenerationSD3")
     parser.add_argument("--image_path", required=True, help="Path to the input image")
     parser.add_argument("--pose_path", default=None, help="Path to the pose image")
     parser.add_argument("--mask_path", default=None, help="Path to the mask image")
@@ -191,9 +191,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # # Example usage of the ImageModelSD3 class with command-line arguments
+    # # Example usage of the ImageGenerationSD3 class with command-line arguments
 
-    image_model = ImageModelSD3(
+    image_model = ImageGenerationSD3(
         args.image_path, 
         args.pose_path, 
         args.mask_path, 

@@ -3,7 +3,7 @@ import logging
 import torch
 from diffusers.utils import load_image
 from LookBuilderPipeline.segment import segment_image
-from LookBuilderPipeline.pose import detect_pose
+from LookBuilderPipeline.pose import PoseDetector
 from LookBuilderPipeline.utils.resize import resize_images
 from PIL import Image, ImageOps
 from matplotlib.pyplot import figure, imshow, axis
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.text as mtext
 import textwrap
 import io
-class BaseImageModel:
+class BaseImageGeneration:
     def __init__(self, image, pose=None, mask=None, outfit=None, **kwargs):
         """
         Initialize the image model with common inputs.
@@ -43,7 +43,8 @@ class BaseImageModel:
         self.image=image.copy()
         
         if pose is None:
-            self.original_pose = detect_pose(image_path=image)
+            pose_detector = PoseDetector()
+            self.original_pose = pose_detector.detect_pose(image_path=image)
         else:
             self.original_pose = pose
         if mask is None:
@@ -71,13 +72,13 @@ class BaseImageModel:
         self.control_guidance_end=kwargs.get('control_guidance_end', 1)
         self.lora_weight=kwargs.get('lora_weight', 1.0)
         self.device = device
-        logging.info(f"BaseImageModel initialized")
+        logging.info(f"BaseImageGeneration initialized")
         
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run BaseImageModel")
+    parser = argparse.ArgumentParser(description="Run BaseImageGeneration")
     parser.add_argument("--image_path", required=True, help="Path to the input image")
     args = parser.parse_args()
-    image_model = BaseImageModel(
+    image_model = BaseImageGeneration(
             args.image_path)

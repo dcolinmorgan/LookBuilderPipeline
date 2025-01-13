@@ -10,26 +10,26 @@ from transformers import pipeline
 import torch.nn as nn
 from compel import Compel, ReturnedEmbeddingsType
 import glob
-from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
+from LookBuilderPipeline.image_generation.base_image_generation import BaseImageGeneration
 from LookBuilderPipeline.utils.resize import resize_images
 from LookBuilderPipeline.annotate import annotate_images, image_blip, image_llava
-from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
+from LookBuilderPipeline.image_generation.image_generation_fl2 import ImageGenerationFlux
 from PIL import Image
 import io
 # Import required components from diffusers
 from diffusers import StableDiffusionXLControlNetInpaintPipeline, ControlNetModel, DDIMScheduler
 
-class ImageModelSDXL(BaseImageModel):
+class ImageGenerationSDXL(BaseImageGeneration):
     def __init__(self, image, **kwargs):
         # Initialize the SDXL image model if not yet initialized
         super().__init__(image, **kwargs)
 
-        # Set default values not used in prepared by base_image_model.py
+        # Set default values not used in prepared by base_image_generation.py
 
         self.negative_prompt = kwargs.get('negative_prompt', "extra clothes, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, leggings, tights, sunglasses, stockings, pants, sleeves")
 
 
-    def prepare_model(self):
+    # def prepare_model(self):
         """
         Prepare model to generate a new image using the diffusion model.
         """
@@ -169,11 +169,11 @@ class ImageModelSDXL(BaseImageModel):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run ImageModelSDXL")
+    parser = argparse.ArgumentParser(description="Run ImageGenerationSDXL")
     parser.add_argument("--negative_prompt", default="dress, robe, clothing, flowing fabric, ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, sunglasses, stockings, pants, sleeves", help="Negative prompt")
     args = parser.parse_args()
 
-    image_model = ImageModelSDXL(
+    image_model = ImageGenerationSDXL(
         args.image_path, 
     )
 

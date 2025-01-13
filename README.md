@@ -56,12 +56,12 @@ python -m pytest
 ## Running the pipeline in python (ipynb)
 
 ```python
-# from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
-from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
+# from LookBuilderPipeline.image_models.image_model_sdxl import ImageGenerationSDXL
+from LookBuilderPipeline.image_models.image_generation_fl2 import ImageGenerationFlux
 
 
 # Initialize the model
-model = ImageModelFlux(
+model = ImageGenerationFlux(
     image="path/to/original_image.jpg",
     pose="path/to/pose_image.jpg",
     mask="path/to/mask_image.png",
@@ -97,7 +97,7 @@ print('orignal mask coverage to new mask is:',np.array(re_mask).shape==mask_arra
 ## ~~Running the pipeline via RESTFUL API~~ (deprecated)
 this needs to be run from the root of the repo
 ```bash
-python3 base_image_model_api.py  
+python3 base_image_generation_api.py  
 ```
 ```bash
    curl -X POST \

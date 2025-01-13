@@ -6,7 +6,7 @@ import numpy as np
 from diffusers.utils import load_image
 from transformers import pipeline 
 import torch.nn as nn
-from LookBuilderPipeline.image_models.base_image_model import BaseImageModel
+from LookBuilderPipeline.image_generation.base_image_generation import BaseImageGeneration
 from LookBuilderPipeline.utils.resize import resize_images
 from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
 
@@ -15,12 +15,12 @@ from diffusers import FluxControlNetInpaintPipeline, FluxImg2ImgPipeline, FluxTr
 from diffusers.models.controlnet_flux import FluxControlNetModel
 
 
-class ImageModelFlux(BaseImageModel):
+class ImageGenerationFlux(BaseImageGeneration):
     def __init__(self, image, **kwargs):
         # Initialize the FLUX image model
         super().__init__(image, **kwargs)
 
-        # Set default values not used in prepared by base_image_model.py
+        # Set default values not used in prepared by base_image_generation.py
         self.model = kwargs.get('model', 'schnell')
         self.quantize = kwargs.get('quantize', True)
         self.res = kwargs.get('res', 1024)
@@ -29,7 +29,7 @@ class ImageModelFlux(BaseImageModel):
         # self.prompt_embeds, self.pooled_prompt_embeds = get_weighted_text_embeddings_flux1(pipe=self.flux_pipe, prompt=self.prompt)
     
 
-    def prepare_inpaint_model(self):
+    # def prepare_inpaint_model(self):
         """
         Load the FLUX model and controlnet.
         """
@@ -40,7 +40,7 @@ class ImageModelFlux(BaseImageModel):
     "InstantX/FLUX.1-dev-Controlnet-Union", torch_dtype=torch.bfloat16
 )
 
-        transformer=ImageModelFlux.prepare_quant_model(self)  # quant or not
+        transformer=ImageGenerationFlux.prepare_quant_model(self)  # quant or not
         self.flux_pipe = FluxControlNetInpaintPipeline.from_pretrained(
             base_model,
             controlnet=controlnet,
@@ -55,7 +55,7 @@ class ImageModelFlux(BaseImageModel):
         # Set up the pipeline
         base_model = 'black-forest-labs/FLUX.1-schnell'
 
-        transformer= ImageModelFlux.prepare_quant_model(self)  # quant or not
+        transformer= ImageGenerationFlux.prepare_quant_model(self)  # quant or not
 
         self.flux_pipe = FluxImg2ImgPipeline.from_pretrained(
             base_model,
@@ -70,7 +70,7 @@ class ImageModelFlux(BaseImageModel):
         "jasperai/Flux.1-dev-Controlnet-Upscaler",
         torch_dtype=torch.bfloat16
         )
-        transformer=ImageModelFlux.prepare_quant_model(self)  # quant or not
+        transformer=ImageGenerationFlux.prepare_quant_model(self)  # quant or not
         self.flux_pipe = FluxControlNetPipeline.from_pretrained(base_model,
             controlnet=controlnet2, 
             transformer = transformer,
@@ -157,7 +157,7 @@ class ImageModelFlux(BaseImageModel):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run ImageModelFLUX")
+    parser = argparse.ArgumentParser(description="Run ImageGenerationFLUX")
     parser.add_argument("--image_path", required=True, help="Path to the input image")
     parser.add_argument("--model", type=str, default='schnell', help="Model to use")
     parser.add_argument("--quantize", type=bool, default=True, help="Quantization to use")
@@ -167,16 +167,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Example usage of the ImageModelFLUX class with command-line arguments
+    # Example usage of the ImageGenerationFLUX class with command-line arguments
 
-    image_model = ImageModelFlux(
+    image_model = ImageGenerationFlux(
         args.image_path, 
-
+        
     )
     
-    if args.quantize==None:
-        image_model.prepare_model()
-    else:
+    if args.quantize:
         image_model.prepare_quant_model()
     if args.benchmark==None:
         generated_image, generated_image_path = image_model.generate_image()

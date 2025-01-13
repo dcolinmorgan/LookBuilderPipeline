@@ -98,14 +98,14 @@ class ImageVariant(Base):
             from .pose_variant import PoseVariant
             from .segment_variant import SegmentVariant
             # from .outfit_variant import OutfitVariant  # placeholders until we implement outfit variants
-            from .sdxl_variant import SDXLVariant
+            from .image_gen_variant import ImageGenVariant
             # from .flux_variant import FluxVariant  # placeholders until we implement flux variants
             # Get the variant class from the registry
             variant_classes = {
                 'pose': PoseVariant.variant_class,
                 'segment': SegmentVariant.variant_class,
                 # 'outfit': OutfitVariant.variant_class,
-                'sdxl': SDXLVariant.variant_class,
+                'image_gen': ImageGenVariant.variant_class,
                 # 'flux': FluxVariant.variant_class,
             }
 

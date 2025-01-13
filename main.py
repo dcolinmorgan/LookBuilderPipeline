@@ -7,7 +7,7 @@ from LookBuilderPipeline.manager.ping_notification_manager import PingNotificati
 from LookBuilderPipeline.manager.resize_notification_manager import ResizeNotificationManager
 from LookBuilderPipeline.manager.segment_notification_manager import SegmentNotificationManager
 from LookBuilderPipeline.manager.pose_notification_manager import PoseNotificationManager
-from LookBuilderPipeline.manager.sdxl_notification_manager import SDXLNotificationManager
+from LookBuilderPipeline.manager.gen_notification_manager import GenNotificationManager
 
 logging.basicConfig(level=logging.INFO)
 
@@ -28,7 +28,7 @@ def run_listener(mode):
         'resize': ResizeNotificationManager,
         'segment': SegmentNotificationManager,
         'pose': PoseNotificationManager,
-        'sdxl': SDXLNotificationManager
+        'image_gen': GenNotificationManager
     }
     
     nm = managers[mode]()
@@ -46,7 +46,7 @@ def main():
     parser = argparse.ArgumentParser(description='LookBuilder Pipeline')
     parser.add_argument(
         '--mode', 
-        choices=['ping', 'resize', 'segment', 'pose', 'sdxl'],
+        choices=['ping', 'resize', 'segment', 'pose', 'image_gen'],
         required=True,
         help='Mode to run the application in'
     )
