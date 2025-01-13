@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 import unittest
-from LookBuilderPipeline.manager.sdxl_notification_manager import SDXLNotificationManager
+from LookBuilderPipeline.manager.gen_notification_manager import SDXLNotificationManager
 from LookBuilderPipeline.models.process_queue import ProcessQueue
 from LookBuilderPipeline.models.image import Image
 from LookBuilderPipeline.models.image_variant import ImageVariant

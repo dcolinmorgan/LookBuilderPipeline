@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL  # tricky to test on github without GPU runner
+from LookBuilderPipeline.image_generation.image_model_sdxl import ImageGenerationSDXL  # tricky to test on github without GPU runner
 
 
 if __name__ == "__main__":

@@ -62,7 +62,7 @@ config = {
     'development': DevelopmentConfig,
     'alpha': AlphaConfig,
     'production': ProductionConfig,
-    'default': AlphaConfig
+    'default': DevelopmentConfig
 }
 
 def get_config():
