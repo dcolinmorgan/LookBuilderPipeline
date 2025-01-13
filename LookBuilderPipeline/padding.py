@@ -1,5 +1,7 @@
+## deprecated since resize function now also pads the image to the nearest divisible by 8
+
 from diffusers.utils import load_image  # For loading images
-from .resize import resize_images
+from .utils.resize import resize_images
 from PIL import Image  # Importing PIL for image manipulation
 
 def pad_image(image_path, resize=False, size=(512, 512)):
@@ -14,7 +16,10 @@ def pad_image(image_path, resize=False, size=(512, 512)):
         PIL.Image: The padded image.
     """
     # Load the image from the specified path and convert it to RGB format
-    image = load_image(image_path).convert("RGB")
+    if isinstance(image_path,str):
+        image = load_image(image_path).convert("RGB")
+    else:
+        image=image_path
     
     # Calculate the size of the padding needed
     max_size = max(image.size)

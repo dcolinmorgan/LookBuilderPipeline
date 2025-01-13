@@ -3,22 +3,48 @@
 ## Installation
 
 ```bash
-pip install -r requirements.txt
-pip install -e .
+export GH_PAT= ## from doppler secrets
+git clone -b refactor/sdxl_variant https://${GH_PAT}@github.com/Modegen/LookBuilderPipeline.git
+# may need this next step on some INTEL machines
+# apt-get update && apt-get install -y libgl1 ## should run automatically in install step
+pip install -e LookBuilderPipeline/.
 ```
-## Model Setup
-install will run the following commands:
+## parameters & their affect on generation:
+
+  - `control_mode=4`,  this dictates `openpose` 
+  - `controlnet_conditioning_scale=1.0`
+    - 0.2 to 0.4 seem ok -- lower for better outpainting, raise if limbs are off the **pose** image
+  - `strength=1.0` strength of **mask** on generation
+    - this is good for most images -- can override mask/pose if too high (0.95), generate cartoon if too low (0.85) \
+    - can be lower based on image, 0.7 works for some images
+  - `num_inference_steps=28`
+    - 20-40 this is good for most images, sometimes more is needed for more detail
+  - `guidance_scale=7.5` **prompt**
+    - 5 is good for most images, lower for more creative results
+
+# SDXL
+### One can run the pipeline with a single input image and a prompt. Mask and pose are optional they will be generated if not provided.
+```bash
+python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
+--image_path=LookBuilderPipeline/img/p09.jpg \
+--prompt='a photo realistic image of a fashion model on a beach'
+```
+# SDXL BENCHMARK
+### will run through all images in test-ai/upscaled/ and use the default parameters, unless user specifies, +/- 0.1
 
 ```bash
-git clone https://${GH_PAT}@github.com/Modegen/flux-controlnet-inpaint.git
-git clone https://${GH_PAT}@github.com/Modegen/ControlNetPlus.git
+python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
+--image_path=test-ai/bench/* \
+--prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark, rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
+--benchmark='True'
 ```
-
-- diffusers will download `controlnet-union-sdxl-1.0-promax` for sdxl pipeline. However, the user needs to `controlnet-union-sdxl-1.0` and rename the folder to `controlnet-union-sdxl-1.0-promax`
-
-- critical to add paths to these repos to the sys.path in the image model classes via the `external_deps` folder made via the [setup.sh](./setup.sh) script:
-```python
-sys.path += ['external_deps/ControlNetPlus','external_deps/flux-controlnet-inpaint/src']
+### with LoRA
+```bash
+python3 LookBuilderPipeline/LookBuilderPipeline/image_models/image_model_sdxl.py \
+--image_path=shootjpglow-sorted/referance_images/* \
+--prompt="A supermodel sits elegantly on Luxury hotel pool side with palms at night, skin reflects hotel in the desert surrounded by dark rugged terrain and towering volcanic peaks. She wears high-fashion clothing, contrasting with the dramatic landscape. Her hair flows gently in the wind as she gazes into the distance, under a moody sky with soft light breaking through the clouds. The scene blends natural beauty with modern glamour, highlighting the model against the striking volcanic background." \
+--benchmark='True' \
+--LoRA='True'
 ```
 
 ## Running the tests
@@ -27,35 +53,51 @@ sys.path += ['external_deps/ControlNetPlus','external_deps/flux-controlnet-inpai
 python -m pytest
 ```
 
-## Running the pipeline
+## Running the pipeline in python (ipynb)
 
 ```python
-from LookBuilderPipeline.image_models.image_model_sdxl import ImageModelSDXL
-# or from LookBuilderPipeline.image_models.image_model_fl2 import ImageModelFlux
+# from LookBuilderPipeline.image_models.image_model_sdxl import ImageGenerationSDXL
+from LookBuilderPipeline.image_models.image_generation_fl2 import ImageGenerationFlux
 
-def run_pipeline():
-    # Initialize the model
-    model = ImageModelSDXL(
-        pose="path/to/pose_image.jpg",
-        mask="path/to/mask_image.png",
-        prompt="Your text prompt here"
-    )
-    
-    # Generate the image
-    generated_image = model.generate_image()
-    
-    # Save or display the generated image
-    generated_image.save("output_image.png")
-    generated_image.show()
 
-if __name__ == "__main__":
-    run_pipeline()
+# Initialize the model
+model = ImageGenerationFlux(
+    image="path/to/original_image.jpg",
+    pose="path/to/pose_image.jpg",
+    mask="path/to/mask_image.png",
+    prompt="Your text prompt here"
+)
+
+# Generate the image
+model.load_image()
+model.load_model()
+generated_image = model.run_model()
+
+# Save or display the generated image
+generated_image.save("generated_output_image.png")
+generated_image.show()
+
 ```
 
-## Running the pipeline via API (marked for deletion)
+## Evaluate the pipeline
+
+```python
+from .LookBuilderPipeline.resize import resize_images
+from .LookBuilderPipeline.segment import segment_image
+
+mask,mask_image,mask_array = segment_image('generated_output_image.png',inverse=True,additional_option='shoe')
+re_mask=resize_images(mask_image,mask_image.size,aspect_ratio=mask_image.size[0]/mask_image.size[1])
+
+print('mask shape is same:',np.array(re_mask).shape==mask_array.shape)
+cov=(np.sum(np.array(re_mask)==mask_array))/np.array(re_mask).size
+print('orignal mask coverage to new mask is:',np.array(re_mask).shape==mask_array.shape)
+
+```
+
+## ~~Running the pipeline via RESTFUL API~~ (deprecated)
 this needs to be run from the root of the repo
 ```bash
-python3 base_image_model_api.py  # not pushed -- delete? 
+python3 base_image_generation_api.py  
 ```
 ```bash
    curl -X POST \
@@ -67,3 +109,13 @@ python3 base_image_model_api.py  # not pushed -- delete?
      http://localhost:5005/generate_image
 ```
 
+## comms with DB
+
+```bash
+source ./env
+export FLASK_ENV='alpha'
+history|grep psql
+psql ${DB_NAME}
+select * from process_queue where id = 1
+
+```

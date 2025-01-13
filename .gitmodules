@@ -1,0 +1,3 @@
+[submodule "LookBuilderPipeline/DWPose"]
+	path = LookBuilderPipeline/DWPose
+	url = https://github.com/Modegen/DWPose.git
